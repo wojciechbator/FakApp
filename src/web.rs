@@ -183,7 +183,6 @@ fn project(shared: &MonitorState, config: &crate::Config) -> Vec<TargetView> {
 
 fn render(shared: &MonitorState, config: &crate::Config) -> String {
     let targets = project(shared, config);
-    let down_count = targets.iter().filter(|t| !t.healthy).count();
 
     // A freshly started watchdog has every target in `unknown` until its
     // first probes land; that is starting up, not an outage.
