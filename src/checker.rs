@@ -93,7 +93,12 @@ impl Checker {
             self.target_id,
             rfc3339_now(),
         );
-        let title = self.config.alert_title.clone();
+        // Red channels keep the alarm header; the all-clear gets its own
+        // friendlier one. Both are operator-owned config.
+        let title = match outcome {
+            Outcome::Recovered => self.config.recovery_title.clone(),
+            _ => self.config.alert_title.clone(),
+        };
 
         if let Some(discord_config) = self.config.discord() {
             if let Err(error) = discord::send(

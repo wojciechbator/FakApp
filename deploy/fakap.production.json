@@ -3,6 +3,7 @@
   "state_file": "/var/lib/fakap/state.json",
   "interval_secs": 30,
   "alert_title": "Ups, FAKAP!",
+  "recovery_title": "Nie ma fakapu",
   "discord": {},
   "targets": [
     {

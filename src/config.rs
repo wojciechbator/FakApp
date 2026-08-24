@@ -26,6 +26,9 @@ pub struct Config {
     /// Header on every alert ("Ups, FAKAP!"). The tool manager owns the tone.
     #[serde(default = "default_alert_title")]
     pub alert_title: String,
+    /// Header on the all-clear ("Nie ma fakapu").
+    #[serde(default = "default_recovery_title")]
+    pub recovery_title: String,
     #[serde(default)]
     pub smtp: Option<Smtp>,
     /// Present (even empty) means Discord alerts are enabled; the webhook URL
@@ -92,6 +95,9 @@ fn default_interval() -> u64 {
 fn default_alert_title() -> String {
     "Ups, FAKAP!".to_owned()
 }
+fn default_recovery_title() -> String {
+    "Nie ma fakapu".to_owned()
+}
 fn default_smtp_port() -> u16 {
     587
 }
@@ -128,6 +134,10 @@ impl Config {
         anyhow::ensure!(
             !config.alert_title.trim().is_empty() && config.alert_title.len() <= 128,
             "alert_title must be 1..=128 characters"
+        );
+        anyhow::ensure!(
+            !config.recovery_title.trim().is_empty() && config.recovery_title.len() <= 128,
+            "recovery_title must be 1..=128 characters"
         );
         // A watchdog with no way to speak is decorative; at least one
         // channel (Discord or SMTP) must be configured.
@@ -258,6 +268,7 @@ mod tests {
         assert_eq!(config.targets[0].expect, vec![200]);
         assert_eq!(config.targets[0].failures_to_down, 3);
         assert_eq!(config.alert_title, "Ups, FAKAP!");
+        assert_eq!(config.recovery_title, "Nie ma fakapu");
         assert_eq!(config.discord().unwrap().webhook_url, WEBHOOK);
 
         // The alert header belongs to the tool manager.
