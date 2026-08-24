@@ -52,7 +52,7 @@ if [[ "${1:-deploy}" == "rollback" ]]; then
   exit 0
 fi
 
-require docker
+require cargo-zigbuild
 [[ "$ALLOW_DIRTY" == "1" ]] || {
   [[ -z "$(git status --porcelain --untracked-files=normal)" ]] \
     || fail 'local worktree must be clean (or set FAKAP_DEPLOY_ALLOW_DIRTY=1)'
@@ -60,13 +60,16 @@ require docker
 remote 'true' || fail "ssh host $REMOTE unreachable"
 
 build_static() {
-  step "Building static musl binary in Alpine container (linux/amd64)"
+  # Native cross-compile with zig as the musl linker: no emulation, no docker
+  # requirement, fully static output for the tiny oracle box.
+  step "Cross-compiling static musl binary (x86_64-unknown-linux-musl)"
+  require cargo-zigbuild
   mkdir -p "$STAGING"
-  docker run --rm --platform linux/amd64 \
-    -v "$ROOT_DIR":/io -w /io \
-    -e CARGO_TARGET_DIR=/io/target-musl \
-    rust:1-alpine \
-    sh -c 'RUSTFLAGS="-C target-feature=+crt-static" cargo build --release --locked && cp target-musl/release/fakap /io/dist-staging/fakap-linux-amd64'
+  RUSTFLAGS="-C target-feature=+crt-static" \
+    cargo zigbuild --locked --release \
+    --target x86_64-unknown-linux-musl \
+    --target-dir "$ROOT_DIR/target-musl"
+  cp "$ROOT_DIR/target-musl/x86_64-unknown-linux-musl/release/fakap" "$BINARY"
   [[ -f "$BINARY" ]] || fail "static build produced no binary"
   file "$BINARY" | grep -q 'statically linked' \
     || fail "binary is not fully static: $(file "$BINARY")"
