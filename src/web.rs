@@ -185,11 +185,12 @@ fn render(shared: &MonitorState, config: &crate::Config) -> String {
     let targets = project(shared, config);
     let down_count = targets.iter().filter(|t| !t.healthy).count();
 
+    // A freshly started watchdog has every target in `unknown` until its
+    // first probes land; that is starting up, not an outage.
+    let down_count = targets.iter().filter(|t| t.status == "down").count();
     let banner = if targets.is_empty() {
         ("NO TARGETS CONFIGURED", "banner-warn")
-    } else if down_count == 0 {
-        ("ALL SYSTEMS GO", "banner-ok")
-    } else {
+    } else if down_count > 0 {
         (
             if down_count == 1 {
                 "1 SERVICE DOWN"
@@ -198,6 +199,10 @@ fn render(shared: &MonitorState, config: &crate::Config) -> String {
             },
             "banner-bad",
         )
+    } else if targets.iter().any(|t| t.status == "unknown") {
+        ("STARTING UP — FIRST PROBES IN FLIGHT", "banner-warn")
+    } else {
+        ("ALL SYSTEMS GO", "banner-ok")
     };
 
     let cards = targets
