@@ -1,0 +1,29 @@
+[Unit]
+Description=FAKAP service watchdog
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=fakap
+Group=fakap
+# StateDirectory keeps /var/lib/fakap owned by the service user.
+StateDirectory=fakap
+Environment=FAKAP_CONFIG=/etc/fakap/fakap.json
+# Secrets live here: FAKAP_DISCORD_WEBHOOK_URL (and FAKAP_SMTP_PASSWORD if
+# the smtp notifier is configured). Missing file = config load fails loudly
+# instead of a watchdog that cannot alert.
+EnvironmentFile=/etc/fakap/fakap.env
+ExecStart=/usr/local/bin/fakap
+Restart=always
+RestartSec=5
+# A watchdog must be harder to kill than the things it watches.
+Nice=-5
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/var/lib/fakap
+
+[Install]
+WantedBy=multi-user.target

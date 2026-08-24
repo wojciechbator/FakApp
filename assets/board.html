@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FAKAP &#183; service watchdog</title>
+<meta name="description" content="FakApp watchdog board: live up/down status, latency and history for monitored virya services.">
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<main class="page">
+  <header class="board-head">
+    <div class="brand">
+      <img class="brand-mark" src="/logo.svg" alt="" width="38" height="38">
+      <div>
+        <strong>FAKAP</strong>
+        <small>service watchdog</small>
+      </div>
+    </div>
+    <p class="banner {banner_class}" role="status">{banner_text}</p>
+    <p class="generated">snapshot generated {generated}</p>
+  </header>
+
+  <section class="boards" aria-label="Monitored services">
+{cards}
+  </section>
+
+  <footer class="board-foot">
+    <p>Probes run on a fixed interval; alerts go out by email on every state change and as periodic reminders while anything is down.</p>
+    <p><a href="/llms.txt">llms.txt</a></p>
+  </footer>
+</main>
+</body>
+</html>

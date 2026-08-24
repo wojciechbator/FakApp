@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="FAKAP">
+  <!--
+    FAKAP logo — the bomb with a heartbeat for a spark.
+    Body: near-black sphere with a green rim light (board accent #39ff6a).
+    Spark: an ECG pulse instead of a burst — we watch the explosion happen,
+    page you before it lands, and stay calm while doing it.
+  -->
+  <defs>
+    <radialGradient id="shell" cx="35%" cy="30%" r="75%">
+      <stop offset="0%" stop-color="#18251d"/>
+      <stop offset="55%" stop-color="#0b100d"/>
+      <stop offset="100%" stop-color="#040706"/>
+    </radialGradient>
+    <linearGradient id="cap" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#24352a"/>
+      <stop offset="100%" stop-color="#122019"/>
+    </linearGradient>
+  </defs>
+
+  <!-- fuse -->
+  <path d="M31 12 C 33 6.5, 37.5 5.5, 40.5 7.5"
+        fill="none" stroke="#8fa294" stroke-width="2.4" stroke-linecap="round"/>
+
+  <!-- the spark: an ECG pulse, not an explosion -->
+  <path d="M40.5 7.5 h3.2 l1.8 -4.6 2.4 9.2 2.0 -6.0 1.8 2.9 h3.6"
+        fill="none" stroke="#39ff6a" stroke-width="2.2"
+        stroke-linecap="round" stroke-linejoin="round"/>
+
+  <!-- cap / neck -->
+  <rect x="25.5" y="10" width="11" height="8.5" rx="2.2"
+        fill="url(#cap)" stroke="#39ff6a" stroke-opacity=".5" stroke-width="1"/>
+
+  <!-- shell -->
+  <circle cx="32" cy="38.5" r="20.5" fill="url(#shell)"
+          stroke="#39ff6a" stroke-opacity=".55" stroke-width="1.4"/>
+  <!-- rim light, upper left -->
+  <path d="M17.2 30.4 A 18 18 0 0 1 27.5 20.4"
+        fill="none" stroke="#bfffdb" stroke-opacity=".28"
+        stroke-width="2.2" stroke-linecap="round"/>
+  <!-- timer dot: the one number we trust -->
+  <circle cx="32" cy="38.5" r="3.1" fill="#39ff6a"/>
+</svg>

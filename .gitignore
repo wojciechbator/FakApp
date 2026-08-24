@@ -1,0 +1,7 @@
+/target/
+/dist-staging/
+.env
+.env.*
+!.env.example
+.DS_Store
+*.tmp

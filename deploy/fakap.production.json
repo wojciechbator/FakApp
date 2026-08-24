@@ -1,0 +1,25 @@
+{
+  "listen": "127.0.0.1:8183",
+  "state_file": "/var/lib/fakap/state.json",
+  "interval_secs": 30,
+  "alert_title": "Ups, FAKAP!",
+  "discord": {},
+  "targets": [
+    {
+      "id": "crowdrelay-api",
+      "name": "CrowdRelay API (Signal)",
+      "url": "https://signal-api.virya.music/v1/health/ready",
+      "failures_to_down": 3,
+      "successes_to_up": 2,
+      "repeat_alert_minutes": 30
+    },
+    {
+      "id": "virya-site",
+      "name": "virya.music",
+      "url": "https://www.virya.music/",
+      "failures_to_down": 3,
+      "successes_to_up": 2,
+      "repeat_alert_minutes": 60
+    }
+  ]
+}

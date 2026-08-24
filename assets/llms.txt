@@ -1,0 +1,35 @@
+# FAKAP — service watchdog for the virya stack
+
+> FakApp is a small, single-binary watchdog that probes public health
+> endpoints of the virya production services and emails the crew when one
+> stops answering. This page is its read-only status board.
+
+## What this board shows
+
+- One card per monitored target: current state (up / down / unknown),
+  latest successful latency, uptime share over the retained probe history,
+  how long the target has been in its current state, and a strip of recent
+  probe outcomes.
+- A banner that reads ALL SYSTEMS GO only when every target is up.
+
+## How detection works
+
+- Each target is probed with HTTP GET on a fixed interval (default 30 s).
+- State changes need consecutive failures (default 3) or consecutive
+  successes (default 2), so a single blip is not an outage.
+- Every down-transition sends an email; while a target stays down, a
+  reminder is re-sent after a fixed quiet period. Recovery sends exactly one
+  all-clear.
+
+## Machine-readable metadata
+
+- `/llms.txt` — this file.
+- `/healthz` — plain-text liveness of the watchdog process itself.
+- `/style.css` — the board stylesheet.
+
+## Scope and authority
+
+FakApp observes; it never mutates anything it watches. It holds no
+credentials for the services it monitors and has no write path into them.
+Business truth stays in CrowdRelay; this tool answers exactly one question:
+"is it reachable right now?"

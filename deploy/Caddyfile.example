@@ -1,0 +1,29 @@
+# FakApp sits behind Caddy on fakap.virya.music. The app binds loopback only;
+# TLS, HTTP->HTTPS and caching are the edge's job. Basic auth is optional —
+# the board leaks nothing but reachability and latency — but cheap to enable.
+{
+	auto_https off
+	admin off
+}
+
+http://127.0.0.1:8085 {
+	# Turn on for a private board:
+	# basic_auth {
+	# 	crew <bcrypt-hash>
+	# }
+
+	header {
+		-Server
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "no-referrer"
+	}
+
+	handle /healthz {
+		reverse_proxy 127.0.0.1:8183
+	}
+
+	handle {
+		reverse_proxy 127.0.0.1:8183
+	}
+}

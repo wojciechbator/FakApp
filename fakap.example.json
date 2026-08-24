@@ -1,0 +1,21 @@
+{
+  "listen": "127.0.0.1:8183",
+  "state_file": "fakap-state.json",
+  "interval_secs": 30,
+  "alert_title": "Ups, FAKAP!",
+  "discord": {},
+  "smtp": {
+    "host": "smtp.example.net",
+    "port": 587,
+    "user": "fakap@example.net",
+    "from": "fakap@example.net",
+    "to": ["crew@example.net"]
+  },
+  "targets": [
+    {
+      "id": "example",
+      "name": "Example service",
+      "url": "https://example.com/healthz"
+    }
+  ]
+}
