@@ -1,6 +1,7 @@
 //! The probe loop. One task per target: probe, record, and — when the state
 //! machine says so — shout at the configured channels.
 
+use std::sync::Arc;
 use std::time::{Duration, SystemTime};
 
 use crate::Shared;
@@ -11,6 +12,10 @@ pub struct Checker {
     pub config: crate::Config,
     pub state: Shared,
     pub target_id: String,
+    /// Shared probe/alert client, built once at startup.
+    pub client: reqwest::Client,
+    /// Shared SMTP transport, built once at startup.
+    pub mailer: Option<Arc<crate::mailer::Mailer>>,
 }
 
 enum Probe {
@@ -24,25 +29,12 @@ impl Checker {
             return;
         };
         let interval = Duration::from_secs(self.config.interval_secs);
-        // One client for probes and alerts. A failed build means this checker
-        // cannot ever probe: log loudly and drop the task, never panic.
-        let client = match reqwest::Client::builder()
-            .timeout(Duration::from_secs(10))
-            .user_agent(concat!("fakap/", env!("CARGO_PKG_VERSION")))
-            .build()
-        {
-            Ok(client) => client,
-            Err(error) => {
-                tracing::error!(%error, target = %self.target_id, "probe client unavailable");
-                return;
-            }
-        };
         let mut ticker = tokio::time::interval(interval);
         ticker.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
 
         loop {
             ticker.tick().await;
-            let probe = probe(&client, &target.url, &target.expect).await;
+            let probe = probe(&self.client, &target.url, &target.expect).await;
             let outcome = {
                 let mut shared = self.state.lock().await;
                 let Some(mut monitor) = shared.monitor(&self.config, &self.target_id) else {
@@ -60,17 +52,26 @@ impl Checker {
                 shared.write_back(&self.target_id, &monitor);
                 outcome
             };
-            if !matches!(outcome, Outcome::Quiet) {
-                self.notify(&client, outcome).await;
+            if !matches!(outcome, Outcome::Quiet) && self.notify(outcome).await {
+                // The page actually went out: only now does the reminder
+                // clock start. A failed delivery leaves `last_alert` unset,
+                // so the next probe retries immediately instead of after the
+                // whole repeat window.
+                let mut shared = self.state.lock().await;
+                if let Some(mut monitor) = shared.monitor(&self.config, &self.target_id) {
+                    monitor.mark_alerted(SystemTime::now());
+                    shared.write_back(&self.target_id, &monitor);
+                }
             }
         }
     }
 
     /// Fans one alert out to every configured channel. A failing channel is
     /// logged and never blocks the other one — partial delivery beats none.
-    async fn notify(&self, client: &reqwest::Client, outcome: Outcome) {
+    /// Answers whether at least one channel got the message through.
+    async fn notify(&self, outcome: Outcome) -> bool {
         if matches!(outcome, Outcome::Quiet) {
-            return;
+            return false;
         }
         let target_name = self
             .config
@@ -100,9 +101,10 @@ impl Checker {
             _ => self.config.alert_title.clone(),
         };
 
+        let mut delivered = false;
         if let Some(discord_config) = self.config.discord() {
             if let Err(error) = discord::send(
-                client,
+                &self.client,
                 &discord_config.webhook_url,
                 &title,
                 &description,
@@ -112,21 +114,20 @@ impl Checker {
             {
                 tracing::warn!(%error, target = %self.target_id, "discord alert not delivered");
             } else {
+                delivered = true;
                 tracing::info!(target = %self.target_id, "discord alert sent");
             }
         }
 
-        if let Some(smtp) = self.config.mailer() {
-            match crate::mailer::Mailer::new(smtp) {
-                Ok(mailer) => {
-                    let subject = format!("{title} {target_name}");
-                    if let Err(error) = mailer.send(&subject, &description).await {
-                        tracing::warn!(%error, target = %self.target_id, "mail alert not delivered");
-                    }
-                }
-                Err(error) => tracing::error!(%error, "mail transport unavailable"),
+        if let Some(mailer) = &self.mailer {
+            let subject = format!("{title} {target_name}");
+            if let Err(error) = mailer.send(&subject, &description).await {
+                tracing::warn!(%error, target = %self.target_id, "mail alert not delivered");
+            } else {
+                delivered = true;
             }
         }
+        delivered
     }
 }
 
@@ -148,6 +149,8 @@ async fn probe(client: &reqwest::Client, url: &str, expect: &[u16]) -> Probe {
         .unwrap_or(0);
     let status = response.status().as_u16();
     if expect.contains(&status) {
+        // Drain the body so the connection returns to the pool instead of dying.
+        let _ = response.bytes().await;
         return Probe::Ok(latency);
     }
     // Drain the body so the connection returns to the pool instead of dying.

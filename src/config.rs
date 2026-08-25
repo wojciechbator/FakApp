@@ -11,6 +11,13 @@ const DISCORD_WEBHOOK_PREFIXES: [&str; 2] = [
     "https://discord.com/api/webhooks/",
     "https://discordapp.com/api/webhooks/",
 ];
+/// Upper bound on the probe interval (one hour). Keeps `repeat_alert_minutes
+/// * 60` arithmetic and forgotten configs sane.
+const MAX_INTERVAL_SECS: u64 = 3600;
+/// Upper bound on the reminder period (one year in minutes); with the floor
+/// of 1 this keeps `repeat_alert_minutes * 60` far from overflowing.
+const MAX_REPEAT_ALERT_MINUTES: u64 = 525_600;
+const MAX_TITLE_CHARS: usize = 128;
 
 #[derive(Clone, Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -132,12 +139,18 @@ impl Config {
             "interval_secs must be at least 5"
         );
         anyhow::ensure!(
-            !config.alert_title.trim().is_empty() && config.alert_title.len() <= 128,
-            "alert_title must be 1..=128 characters"
+            config.interval_secs <= MAX_INTERVAL_SECS,
+            "interval_secs must be at most {MAX_INTERVAL_SECS}"
         );
         anyhow::ensure!(
-            !config.recovery_title.trim().is_empty() && config.recovery_title.len() <= 128,
-            "recovery_title must be 1..=128 characters"
+            !config.alert_title.trim().is_empty()
+                && config.alert_title.chars().count() <= MAX_TITLE_CHARS,
+            "alert_title must be 1..={MAX_TITLE_CHARS} characters"
+        );
+        anyhow::ensure!(
+            !config.recovery_title.trim().is_empty()
+                && config.recovery_title.chars().count() <= MAX_TITLE_CHARS,
+            "recovery_title must be 1..={MAX_TITLE_CHARS} characters"
         );
         // A watchdog with no way to speak is decorative; at least one
         // channel (Discord or SMTP) must be configured.
@@ -228,6 +241,19 @@ fn validate_targets(targets: &[Target]) -> anyhow::Result<()> {
             "target {}: thresholds must be at least 1",
             target.id
         );
+        anyhow::ensure!(
+            target
+                .expect
+                .iter()
+                .all(|status| (100..=599).contains(status)),
+            "target {}: expect must list HTTP statuses 100-599",
+            target.id
+        );
+        anyhow::ensure!(
+            (1..=MAX_REPEAT_ALERT_MINUTES).contains(&target.repeat_alert_minutes),
+            "target {}: repeat_alert_minutes must be 1..={MAX_REPEAT_ALERT_MINUTES}",
+            target.id
+        );
     }
     Ok(())
 }
@@ -293,5 +319,25 @@ mod tests {
         assert!(parse(dup).is_err(), "duplicate ids refused");
         let bad_url = r#"{"discord":{},"targets":[{"id":"x","name":"x","url":"ftp://nope"}]}"#;
         assert!(parse(bad_url).is_err(), "non-http url refused");
+
+        let slow = r#"{"interval_secs":3601,"discord":{},"targets":[{"id":"a","name":"a","url":"https://a.example"}]}"#;
+        assert!(parse(slow).is_err(), "over-long interval refused");
+        let eager = r#"{"discord":{},"targets":[{"id":"a","name":"a","url":"https://a.example","repeat_alert_minutes":0}]}"#;
+        assert!(parse(eager).is_err(), "zero repeat window refused");
+        let absurd_repeat = r#"{"discord":{},"targets":[{"id":"a","name":"a","url":"https://a.example","repeat_alert_minutes":525601}]}"#;
+        assert!(
+            parse(absurd_repeat).is_err(),
+            "over-long repeat window refused"
+        );
+        let bad_status = r#"{"discord":{},"targets":[{"id":"a","name":"a","url":"https://a.example","expect":[200,999]}]}"#;
+        assert!(
+            parse(bad_status).is_err(),
+            "out-of-range expected status refused"
+        );
+        let low_status = r#"{"discord":{},"targets":[{"id":"a","name":"a","url":"https://a.example","expect":[42]}]}"#;
+        assert!(
+            parse(low_status).is_err(),
+            "sub-100 expected status refused"
+        );
     }
 }

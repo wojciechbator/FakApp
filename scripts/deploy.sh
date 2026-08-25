@@ -40,25 +40,6 @@ remote_root() {
   if [[ -n "$SUDO" ]]; then ssh "$REMOTE" "$SUDO" -n "$@"; else ssh "$REMOTE" "$@"; fi
 }
 
-cd "$ROOT_DIR"
-
-if [[ "${1:-deploy}" == "rollback" ]]; then
-  step "Rolling back fakap on $REMOTE"
-  remote_root 'test -f /usr/local/bin/fakap.previous' \
-    || fail "no previous binary on $REMOTE to roll back to"
-  remote_root 'cp /usr/local/bin/fakap.previous /usr/local/bin/fakap'
-  remote_root 'systemctl restart fakap'
-  verify
-  exit 0
-fi
-
-require cargo-zigbuild
-[[ "$ALLOW_DIRTY" == "1" ]] || {
-  [[ -z "$(git status --porcelain --untracked-files=normal)" ]] \
-    || fail 'local worktree must be clean (or set FAKAP_DEPLOY_ALLOW_DIRTY=1)'
-}
-remote 'true' || fail "ssh host $REMOTE unreachable"
-
 build_static() {
   # Native cross-compile with zig as the musl linker: no emulation, no docker
   # requirement, fully static output for the tiny oracle box.
@@ -74,6 +55,40 @@ build_static() {
   file "$BINARY" | grep -q 'statically linked' \
     || fail "binary is not fully static: $(file "$BINARY")"
 }
+
+verify() {
+  step "Verifying"
+  remote_root 'systemctl is-active --quiet fakap' \
+    || { remote_root 'journalctl -u fakap -n 20 --no-pager'; fail "fakap is not active"; }
+  remote 'curl -fsS http://127.0.0.1:8183/healthz' >/dev/null \
+    || fail "local healthz did not answer on $REMOTE"
+  local banner
+  banner="$(remote 'curl -fsS http://127.0.0.1:8183/' | grep -o 'ALL SYSTEMS GO\|SERVICE[S]* DOWN\|NO TARGETS CONFIGURED' | head -1)" || true
+  if curl -fsS --max-time 10 https://fakap.virya.music/healthz >/dev/null 2>&1; then
+    printf 'EDGE=https://fakap.virya.music/healthz OK\n'
+  else
+    printf 'EDGE=unreachable (check the edge proxy for fakap.virya.music)\n'
+  fi
+  printf 'DEPLOY=OK host=%s board=%s\n' "$REMOTE" "${banner:-unreadable}"
+}
+
+cd "$ROOT_DIR"
+
+if [[ "${1:-deploy}" == "rollback" ]]; then
+  step "Rolling back fakap on $REMOTE"
+  remote_root 'test -f /usr/local/bin/fakap.previous' \
+    || fail "no previous binary on $REMOTE to roll back to"
+  remote_root 'cp /usr/local/bin/fakap.previous /usr/local/bin/fakap'
+  remote_root 'systemctl restart fakap'
+  verify
+  exit 0
+fi
+
+[[ "$ALLOW_DIRTY" == "1" ]] || {
+  [[ -z "$(git status --porcelain --untracked-files=normal)" ]] \
+    || fail 'local worktree must be clean (or set FAKAP_DEPLOY_ALLOW_DIRTY=1)'
+}
+remote 'true' || fail "ssh host $REMOTE unreachable"
 
 if [[ "${FAKAP_SKIP_BUILD:-0}" == "1" && -f "$BINARY" ]]; then
   step "Skipping build (FAKAP_SKIP_BUILD=1), reusing $BINARY"
@@ -109,21 +124,6 @@ remote_root 'systemctl enable fakap >/dev/null 2>&1 || true'
 remote_root 'systemctl restart fakap'
 sleep 2
 
-verify() {
-  step "Verifying"
-  remote_root 'systemctl is-active --quiet fakap' \
-    || { remote_root 'journalctl -u fakap -n 20 --no-pager'; fail "fakap is not active"; }
-  remote 'curl -fsS http://127.0.0.1:8183/healthz' >/dev/null \
-    || fail "local healthz did not answer on $REMOTE"
-  local banner
-  banner="$(remote 'curl -fsS http://127.0.0.1:8183/' | grep -o 'ALL SYSTEMS GO\|SERVICE[S]* DOWN\|NO TARGETS CONFIGURED' | head -1)" || true
-  if curl -fsS --max-time 10 https://fakap.virya.music/healthz >/dev/null 2>&1; then
-    printf 'EDGE=https://fakap.virya.music/healthz OK\n'
-  else
-    printf 'EDGE=unreachable (check the edge proxy for fakap.virya.music)\n'
-  fi
-  printf 'DEPLOY=OK host=%s board=%s\n' "$REMOTE" "${banner:-unreadable}"
-}
 verify
 
 printf '==> Done. Board: https://fakap.virya.music/\n'

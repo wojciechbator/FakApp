@@ -269,17 +269,81 @@ fn render(shared: &MonitorState, config: &crate::Config) -> String {
         .collect::<Vec<_>>()
         .join("\n");
 
-    format!(
-        include_str!("../assets/board.html"),
-        banner_text = banner.0,
-        banner_class = banner.1,
-        generated = rfc3339_now(),
-        cards = cards,
-    )
+    // Plain token substitution instead of `format!` on the template: a stray
+    // `{` in the HTML must not panic the board at render time.
+    let generated = rfc3339_now();
+    include_str!("../assets/board.html")
+        .replace("{{BANNER_CLASS}}", banner.1)
+        .replace("{{BANNER_TEXT}}", banner.0)
+        .replace("{{GENERATED}}", &generated)
+        .replace("{{CARDS}}", &cards)
 }
 
 fn rfc3339_now() -> String {
     time::OffsetDateTime::from(std::time::SystemTime::now())
         .format(&time::format_description::well_known::Rfc3339)
         .unwrap_or_default()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::config::Target;
+    use crate::state::{MonitorState, TargetState};
+
+    fn config() -> crate::Config {
+        crate::Config {
+            listen: "127.0.0.1:8183".into(),
+            state_file: "test-state.json".into(),
+            interval_secs: 30,
+            alert_title: "Ups, FAKAP!".into(),
+            recovery_title: "Nie ma fakapu".into(),
+            smtp: None,
+            discord: None,
+            targets: vec![Target {
+                id: "example".into(),
+                name: "Example".into(),
+                url: "https://example.com/healthz".into(),
+                expect: vec![200],
+                failures_to_down: 3,
+                successes_to_up: 2,
+                repeat_alert_minutes: 30,
+            }],
+        }
+    }
+
+    #[test]
+    fn rendered_board_substitutes_every_token_and_reports_health() {
+        let mut shared = MonitorState::default();
+        let entry = TargetState {
+            status: Some(Status::Up),
+            ..TargetState::default()
+        };
+        shared.targets.insert("example".into(), entry);
+
+        let html = render(&shared, &config());
+        // No placeholder may survive rendering; the board must be plain HTML.
+        assert!(!html.contains("{{"), "unsubstituted token in output");
+        assert!(html.contains("ALL SYSTEMS GO"));
+        assert!(html.contains("banner-ok"));
+        assert!(html.contains("<h2>Example</h2>"));
+        assert!(html.contains("badge-good\">up</span>"));
+        assert!(html.contains("example.com"));
+        assert!(html.contains("snapshot generated "));
+    }
+
+    #[test]
+    fn down_target_flips_the_banner_red() {
+        let mut shared = MonitorState::default();
+        let entry = TargetState {
+            status: Some(Status::Down),
+            ..TargetState::default()
+        };
+        shared.targets.insert("example".into(), entry);
+
+        let html = render(&shared, &config());
+        assert!(!html.contains("{{"));
+        assert!(html.contains("1 SERVICE DOWN"));
+        assert!(html.contains("banner-bad"));
+    }
 }

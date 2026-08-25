@@ -44,11 +44,30 @@ async fn main() -> anyhow::Result<()> {
     let previous = store::load(&config.state_file)?;
     let shared: Shared = Arc::new(Mutex::new(state::MonitorState::restore(&config, previous)));
 
+    // One HTTP client for every probe and Discord alert. A failed build means
+    // nothing can ever be probed or paged: refuse to start rather than run a
+    // decorative watchdog.
+    let http = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(10))
+        .user_agent(concat!("fakap/", env!("CARGO_PKG_VERSION")))
+        .build()
+        .map_err(|error| anyhow::anyhow!("probe/alert http client unavailable: {error}"))?;
+    // One SMTP transport, built once; alerts are rare by design and must not
+    // pay connection setup more than necessary.
+    let mailer = match config.mailer() {
+        Some(smtp) => Some(Arc::new(mailer::Mailer::new(smtp).map_err(|error| {
+            anyhow::anyhow!("mail transport unavailable: {error:#}")
+        })?)),
+        None => None,
+    };
+
     for target in &config.targets {
         let task = checker::Checker {
             config: config.clone(),
             state: Arc::clone(&shared),
             target_id: target.id.clone(),
+            client: http.clone(),
+            mailer: mailer.clone(),
         };
         tokio::spawn(task.run());
     }

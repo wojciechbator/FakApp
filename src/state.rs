@@ -136,17 +136,24 @@ impl TargetMonitor {
             .map(|sent| at.duration_since(sent).unwrap_or_default() >= self.repeat_alert)
             .unwrap_or(true);
         if due {
-            self.inner.last_alert = Some(at);
             return Outcome::Remind;
         }
         Outcome::Quiet
     }
 
+    /// Stamps the reminder clock — but only once a page actually went out.
+    /// The caller (checker) invokes this after delivery succeeded; a failed
+    /// page leaves `last_alert` untouched, so the next probe retries at once
+    /// instead of waiting out the whole repeat window in silence.
+    pub fn mark_alerted(&mut self, at: SystemTime) {
+        self.inner.last_alert = Some(at);
+    }
+
     fn transition(&mut self, at: SystemTime, status: Status) {
         self.inner.status = Some(status);
         self.inner.last_change = Some(at);
-        // A fresh transition always alerts; the reminder clock starts now.
-        self.inner.last_alert = Some(at);
+        // A fresh transition always alerts; the reminder clock starts when
+        // the checker confirms that alert was actually delivered.
     }
 
     fn push_history(&mut self, record: CheckRecord) {
@@ -263,6 +270,21 @@ mod tests {
     }
 
     #[test]
+    fn undelivered_page_retries_on_the_next_probe() {
+        // The DOWN alert never got out (no mark_alerted call): the very next
+        // probe must try again instead of waiting for the repeat window.
+        let mut monitor = monitor(1, 1, 30);
+        assert_eq!(
+            monitor.record(seconds_since(0), false, None, None),
+            Outcome::Down
+        );
+        assert_eq!(
+            monitor.record(seconds_since(60), false, None, None),
+            Outcome::Remind
+        );
+    }
+
+    #[test]
     fn recovery_needs_a_run_of_successes() {
         let mut monitor = monitor(2, 3, 30);
         monitor.record(seconds_since(1), false, None, None);
@@ -285,7 +307,12 @@ mod tests {
     #[test]
     fn reminders_wait_for_the_repeat_window() {
         let mut monitor = monitor(1, 1, 30);
-        monitor.record(seconds_since(0), false, None, None); // DOWN + first alert
+        assert_eq!(
+            monitor.record(seconds_since(0), false, None, None),
+            Outcome::Down
+        );
+        // The transition alert was delivered: the reminder clock starts now.
+        monitor.mark_alerted(seconds_since(0));
         // Still inside the 30 minute quiet window.
         assert_eq!(
             monitor.record(seconds_since(29 * 60), false, None, None),
@@ -296,6 +323,7 @@ mod tests {
             monitor.record(seconds_since(31 * 60), false, None, None),
             Outcome::Remind
         );
+        monitor.mark_alerted(seconds_since(31 * 60));
         assert_eq!(
             monitor.record(seconds_since(35 * 60), false, None, None),
             Outcome::Quiet
