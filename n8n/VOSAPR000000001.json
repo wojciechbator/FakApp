@@ -1,0 +1,227 @@
+{
+ "updatedAt": "2026-08-15T20:52:14.062Z",
+ "createdAt": "2026-08-11T09:00:00.000Z",
+ "id": "VOSAPR000000001",
+ "name": "CrowdRelay \u2014 CrowdRelayOS approval notification",
+ "description": "Wakes humans only for APPROVAL-level actions.",
+ "active": true,
+ "isArchived": false,
+ "nodes": [
+  {
+   "id": "4a6b1c49-45bb-4911-a252-fa27fe2077e5",
+   "name": "Called by verified ingress",
+   "type": "n8n-nodes-base.executeWorkflowTrigger",
+   "position": [
+    0,
+    0
+   ],
+   "parameters": {},
+   "typeVersion": 1.1
+  },
+  {
+   "id": "e8940d50-1f09-4365-b29b-292147f03feb",
+   "name": "Build approval alert",
+   "type": "n8n-nodes-base.code",
+   "position": [
+    250,
+    0
+   ],
+   "parameters": {
+    "jsCode": "const e=$json;if(!e||e.type!=='crowdrelay.autopilot.approval_requested'||e.version!==1) throw new Error('Unsupported approval event');const d=e.data??{};const clean=v=>String(v??'-').replace(/[\\r\\n\\t]+/g,' ').slice(0,300);const content=[`## VIRYA OS \u2014 POTRZEBUJ\u0118 DECYZJI`,`**${clean(d.context)} \u00b7 ${clean(d.action_kind)}**`,`Pow\u00f3d: ${clean(d.reason)}`,`Pewno\u015b\u0107: ${Number(d.confidence_basis_points||0)/100}%`,`Obiekt: ${clean(d.subject_kind)} \u00b7 ${clean(d.subject_id)}`,`CR_EVENT_ID:${e.id}`].join('\\n\\n').slice(0,1950);return [{json:{content}}];"
+   },
+   "typeVersion": 2
+  },
+  {
+   "id": "3065bc5b-7b15-4cf4-8615-f154d356d346",
+   "name": "Discord \u2014 approval required",
+   "type": "n8n-nodes-base.httpRequest",
+   "maxTries": 5,
+   "position": [
+    540,
+    0
+   ],
+   "parameters": {
+    "url": "={{ 'https://discord.com/api/v10/channels/' + ($env.DISCORD_OPS_CHANNEL_ID || '1529482376458276964') + '/messages' }}",
+    "body": "={{ JSON.stringify({content:$json.content,allowed_mentions:{parse:[]}}) }}",
+    "method": "POST",
+    "options": {
+     "timeout": 15000
+    },
+    "sendBody": true,
+    "contentType": "raw",
+    "authentication": "genericCredentialType",
+    "rawContentType": "application/json",
+    "genericAuthType": "httpHeaderAuth"
+   },
+   "credentials": {
+    "httpHeaderAuth": {
+     "id": "FB7ONYMUsZFfObWB",
+     "name": "Discord Bot HTTP"
+    }
+   },
+   "retryOnFail": true,
+   "typeVersion": 4.4,
+   "waitBetweenTries": 5000
+  }
+ ],
+ "connections": {
+  "Called by verified ingress": {
+   "main": [
+    [
+     {
+      "node": "Build approval alert",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Build approval alert": {
+   "main": [
+    [
+     {
+      "node": "Discord \u2014 approval required",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  }
+ },
+ "settings": {
+  "executionOrder": "v1",
+  "saveDataErrorExecution": "none",
+  "saveDataSuccessExecution": "none",
+  "saveManualExecutions": false,
+  "errorWorkflow": "98d5e1a4-2dba-5e5a-9be1-2e5d9220859d",
+  "saveExecutionProgress": false,
+  "executionTimeout": 50,
+  "binaryMode": "separate"
+ },
+ "staticData": null,
+ "meta": {
+  "templateCredsSetupCompleted": true
+ },
+ "nodeGroups": [],
+ "pinData": {},
+ "versionId": "74137a60-e47d-469e-a829-d1663c101fa3",
+ "activeVersionId": "74137a60-e47d-469e-a829-d1663c101fa3",
+ "versionCounter": 3,
+ "triggerCount": 0,
+ "sourceWorkflowId": null,
+ "shared": [
+  {
+   "updatedAt": "2026-08-11T12:53:34.653Z",
+   "createdAt": "2026-08-11T12:53:34.653Z",
+   "role": "workflow:owner",
+   "workflowId": "VOSAPR000000001",
+   "projectId": "e2rPVcUBR4DTE3mO",
+   "project": {
+    "updatedAt": "2026-07-24T09:45:30.763Z",
+    "createdAt": "2026-07-24T09:45:07.113Z",
+    "id": "e2rPVcUBR4DTE3mO",
+    "name": "Virya Crew <virya.crew@gmail.com>",
+    "type": "personal",
+    "icon": null,
+    "description": null,
+    "customTelemetryTags": [],
+    "creatorId": "89259ec0-46eb-41d3-a04e-eb12f52f6342"
+   }
+  }
+ ],
+ "tags": [],
+ "activeVersion": {
+  "updatedAt": "2026-08-25T12:20:51.980Z",
+  "createdAt": "2026-08-12T17:01:41.269Z",
+  "versionId": "74137a60-e47d-469e-a829-d1663c101fa3",
+  "workflowId": "VOSAPR000000001",
+  "nodes": [
+   {
+    "id": "4a6b1c49-45bb-4911-a252-fa27fe2077e5",
+    "name": "Called by verified ingress",
+    "type": "n8n-nodes-base.executeWorkflowTrigger",
+    "position": [
+     0,
+     0
+    ],
+    "parameters": {},
+    "typeVersion": 1.1
+   },
+   {
+    "id": "e8940d50-1f09-4365-b29b-292147f03feb",
+    "name": "Build approval alert",
+    "type": "n8n-nodes-base.code",
+    "position": [
+     250,
+     0
+    ],
+    "parameters": {
+     "jsCode": "const e=$json;if(!e||e.type!=='crowdrelay.autopilot.approval_requested'||e.version!==1) throw new Error('Unsupported approval event');const d=e.data??{};const clean=v=>String(v??'-').replace(/[\\r\\n\\t]+/g,' ').slice(0,300);const content=[`## VIRYA OS \u2014 POTRZEBUJ\u0118 DECYZJI`,`**${clean(d.context)} \u00b7 ${clean(d.action_kind)}**`,`Pow\u00f3d: ${clean(d.reason)}`,`Pewno\u015b\u0107: ${Number(d.confidence_basis_points||0)/100}%`,`Obiekt: ${clean(d.subject_kind)} \u00b7 ${clean(d.subject_id)}`,`CR_EVENT_ID:${e.id}`].join('\\n\\n').slice(0,1950);return [{json:{content}}];"
+    },
+    "typeVersion": 2
+   },
+   {
+    "id": "3065bc5b-7b15-4cf4-8615-f154d356d346",
+    "name": "Discord \u2014 approval required",
+    "type": "n8n-nodes-base.httpRequest",
+    "maxTries": 5,
+    "position": [
+     540,
+     0
+    ],
+    "parameters": {
+     "url": "={{ 'https://discord.com/api/v10/channels/' + ($env.DISCORD_OPS_CHANNEL_ID || '1529482376458276964') + '/messages' }}",
+     "body": "={{ JSON.stringify({content:$json.content,allowed_mentions:{parse:[]}}) }}",
+     "method": "POST",
+     "options": {
+      "timeout": 15000
+     },
+     "sendBody": true,
+     "contentType": "raw",
+     "authentication": "genericCredentialType",
+     "rawContentType": "application/json",
+     "genericAuthType": "httpHeaderAuth"
+    },
+    "credentials": {
+     "httpHeaderAuth": {
+      "id": "FB7ONYMUsZFfObWB",
+      "name": "Discord Bot HTTP"
+     }
+    },
+    "retryOnFail": true,
+    "typeVersion": 4.4,
+    "waitBetweenTries": 5000
+   }
+  ],
+  "connections": {
+   "Called by verified ingress": {
+    "main": [
+     [
+      {
+       "node": "Build approval alert",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "Build approval alert": {
+    "main": [
+     [
+      {
+       "node": "Discord \u2014 approval required",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   }
+  },
+  "nodeGroups": [],
+  "authors": "import",
+  "name": null,
+  "description": null,
+  "autosaved": false,
+  "workflowPublishHistory": []
+ }
+}

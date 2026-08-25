@@ -1,0 +1,421 @@
+{
+ "updatedAt": "2026-08-15T20:53:48.427Z",
+ "createdAt": "2026-07-24T09:45:08.790Z",
+ "id": "e1gojTfjbiaxh86j",
+ "name": "VIRYA 01 \u2014 Monthly submission reminders \u2192 Discord Bot \u2014 Google Drive",
+ "description": null,
+ "active": true,
+ "isArchived": false,
+ "nodes": [
+  {
+   "id": "bb00854d-0d1f-4f2b-83c7-e88a92474d2d",
+   "name": "START HERE",
+   "type": "n8n-nodes-base.stickyNote",
+   "position": [
+    0,
+    0
+   ],
+   "parameters": {
+    "color": 5,
+    "width": 620,
+    "height": 560,
+    "content": "## MIESI\u0118CZNE PRZYPOMNIENIA \u2014 GOOGLE DRIVE ONLY\nPierwszego dnia ka\u017cdego miesi\u0105ca workflow czyta kart\u0119 `Zgloszenia` z arkusza `VIRYA OS \u2014 CRM Google Drive 2026`.\n\nWysy\u0142a jeden zbiorczy digest z maksymalnie 5 najwa\u017cniejszymi rekordami, w kt\u00f3rym:\n- `N8N_deadline_enabled = Tak`\n- `Przypomnienie_miesiac` = bie\u017c\u0105cy miesi\u0105c\n- `Przypomnienie_dzien` = 1\n- zg\u0142oszenie nie ma statusu Wys\u0142ane / Zamkni\u0119te / Odrzucone\n\nTre\u015b\u0107 wiadomo\u015bci:\nPora zg\u0142osi\u0107 si\u0119 na przegl\u0105d: <nazwa>\nLink do wydarzenia: <link>\nKontakt e-mail: <email>\nTelefon: <telefon>\nPrzyk\u0142adowy temat: <temat>\nPrzyk\u0142adowa tre\u015b\u0107: <tre\u015b\u0107 emaila>\n\nBez @everyone; ka\u017cda pozycja ma ownera i jedn\u0105 akcj\u0119.\n\nPo imporcie podepnij Google Sheets OAuth2 i Discord Bot. Nie uruchamiaj r\u0119cznie ca\u0142ego flow, je\u015bli nie chcesz od razu wys\u0142a\u0107 alert\u00f3w dla bie\u017c\u0105cego miesi\u0105ca."
+   },
+   "typeVersion": 1
+  },
+  {
+   "id": "09727d53-3581-4432-8cc0-02be6c2c1126",
+   "name": "Pierwszego dnia miesi\u0105ca 09:00",
+   "type": "n8n-nodes-base.scheduleTrigger",
+   "position": [
+    160,
+    384
+   ],
+   "parameters": {
+    "rule": {
+     "interval": [
+      {
+       "field": "cronExpression",
+       "expression": "0 0 9 1 * *"
+      }
+     ]
+    }
+   },
+   "typeVersion": 1.3
+  },
+  {
+   "id": "5bafc8ee-bb94-4337-9584-55c89381f061",
+   "name": "Czytaj aktywne przypomnienia",
+   "type": "n8n-nodes-base.googleSheets",
+   "maxTries": 5,
+   "position": [
+    432,
+    384
+   ],
+   "parameters": {
+    "options": {
+     "returnFirstMatch": false,
+     "dataLocationOnSheet": {
+      "values": {
+       "headerRow": 1,
+       "firstDataRow": 2,
+       "rangeDefinition": "specifyRange"
+      }
+     }
+    },
+    "filtersUI": {
+     "values": [
+      {
+       "lookupValue": "Tak",
+       "lookupColumn": "N8N_deadline_enabled"
+      }
+     ]
+    },
+    "sheetName": {
+     "__rl": true,
+     "mode": "name",
+     "value": "Zgloszenia"
+    },
+    "documentId": {
+     "__rl": true,
+     "mode": "id",
+     "value": "11EqtaMi6cx6IigtIFmaYJEiNpF10Ks_gHSJ0aSI14-8"
+    }
+   },
+   "credentials": {
+    "googleSheetsOAuth2Api": {
+     "id": "bc2Y1XmIdyu5ySTa",
+     "name": "Google Sheets account"
+    }
+   },
+   "retryOnFail": true,
+   "typeVersion": 4.7,
+   "alwaysOutputData": true,
+   "waitBetweenTries": 15000
+  },
+  {
+   "id": "e1324016-b1f9-414a-807d-ec1b626a0c46",
+   "name": "Wybierz bie\u017c\u0105cy miesi\u0105c i zbuduj wiadomo\u015bci",
+   "type": "n8n-nodes-base.code",
+   "position": [
+    704,
+    384
+   ],
+   "parameters": {
+    "jsCode": "const month=Number(new Intl.DateTimeFormat('en-US',{timeZone:'Europe/Warsaw',month:'numeric'}).format(new Date()));\nconst blocked=new Set(['Wys\u0142ane','Zamkni\u0119te','Odrzucone']);\nconst rows=$input.all().map(i=>i.json||{}).filter(row=>{const m=Number(String(row.Przypomnienie_miesiac??'').replace(',','.'));const d=Number(String(row.Przypomnienie_dzien??'1').replace(',','.'));return m===month&&d===1&&!blocked.has(String(row.Status_bookingu??'').trim());});\nif(!rows.length)return[];\nconst priority={A:3,B:2,C:1};\nrows.sort((a,b)=>(priority[String(b.Priorytet||b.Priority||'C').toUpperCase()]||0)-(priority[String(a.Priorytet||a.Priority||'C').toUpperCase()]||0));\nconst top=rows.slice(0,5);\nconst lines=top.map((row,index)=>{const name=String(row.Wydarzenie||'brak nazwy').trim();const url=String(row.Formularz_URL||row.WWW||row.Strona_WWW||row['\u0179r\u00f3d\u0142o_weryfikacji_1']||'brak linku').trim();const due=String(row.Deadline_zgloszen||row.Deadline||row.Termin||'sprawd\u017a termin').trim();const owner=String(row.Owner||row.W\u0142a\u015bciciel||row.Wlasciciel||'do przypisania').trim();return (index+1)+'. **'+name+'**\\n   Termin: '+due+' | Owner: '+owner+'\\n   Akcja: zweryfikuj i zatwierd\u017a zg\u0142oszenie\\n   '+url;});\nconst more=rows.length>5?'\\n\\nPozosta\u0142e: '+(rows.length-5)+' \u2014 w CRM.':'';\nconst message=('\ud83c\udfaf **[AKCJA] VIRYA \u2014 zg\u0142oszenia na ten miesi\u0105c ('+rows.length+')**\\n\\n'+lines.join('\\n\\n')+more+'\\n\\nPe\u0142ny pitch i kontakt s\u0105 w CRM.').slice(0,1950);return[{json:{discord_message:message,allowed_mentions:{parse:[]}}}];"
+   },
+   "typeVersion": 2
+  },
+  {
+   "id": "6a72a90f-25a2-4d60-95fc-0279b4cb6294",
+   "name": "Discord Bot \u2014 przypomnienie",
+   "type": "n8n-nodes-base.httpRequest",
+   "maxTries": 5,
+   "position": [
+    1008,
+    384
+   ],
+   "parameters": {
+    "url": "https://discord.com/api/v10/channels/1355498740588482578/messages",
+    "method": "POST",
+    "options": {
+     "timeout": 30000
+    },
+    "jsonBody": "={{ ({ content: String((($json.discord_message)) ?? '').slice(0, 2000), allowed_mentions: ($json.allowed_mentions && typeof $json.allowed_mentions === 'object') ? $json.allowed_mentions : { parse: [] } }) }}",
+    "sendBody": true,
+    "sendHeaders": true,
+    "specifyBody": "json",
+    "authentication": "genericCredentialType",
+    "genericAuthType": "httpHeaderAuth",
+    "headerParameters": {
+     "parameters": [
+      {
+       "name": "User-Agent",
+       "value": "Virya-n8n/1.0 (https://virya.music)"
+      }
+     ]
+    }
+   },
+   "credentials": {
+    "httpHeaderAuth": {
+     "id": "FB7ONYMUsZFfObWB",
+     "name": "Discord Bot HTTP"
+    }
+   },
+   "retryOnFail": true,
+   "typeVersion": 4.4,
+   "waitBetweenTries": 5000
+  }
+ ],
+ "connections": {
+  "Pierwszego dnia miesi\u0105ca 09:00": {
+   "main": [
+    [
+     {
+      "node": "Czytaj aktywne przypomnienia",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Czytaj aktywne przypomnienia": {
+   "main": [
+    [
+     {
+      "node": "Wybierz bie\u017c\u0105cy miesi\u0105c i zbuduj wiadomo\u015bci",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Wybierz bie\u017c\u0105cy miesi\u0105c i zbuduj wiadomo\u015bci": {
+   "main": [
+    [
+     {
+      "node": "Discord Bot \u2014 przypomnienie",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  }
+ },
+ "settings": {
+  "executionOrder": "v1",
+  "binaryMode": "separate",
+  "availableInMCP": false,
+  "timezone": "Europe/Warsaw",
+  "errorWorkflow": "98d5e1a4-2dba-5e5a-9be1-2e5d9220859d"
+ },
+ "staticData": {
+  "node:Pierwszego dnia miesi\u0105ca 09:00": {
+   "recurrenceRules": [
+    null
+   ],
+   "recurrenceRuleSignatures": [
+    null
+   ]
+  }
+ },
+ "meta": {
+  "viryaLocalPackage": "2026-07-24"
+ },
+ "nodeGroups": [],
+ "pinData": {},
+ "versionId": "eb86823d-ffe4-479f-b636-1313cb587a41",
+ "activeVersionId": "eb86823d-ffe4-479f-b636-1313cb587a41",
+ "versionCounter": 26,
+ "triggerCount": 1,
+ "sourceWorkflowId": null,
+ "shared": [
+  {
+   "updatedAt": "2026-07-24T09:45:08.790Z",
+   "createdAt": "2026-07-24T09:45:08.790Z",
+   "role": "workflow:owner",
+   "workflowId": "e1gojTfjbiaxh86j",
+   "projectId": "e2rPVcUBR4DTE3mO",
+   "project": {
+    "updatedAt": "2026-07-24T09:45:30.763Z",
+    "createdAt": "2026-07-24T09:45:07.113Z",
+    "id": "e2rPVcUBR4DTE3mO",
+    "name": "Virya Crew <virya.crew@gmail.com>",
+    "type": "personal",
+    "icon": null,
+    "description": null,
+    "customTelemetryTags": [],
+    "creatorId": "89259ec0-46eb-41d3-a04e-eb12f52f6342"
+   }
+  }
+ ],
+ "tags": [],
+ "activeVersion": {
+  "updatedAt": "2026-08-25T12:20:51.980Z",
+  "createdAt": "2026-08-12T17:01:41.269Z",
+  "versionId": "eb86823d-ffe4-479f-b636-1313cb587a41",
+  "workflowId": "e1gojTfjbiaxh86j",
+  "nodes": [
+   {
+    "id": "bb00854d-0d1f-4f2b-83c7-e88a92474d2d",
+    "name": "START HERE",
+    "type": "n8n-nodes-base.stickyNote",
+    "position": [
+     0,
+     0
+    ],
+    "parameters": {
+     "color": 5,
+     "width": 620,
+     "height": 560,
+     "content": "## MIESI\u0118CZNE PRZYPOMNIENIA \u2014 GOOGLE DRIVE ONLY\nPierwszego dnia ka\u017cdego miesi\u0105ca workflow czyta kart\u0119 `Zgloszenia` z arkusza `VIRYA OS \u2014 CRM Google Drive 2026`.\n\nWysy\u0142a jeden zbiorczy digest z maksymalnie 5 najwa\u017cniejszymi rekordami, w kt\u00f3rym:\n- `N8N_deadline_enabled = Tak`\n- `Przypomnienie_miesiac` = bie\u017c\u0105cy miesi\u0105c\n- `Przypomnienie_dzien` = 1\n- zg\u0142oszenie nie ma statusu Wys\u0142ane / Zamkni\u0119te / Odrzucone\n\nTre\u015b\u0107 wiadomo\u015bci:\nPora zg\u0142osi\u0107 si\u0119 na przegl\u0105d: <nazwa>\nLink do wydarzenia: <link>\nKontakt e-mail: <email>\nTelefon: <telefon>\nPrzyk\u0142adowy temat: <temat>\nPrzyk\u0142adowa tre\u015b\u0107: <tre\u015b\u0107 emaila>\n\nBez @everyone; ka\u017cda pozycja ma ownera i jedn\u0105 akcj\u0119.\n\nPo imporcie podepnij Google Sheets OAuth2 i Discord Bot. Nie uruchamiaj r\u0119cznie ca\u0142ego flow, je\u015bli nie chcesz od razu wys\u0142a\u0107 alert\u00f3w dla bie\u017c\u0105cego miesi\u0105ca."
+    },
+    "typeVersion": 1
+   },
+   {
+    "id": "09727d53-3581-4432-8cc0-02be6c2c1126",
+    "name": "Pierwszego dnia miesi\u0105ca 09:00",
+    "type": "n8n-nodes-base.scheduleTrigger",
+    "position": [
+     160,
+     384
+    ],
+    "parameters": {
+     "rule": {
+      "interval": [
+       {
+        "field": "cronExpression",
+        "expression": "0 0 9 1 * *"
+       }
+      ]
+     }
+    },
+    "typeVersion": 1.3
+   },
+   {
+    "id": "5bafc8ee-bb94-4337-9584-55c89381f061",
+    "name": "Czytaj aktywne przypomnienia",
+    "type": "n8n-nodes-base.googleSheets",
+    "maxTries": 5,
+    "position": [
+     432,
+     384
+    ],
+    "parameters": {
+     "options": {
+      "returnFirstMatch": false,
+      "dataLocationOnSheet": {
+       "values": {
+        "headerRow": 1,
+        "firstDataRow": 2,
+        "rangeDefinition": "specifyRange"
+       }
+      }
+     },
+     "filtersUI": {
+      "values": [
+       {
+        "lookupValue": "Tak",
+        "lookupColumn": "N8N_deadline_enabled"
+       }
+      ]
+     },
+     "sheetName": {
+      "__rl": true,
+      "mode": "name",
+      "value": "Zgloszenia"
+     },
+     "documentId": {
+      "__rl": true,
+      "mode": "id",
+      "value": "11EqtaMi6cx6IigtIFmaYJEiNpF10Ks_gHSJ0aSI14-8"
+     }
+    },
+    "credentials": {
+     "googleSheetsOAuth2Api": {
+      "id": "bc2Y1XmIdyu5ySTa",
+      "name": "Google Sheets account"
+     }
+    },
+    "retryOnFail": true,
+    "typeVersion": 4.7,
+    "alwaysOutputData": true,
+    "waitBetweenTries": 15000
+   },
+   {
+    "id": "e1324016-b1f9-414a-807d-ec1b626a0c46",
+    "name": "Wybierz bie\u017c\u0105cy miesi\u0105c i zbuduj wiadomo\u015bci",
+    "type": "n8n-nodes-base.code",
+    "position": [
+     704,
+     384
+    ],
+    "parameters": {
+     "jsCode": "const month=Number(new Intl.DateTimeFormat('en-US',{timeZone:'Europe/Warsaw',month:'numeric'}).format(new Date()));\nconst blocked=new Set(['Wys\u0142ane','Zamkni\u0119te','Odrzucone']);\nconst rows=$input.all().map(i=>i.json||{}).filter(row=>{const m=Number(String(row.Przypomnienie_miesiac??'').replace(',','.'));const d=Number(String(row.Przypomnienie_dzien??'1').replace(',','.'));return m===month&&d===1&&!blocked.has(String(row.Status_bookingu??'').trim());});\nif(!rows.length)return[];\nconst priority={A:3,B:2,C:1};\nrows.sort((a,b)=>(priority[String(b.Priorytet||b.Priority||'C').toUpperCase()]||0)-(priority[String(a.Priorytet||a.Priority||'C').toUpperCase()]||0));\nconst top=rows.slice(0,5);\nconst lines=top.map((row,index)=>{const name=String(row.Wydarzenie||'brak nazwy').trim();const url=String(row.Formularz_URL||row.WWW||row.Strona_WWW||row['\u0179r\u00f3d\u0142o_weryfikacji_1']||'brak linku').trim();const due=String(row.Deadline_zgloszen||row.Deadline||row.Termin||'sprawd\u017a termin').trim();const owner=String(row.Owner||row.W\u0142a\u015bciciel||row.Wlasciciel||'do przypisania').trim();return (index+1)+'. **'+name+'**\\n   Termin: '+due+' | Owner: '+owner+'\\n   Akcja: zweryfikuj i zatwierd\u017a zg\u0142oszenie\\n   '+url;});\nconst more=rows.length>5?'\\n\\nPozosta\u0142e: '+(rows.length-5)+' \u2014 w CRM.':'';\nconst message=('\ud83c\udfaf **[AKCJA] VIRYA \u2014 zg\u0142oszenia na ten miesi\u0105c ('+rows.length+')**\\n\\n'+lines.join('\\n\\n')+more+'\\n\\nPe\u0142ny pitch i kontakt s\u0105 w CRM.').slice(0,1950);return[{json:{discord_message:message,allowed_mentions:{parse:[]}}}];"
+    },
+    "typeVersion": 2
+   },
+   {
+    "id": "6a72a90f-25a2-4d60-95fc-0279b4cb6294",
+    "name": "Discord Bot \u2014 przypomnienie",
+    "type": "n8n-nodes-base.httpRequest",
+    "maxTries": 5,
+    "position": [
+     1008,
+     384
+    ],
+    "parameters": {
+     "url": "https://discord.com/api/v10/channels/1355498740588482578/messages",
+     "method": "POST",
+     "options": {
+      "timeout": 30000
+     },
+     "jsonBody": "={{ ({ content: String((($json.discord_message)) ?? '').slice(0, 2000), allowed_mentions: ($json.allowed_mentions && typeof $json.allowed_mentions === 'object') ? $json.allowed_mentions : { parse: [] } }) }}",
+     "sendBody": true,
+     "sendHeaders": true,
+     "specifyBody": "json",
+     "authentication": "genericCredentialType",
+     "genericAuthType": "httpHeaderAuth",
+     "headerParameters": {
+      "parameters": [
+       {
+        "name": "User-Agent",
+        "value": "Virya-n8n/1.0 (https://virya.music)"
+       }
+      ]
+     }
+    },
+    "credentials": {
+     "httpHeaderAuth": {
+      "id": "FB7ONYMUsZFfObWB",
+      "name": "Discord Bot HTTP"
+     }
+    },
+    "retryOnFail": true,
+    "typeVersion": 4.4,
+    "waitBetweenTries": 5000
+   }
+  ],
+  "connections": {
+   "Pierwszego dnia miesi\u0105ca 09:00": {
+    "main": [
+     [
+      {
+       "node": "Czytaj aktywne przypomnienia",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "Czytaj aktywne przypomnienia": {
+    "main": [
+     [
+      {
+       "node": "Wybierz bie\u017c\u0105cy miesi\u0105c i zbuduj wiadomo\u015bci",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "Wybierz bie\u017c\u0105cy miesi\u0105c i zbuduj wiadomo\u015bci": {
+    "main": [
+     [
+      {
+       "node": "Discord Bot \u2014 przypomnienie",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   }
+  },
+  "nodeGroups": [],
+  "authors": "import",
+  "name": null,
+  "description": null,
+  "autosaved": false,
+  "workflowPublishHistory": []
+ }
+}

@@ -1,0 +1,1351 @@
+{
+ "updatedAt": "2026-08-21T12:01:02.602Z",
+ "createdAt": "2026-08-11T09:00:00.000Z",
+ "id": "VOSMAIL000000001",
+ "name": "CrowdRelay \u2014 CrowdRelayOS mail executor + daily Gemini polish",
+ "description": "Executes authorized VIRYA OS mail. Fan lifecycle is deterministic/immediate; booking, press, patronage and endorsement cold outreach is queued and polished in one Gemini batch daily with strict deterministic fallback. Reply monitor stops follow-ups after inbound replies.",
+ "active": true,
+ "isArchived": false,
+ "nodes": [
+  {
+   "id": "3128f916-097d-4614-b4f0-766864f62efb",
+   "name": "CrowdRelay \u2014 record inbound reply",
+   "type": "n8n-nodes-base.httpRequest",
+   "onError": "continueRegularOutput",
+   "maxTries": 4,
+   "position": [
+    1104,
+    368
+   ],
+   "parameters": {
+    "url": "={{ $json.url }}",
+    "method": "POST",
+    "options": {
+     "timeout": 30000
+    },
+    "jsonBody": "={{ $json.body }}",
+    "sendBody": true,
+    "sendHeaders": true,
+    "specifyBody": "json",
+    "headerParameters": {
+     "parameters": [
+      {
+       "name": "Authorization",
+       "value": "={{ 'Bearer ' + $env.CROWDRELAY_COMMERCE_API_KEY }}"
+      },
+      {
+       "name": "Idempotency-Key",
+       "value": "={{ 'gmail-reply:' + $json.message_id }}"
+      }
+     ]
+    }
+   },
+   "retryOnFail": true,
+   "typeVersion": 4.2,
+   "waitBetweenTries": 5000
+  },
+  {
+   "id": "acf40e71-411f-4f31-839a-67eaf308316f",
+   "name": "Called by verified ingress",
+   "type": "n8n-nodes-base.executeWorkflowTrigger",
+   "position": [
+    416,
+    464
+   ],
+   "parameters": {
+    "inputSource": "passthrough"
+   },
+   "typeVersion": 1.1
+  },
+  {
+   "id": "49c774ec-abef-4632-b7ac-7851707249ba",
+   "name": "Build deterministic mail",
+   "type": "n8n-nodes-base.code",
+   "position": [
+    656,
+    464
+   ],
+   "parameters": {
+    "jsCode": "const e=$json;\nconst ok=new Set(['crowdrelay.fan_lifecycle.message_requested','crowdrelay.booking.outreach_requested','crowdrelay.outreach.requested']);\nif(!e||e.version!==1||!ok.has(String(e.type))) throw new Error('Unsupported VIRYA OS mail event');\nconst d=e.data??{}; const clean=v=>String(v??'').replace(/[\\r\\n\\t]+/g,' ').trim();\nconst pl=String(d.fan?.locale||'pl').toLowerCase().startsWith('pl');\nlet to='', subject='', body=''; const key=String(d.template_key||d.target_template_key||'');\nlet outreach_kind='transactional';\nif(e.type==='crowdrelay.fan_lifecycle.message_requested'){\n  to=clean(d.fan?.email); const name=clean(d.fan?.display_name); const hi=pl?(name?`Cze\u015b\u0107 ${name}!`:'Cze\u015b\u0107!'):(name?`Hi ${name}!`:'Hi!');\n  if(key==='crowdrelay.fan.welcome.v1'){ subject=pl?'Witaj w sygnale VIRYA':'Welcome to the VIRYA signal'; body=pl?`${hi}\\n\\nDzi\u0119ki, \u017ce jeste\u015b z nami. B\u0119dziemy odzywa\u0107 si\u0119 tylko wtedy, kiedy mamy co\u015b wartego Twojej uwagi \u2014 premiery, koncerty i rzeczy dla spo\u0142eczno\u015bci.\\n\\nVIRYA\\nhttps://virya.music/pl/signal/`:`${hi}\\n\\nThanks for joining us. We will only reach out when there is something worth your attention: releases, shows and community updates.\\n\\nVIRYA\\nhttps://virya.music/signal/`; }\n  else if(key==='crowdrelay.fan.reactivation.v1'){ subject=pl?'Co s\u0142ycha\u0107 u VIRYA?':'What is new with VIRYA?'; body=pl?`${hi}\\n\\nDawno si\u0119 nie odzywali\u015bmy. Je\u015bli nadal chcesz by\u0107 blisko VIRYA, tutaj masz aktualny sygna\u0142:\\nhttps://virya.music/pl/signal/\\n\\nDzi\u0119ki!`:`${hi}\\n\\nIt has been a while. If you still want to stay close to VIRYA, here is the current signal:\\nhttps://virya.music/signal/\\n\\nThanks!`; }\n  else { subject=pl?'VIRYA \u2014 dzi\u0119ki za Synestezj\u0119':'VIRYA \u2014 thanks for Synesthesia'; body=pl?`${hi}\\n\\nDzi\u0119ki za przej\u015bcie Synestezji. Je\u015bli chcesz zosta\u0107 z nami d\u0142u\u017cej, aktualno\u015bci i koncerty s\u0105 tutaj:\\nhttps://virya.music/pl/signal/`:`${hi}\\n\\nThanks for completing Synesthesia. If you want to stay with us, releases and shows are here:\\nhttps://virya.music/signal/`; }\n}else if(e.type==='crowdrelay.booking.outreach_requested'){\n  outreach_kind='booking'; to=clean(d.contact_email); const who=clean(d.target_name)||'ekipo'; const follow=String(d.phase)==='follow_up';\n  subject=follow?'Virya \u2014 follow-up koncertowy':`Virya \u00d7 ${who} \u2014 koncert`;\n  body=follow?`Cze\u015b\u0107,\\n\\nwracamy kr\u00f3tko do poprzedniej wiadomo\u015bci w sprawie koncertu VIRYA. Je\u015bli temat jest aktualny, ch\u0119tnie pode\u015blemy konkretny termin i warunki.\\n\\nEPK: https://virya.music/pl/epk/\\n\\nPozdrawiamy,\\nVIRYA`:`Cze\u015b\u0107,\\n\\njeste\u015bmy VIRYA z Wroc\u0142awia \u2014 nowoczesny metal na styku progresji, metalcore\u2019u i elektroniki. Ch\u0119tnie sprawdzimy mo\u017cliwo\u015b\u0107 zagrania u Was.\\n\\nEPK: https://virya.music/pl/epk/\\nMuzyka: https://virya.music/\\n\\nJe\u017celi widzicie przestrze\u0144 na termin, dajcie zna\u0107.\\n\\nPozdrawiamy,\\nVIRYA`;\n}else{\n  to=clean(d.contact_email); const follow=String(d.phase)==='follow_up';\n  const patron=key.includes('media_patronage'); const endorse=key.includes('endorsement');\n  outreach_kind=endorse?'endorsement':patron?'media_patronage':'press';\n  if(endorse){ subject=follow?'VIRYA \u00d7 wsp\u00f3\u0142praca sprz\u0119towa \u2014 follow-up':'VIRYA \u00d7 wsp\u00f3\u0142praca sprz\u0119towa'; body=follow?`Cze\u015b\u0107,\\n\\nkr\u00f3tki follow-up do naszej wiadomo\u015bci o potencjalnej wsp\u00f3\u0142pracy sprz\u0119towej. Je\u015bli temat pasuje do Waszego programu artist relations, ch\u0119tnie pode\u015blemy aktualne dane koncertowe i contentowe.\\n\\nEPK: https://virya.music/pl/epk/\\n\\nVIRYA`:`Cze\u015b\u0107,\\n\\njeste\u015bmy VIRYA \u2014 aktywny koncertowo zesp\u00f3\u0142 modern metal z Wroc\u0142awia. Szukamy wsp\u00f3\u0142prac wy\u0142\u0105cznie z markami, kt\u00f3rych sprz\u0119t realnie pasuje do naszego live rig i contentu.\\n\\nEPK: https://virya.music/pl/epk/\\n\\nJe\u017celi widzicie sens w rozmowie z artist relations, ch\u0119tnie pode\u015blemy konkretny profil wsp\u00f3\u0142pracy.\\n\\nVIRYA`; }\n  else if(patron){ subject=follow?'VIRYA \u2014 patronat medialny \u2014 follow-up':'VIRYA \u2014 propozycja patronatu medialnego'; body=follow?`Cze\u015b\u0107,\\n\\nwracamy kr\u00f3tko do propozycji patronatu medialnego VIRYA. Je\u015bli temat jest aktualny, pode\u015blemy komplet materia\u0142\u00f3w i uzgodnimy prosty zakres \u015bwiadcze\u0144.\\n\\nEPK: https://virya.music/pl/epk/\\n\\nVIRYA`:`Cze\u015b\u0107,\\n\\nchcieliby\u015bmy zaproponowa\u0107 patronat medialny przy najbli\u017cszej aktywno\u015bci VIRYA. Mamy gotowe EPK, materia\u0142y graficzne i komunikacj\u0119 po swojej stronie.\\n\\nEPK: https://virya.music/pl/epk/\\n\\nJe\u015bli pasuje to do Waszego profilu, dajcie zna\u0107 \u2014 pode\u015blemy konkretny zakres.\\n\\nVIRYA`; }\n  else { subject=follow?'VIRYA \u2014 materia\u0142 do recenzji / wywiadu \u2014 follow-up':'VIRYA \u2014 materia\u0142 do recenzji / wywiadu'; body=follow?`Cze\u015b\u0107,\\n\\nkr\u00f3tki follow-up do materia\u0142u VIRYA. Je\u015bli macie przestrze\u0144 na recenzj\u0119, wywiad, radio lub podcast, ch\u0119tnie dopasujemy format.\\n\\nEPK: https://virya.music/pl/epk/\\n\\nVIRYA`:`Cze\u015b\u0107,\\n\\npodsy\u0142amy VIRYA \u2014 modern metal z Wroc\u0142awia. Je\u015bli pasujemy do Waszego profilu, ch\u0119tnie pode\u015blemy materia\u0142 do recenzji albo um\u00f3wimy wywiad / radio / podcast.\\n\\nEPK: https://virya.music/pl/epk/\\nMuzyka: https://virya.music/\\n\\nPozdrawiamy,\\nVIRYA`; }\n}\nif(!to||!to.includes('@')) throw new Error('Missing verified contact email');\nconst phase=String(d.phase||'initial');\nconst queue_id=String(d.action_id||e.id||'').trim();\nreturn [{json:{queue_id,event_id:e.id,event_type:e.type,action_id:d.action_id||null,target_id:d.target_id||null,opportunity_id:d.opportunity_id||null,target_name:clean(d.target_name),score:Number.isFinite(Number(d.score))?Number(d.score):null,phase,SendTo:to,SendSubject:subject.slice(0,220),SendBody:body,template_key:key,outreach_kind,needs_copy_polish:e.type!=='crowdrelay.fan_lifecycle.message_requested'}}];"
+   },
+   "typeVersion": 2
+  },
+  {
+   "id": "586cd1b1-a8dd-4545-8522-f06e803fbdaa",
+   "name": "IF \u2014 transactional now",
+   "type": "n8n-nodes-base.if",
+   "position": [
+    896,
+    464
+   ],
+   "parameters": {
+    "options": {},
+    "conditions": {
+     "options": {
+      "version": 2,
+      "leftValue": "",
+      "caseSensitive": true,
+      "typeValidation": "strict"
+     },
+     "combinator": "and",
+     "conditions": [
+      {
+       "id": "1242fa3a-78ac-4e0b-9345-cf714c0791c1",
+       "operator": {
+        "type": "boolean",
+        "operation": "true",
+        "singleValue": true
+       },
+       "leftValue": "={{ !$json.needs_copy_polish }}",
+       "rightValue": ""
+      }
+     ]
+    }
+   },
+   "typeVersion": 2.2
+  },
+  {
+   "id": "d8e5e8fa-6cc8-4a52-b18f-600fac6cde86",
+   "name": "Build Gemini polish request",
+   "type": "n8n-nodes-base.code",
+   "position": [
+    1104,
+    224
+   ],
+   "parameters": {
+    "jsCode": "const base=$json||{};\nconst queue_id=String(base.queue_id||base.action_id||base.event_id||'').trim();\nconst compact={queue_id,kind:base.outreach_kind,phase:base.phase,target_name:base.target_name||'',recipient_domain:String(base.SendTo||'').split('@')[1]||'',template_key:base.template_key||'',base_subject:base.SendSubject,base_body:base.SendBody};\nconst style=`VIRYA outreach style: human independent-band voice; concise, direct and warm; concrete reason for contact; no corporate buzzwords; practical low-pressure CTA; Polish for clearly Polish recipients, otherwise English; never invent metrics, dates, relationships, fees, product use or promises.`;\nconst prompt=`You are ONLY a copy editor for VIRYA. Business decisions, recipient, offer and facts were fixed by deterministic Rust. Polish this one draft without research or invented facts.\n\n${style}\n\nReturn ONLY JSON array with exactly one object: queue_id, subject, body. Keep every URL unchanged; add no URL, number, date, commercial term or promise. Initial: 45-190 words. Follow-up: 20-110 words. Never mention AI, automation, scoring or internal systems. If facts are insufficient, only improve tone and clarity.\n\nDRAFT:\n${JSON.stringify(compact)}`;\nreturn [{json:{...base,rows:[{...base,queue_id}],payload:JSON.stringify({contents:[{role:'user',parts:[{text:prompt}]}],generationConfig:{temperature:0.25,responseMimeType:'application/json',maxOutputTokens:1800}})}}];"
+   },
+   "typeVersion": 2
+  },
+  {
+   "id": "434f9d74-7a48-46fa-9c57-14a1e9be66ba",
+   "name": "Gemini \u2014 VIRYA outreach polish",
+   "type": "n8n-nodes-base.httpRequest",
+   "position": [
+    1328,
+    224
+   ],
+   "parameters": {
+    "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent",
+    "body": "={{ $json.payload }}",
+    "method": "POST",
+    "options": {
+     "timeout": 90000,
+     "response": {
+      "response": {
+       "neverError": true
+      }
+     }
+    },
+    "sendBody": true,
+    "contentType": "raw",
+    "authentication": "genericCredentialType",
+    "rawContentType": "application/json",
+    "genericAuthType": "httpHeaderAuth"
+   },
+   "credentials": {
+    "httpHeaderAuth": {
+     "id": "8LSEwbWubxhnFYYB",
+     "name": "Header Auth account"
+    }
+   },
+   "typeVersion": 4.2
+  },
+  {
+   "id": "cc5656e1-df39-4502-9117-3bf214c6040a",
+   "name": "Validate Gemini copy or fallback",
+   "type": "n8n-nodes-base.code",
+   "position": [
+    1552,
+    224
+   ],
+   "parameters": {
+    "jsCode": "const source=$('Build Gemini polish request').item.json||{}; const rows=source.rows||[]; const byId=new Map(rows.map(r=>[String(r.queue_id),r]));\nconst response=$json||{}; let text='';\ntry{text=(response.candidates?.[0]?.content?.parts||[]).map(p=>String(p.text||'')).join('').trim();}catch{}\nif(!text && response.body){const b=response.body;text=typeof b==='string'?b:(b.candidates?.[0]?.content?.parts||[]).map(p=>String(p.text||'')).join('').trim();}\nlet parsed=[]; try{parsed=JSON.parse(text||'[]')}catch{const m=String(text||'').match(/\\[[\\s\\S]*\\]/);if(m)try{parsed=JSON.parse(m[0])}catch{}}\nif(!Array.isArray(parsed)) parsed=[]; const candidates=new Map(parsed.map(x=>[String(x?.queue_id||''),x]));\nconst urls=s=>String(s||'').match(/https?:\\/\\/[^\\s)\\]>]+/g)||[];\nconst nums=s=>String(s||'').replace(/https?:\\/\\/[^\\s)\\]>]+/g,' ').match(/\\b\\d+(?:[.,]\\d+)?\\b/g)||[];\nconst words=s=>String(s||'').trim().split(/\\s+/).filter(Boolean).length;\nconst out=[];\nfor(const base of rows){\n const c=candidates.get(String(base.queue_id)); let subject=String(c?.subject||'').trim(); let body=String(c?.body||'').trim(); let valid=!!subject&&!!body;\n const baseUrls=urls(base.SendBody); const outUrls=urls(body);\n if(valid && (outUrls.some(u=>!baseUrls.includes(u)) || baseUrls.some(u=>!outUrls.includes(u)))) valid=false;\n const allowedNums=new Set([...nums(base.SendSubject),...nums(base.SendBody),...nums(base.target_name)]);\n if(valid && nums(subject+' '+body).some(n=>!allowedNums.has(n))) valid=false;\n const wc=words(body), follow=String(base.phase)==='follow_up'; if(valid && (wc<(follow?20:45)||wc>(follow?120:210))) valid=false;\n if(valid && (subject.length>180||body.length>2600||/\\b(AI|automation|autopilot|scoring)\\b/i.test(body))) valid=false;\n if(!valid){subject=base.SendSubject;body=base.SendBody;}\n out.push({json:{...base,SendSubject:String(subject).slice(0,220),SendBody:body,copy_source:valid?'gemini_daily':'deterministic_fallback'}});\n}\nreturn out;"
+   },
+   "typeVersion": 2
+  },
+  {
+   "id": "6fa202ed-a6e6-4111-8b1c-bec4633edb5e",
+   "name": "Prepare send",
+   "type": "n8n-nodes-base.code",
+   "position": [
+    1776,
+    464
+   ],
+   "parameters": {
+    "jsCode": "return $input.all().map(i=>({json:i.json}));"
+   },
+   "typeVersion": 2
+  },
+  {
+   "id": "80e9464c-d726-4613-ba65-4582a38bd13f",
+   "name": "Gmail \u2014 VIRYA OS SEND",
+   "type": "n8n-nodes-base.gmail",
+   "onError": "continueErrorOutput",
+   "position": [
+    2272,
+    464
+   ],
+   "webhookId": "6eaf4558-0196-49d1-92c2-5d0f238f0f45",
+   "parameters": {
+    "sendTo": "={{ $json.SendTo }}",
+    "message": "={{ $json.SendBody }}",
+    "options": {
+     "senderName": "Wojciech Bator / Virya",
+     "appendAttribution": false
+    },
+    "subject": "={{ $json.SendSubject }}",
+    "emailType": "text"
+   },
+   "credentials": {
+    "gmailOAuth2": {
+     "id": "BJg5tKEWMNRw0GA1",
+     "name": "Gmail account"
+    }
+   },
+   "typeVersion": 2.1
+  },
+  {
+   "id": "c567f7c9-037f-473b-baad-cb6844918b60",
+   "name": "Prepare mail success receipt",
+   "type": "n8n-nodes-base.code",
+   "position": [
+    2208,
+    384
+   ],
+   "parameters": {
+    "jsCode": "const src=$('Prepare send').item.json||{};const sent=$('Gmail \u2014 VIRYA OS SEND').item.json||{};return [{json:{action_id:src.action_id,claim_token:$('Resolve provider execution claim').item.json.claim_token,status:'succeeded',provider_reference:String(sent.id||sent.messageId||sent.threadId||sent.thread_id||'gmail').slice(0,240),metadata:{event_id:src.event_id,event_type:src.event_type,provider:'gmail'},occurred_at:new Date().toISOString()}}];"
+   },
+   "typeVersion": 2
+  },
+  {
+   "id": "648b75ff-0d0c-4ebc-b830-5180ca9be828",
+   "name": "Queue mail success receipt",
+   "type": "n8n-nodes-base.executeWorkflow",
+   "position": [
+    2432,
+    384
+   ],
+   "parameters": {
+    "options": {},
+    "workflowId": {
+     "__rl": true,
+     "mode": "id",
+     "value": "VOSRECEIPT00001"
+    },
+    "workflowInputs": {
+     "value": {},
+     "mappingMode": "defineBelow"
+    }
+   },
+   "typeVersion": 1.3,
+   "alwaysOutputData": true
+  },
+  {
+   "id": "1557031b-edb3-4144-b4a1-bf054c177f59",
+   "name": "Fail closed on ambiguous provider error",
+   "type": "n8n-nodes-base.code",
+   "position": [
+    2208,
+    576
+   ],
+   "parameters": {
+    "jsCode": "const src=$('Resolve provider execution claim').item.json||{}; throw new Error(`Provider outcome ambiguous for action ${src.action_id||'unknown'}; claim retained to prevent automatic duplicate`);"
+   },
+   "typeVersion": 2
+  },
+  {
+   "id": "108c0575-d559-490c-b529-ea6068dd6252",
+   "name": "Every 15m \u2014 reply monitor",
+   "type": "n8n-nodes-base.scheduleTrigger",
+   "position": [
+    416,
+    832
+   ],
+   "parameters": {
+    "rule": {
+     "interval": [
+      {
+       "field": "minutes",
+       "minutesInterval": 15
+      }
+     ]
+    }
+   },
+   "typeVersion": 1.2
+  },
+  {
+   "id": "7431d51f-40c3-4fea-8e29-843a8a0b4269",
+   "name": "Gmail \u2014 recent inbound VIRYA OS",
+   "type": "n8n-nodes-base.gmail",
+   "maxTries": 4,
+   "position": [
+    624,
+    832
+   ],
+   "webhookId": "104e01dc-bd5e-46d0-92ce-00d662b04394",
+   "parameters": {
+    "limit": 40,
+    "filters": {
+     "q": "newer_than:7d -from:me"
+    },
+    "operation": "getAll"
+   },
+   "credentials": {
+    "gmailOAuth2": {
+     "id": "BJg5tKEWMNRw0GA1",
+     "name": "Gmail account"
+    }
+   },
+   "retryOnFail": true,
+   "typeVersion": 2.2,
+   "waitBetweenTries": 10000
+  },
+  {
+   "id": "6ddb9ac0-dc0c-4957-ad72-df2fa4873002",
+   "name": "Build provider correlation lookup",
+   "type": "n8n-nodes-base.code",
+   "position": [
+    848,
+    832
+   ],
+   "parameters": {
+    "jsCode": "const latestByThread=new Map();\nfor(const m of $input.all().map(i=>i.json||{})){\n  const thread_id=String(m.threadId||m.thread_id||'').trim(); if(!thread_id)continue;\n  const message_id=String(m.id||m.messageId||'').trim()||`${thread_id}:${String(m.internalDate||Date.now())}`;\n  const ts=Number(m.internalDate||Date.now());\n  const occurred_at=new Date(Number.isFinite(ts)?ts:Date.now()).toISOString();\n  const prev=latestByThread.get(thread_id);\n  if(!prev||Number(prev.ts)<(Number.isFinite(ts)?ts:0)){\n    latestByThread.set(thread_id,{thread_id,message_id,ts:Number.isFinite(ts)?ts:0,occurred_at,lookup_url:`https://signal-api.virya.music/v1/internal/autopilot/provider-actions/${encodeURIComponent(thread_id)}`});\n  }\n}\nreturn [...latestByThread.values()]\n  .sort((a,b)=>b.ts-a.ts)\n  .slice(0,30)\n  .map(({ts,...json})=>({json}));"
+   },
+   "typeVersion": 2
+  },
+  {
+   "id": "080c2712-326f-417f-9712-e10cb79647cb",
+   "name": "CrowdRelay \u2014 resolve provider correlation",
+   "type": "n8n-nodes-base.httpRequest",
+   "onError": "continueRegularOutput",
+   "position": [
+    1072,
+    832
+   ],
+   "parameters": {
+    "url": "={{ $json.lookup_url }}",
+    "options": {
+     "timeout": 15000,
+     "response": {
+      "response": {
+       "neverError": true,
+       "fullResponse": true
+      }
+     }
+    },
+    "sendHeaders": true,
+    "headerParameters": {
+     "parameters": [
+      {
+       "name": "Authorization",
+       "value": "={{ 'Bearer ' + $env.CROWDRELAY_COMMERCE_API_KEY }}"
+      },
+      {
+       "name": "X-Virya-Executor-Id",
+       "value": "viryaos-mail-v1"
+      }
+     ]
+    }
+   },
+   "typeVersion": 4.2
+  },
+  {
+   "id": "62a32aaf-c94e-439c-a49e-9fe53ed528f2",
+   "name": "Build CrowdRelay reply ingress",
+   "type": "n8n-nodes-base.code",
+   "position": [
+    1296,
+    832
+   ],
+   "parameters": {
+    "jsCode": "const src=$('Build provider correlation lookup').item.json||{};\nconst r=$json||{}; const status=Number(r.statusCode||r.status||200);\nif(status===404)return [];\n// The inbox monitor runs every 15m over a replay window. A transient upstream 5xx,\n// timeout or rate limit is therefore safely retried by the next scheduled scan instead\n// of failing the whole mail executor and producing a noisy automation alert.\nif(status===408||status===425||status===429||status>=500)return [];\nif(status<200||status>=300)throw new Error(`Provider correlation lookup failed: ${status}`);\nconst ref=(r.body&&typeof r.body==='object')?r.body:r;\nconst subject_kind=String(ref.subject_kind||''); const target_id=String(ref.subject_id||'');\nif(!target_id||!['booking_target','outreach_target'].includes(subject_kind))return [];\nconst encoded=encodeURIComponent(target_id);\nconst url=subject_kind==='booking_target'?`https://signal-api.virya.music/v1/admin/autopilot/booking-targets/${encoded}/reply`:`https://signal-api.virya.music/v1/admin/autopilot/outreach-targets/${encoded}/reply`;\nconst body=subject_kind==='booking_target'?{disposition:'received',occurred_at:src.occurred_at}:{opportunity_id:null,disposition:'received',occurred_at:src.occurred_at};\nreturn [{json:{message_id:src.message_id,thread_id:src.thread_id,url,body}}];"
+   },
+   "typeVersion": 2
+  },
+  {
+   "id": "44bf2006-668f-444a-9e99-3fa45b00a0c6",
+   "name": "Provider execution claim",
+   "type": "n8n-nodes-base.httpRequest",
+   "position": [
+    1936,
+    464
+   ],
+   "parameters": {
+    "url": "={{ 'https://signal-api.virya.music/v1/internal/autopilot/actions/' + $json.action_id + '/execution-claim' }}",
+    "method": "POST",
+    "options": {
+     "timeout": 30000
+    },
+    "jsonBody": "={{ ({executor_id:String($env.VIRYAOS_EXECUTOR_ID||'virya-n8n-primary').trim(),occurred_at:new Date().toISOString()}) }}",
+    "sendBody": true,
+    "sendHeaders": true,
+    "specifyBody": "json",
+    "headerParameters": {
+     "parameters": [
+      {
+       "name": "Authorization",
+       "value": "={{ 'Bearer ' + $env.CROWDRELAY_COMMERCE_API_KEY }}"
+      }
+     ]
+    }
+   },
+   "typeVersion": 4.4
+  },
+  {
+   "id": "1fa1dd3f-3ea6-4d1d-a0ca-dfb7ca511531",
+   "name": "Resolve provider execution claim",
+   "type": "n8n-nodes-base.code",
+   "position": [
+    2096,
+    464
+   ],
+   "parameters": {
+    "jsCode": "const src=$('Prepare send').item.json||{}; const r=$json||{}; const disposition=String(r.disposition||'');\nif(disposition==='already_succeeded') return [];\nif(disposition!=='claimed'||!r.claim_token) throw new Error(`Provider execution ${disposition||'unclaimed'}; fail closed to prevent duplicate external side effects`);\nreturn [{json:{...src,claim_token:String(r.claim_token),attempt_number:Number(r.attempt_number||1)}}];"
+   },
+   "typeVersion": 2
+  },
+  {
+   "id": "678d1499-0ffb-4c06-a355-0c258f10ab4d",
+   "name": "CrowdRelay \u2014 record inbound reply1",
+   "type": "n8n-nodes-base.httpRequest",
+   "onError": "continueRegularOutput",
+   "maxTries": 4,
+   "position": [
+    1504,
+    832
+   ],
+   "parameters": {
+    "url": "={{ $json.url }}",
+    "method": "POST",
+    "options": {
+     "timeout": 30000
+    },
+    "jsonBody": "={{ $json.body }}",
+    "sendBody": true,
+    "sendHeaders": true,
+    "specifyBody": "json",
+    "headerParameters": {
+     "parameters": [
+      {
+       "name": "Authorization",
+       "value": "={{ 'Bearer ' + ($env.CROWDRELAY_ADMIN_API_KEY || $env.CROWDRELAY_COMMERCE_API_KEY) }}"
+      },
+      {
+       "name": "Idempotency-Key",
+       "value": "={{ 'gmail-reply:' + $json.message_id }}"
+      }
+     ]
+    }
+   },
+   "retryOnFail": true,
+   "typeVersion": 4.2,
+   "waitBetweenTries": 5000
+  }
+ ],
+ "connections": {
+  "CrowdRelay \u2014 resolve provider correlation": {
+   "main": [
+    [
+     {
+      "node": "Build CrowdRelay reply ingress",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Called by verified ingress": {
+   "main": [
+    [
+     {
+      "node": "Build deterministic mail",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Build deterministic mail": {
+   "main": [
+    [
+     {
+      "node": "IF \u2014 transactional now",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "IF \u2014 transactional now": {
+   "main": [
+    [
+     {
+      "node": "Prepare send",
+      "type": "main",
+      "index": 0
+     }
+    ],
+    [
+     {
+      "node": "Build Gemini polish request",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Build Gemini polish request": {
+   "main": [
+    [
+     {
+      "node": "Gemini \u2014 VIRYA outreach polish",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Gemini \u2014 VIRYA outreach polish": {
+   "main": [
+    [
+     {
+      "node": "Validate Gemini copy or fallback",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Validate Gemini copy or fallback": {
+   "main": [
+    [
+     {
+      "node": "Prepare send",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Prepare send": {
+   "main": [
+    [
+     {
+      "node": "Provider execution claim",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Gmail \u2014 VIRYA OS SEND": {
+   "main": [
+    [
+     {
+      "node": "Prepare mail success receipt",
+      "type": "main",
+      "index": 0
+     }
+    ],
+    [
+     {
+      "node": "Fail closed on ambiguous provider error",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Prepare mail success receipt": {
+   "main": [
+    [
+     {
+      "node": "Queue mail success receipt",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Every 15m \u2014 reply monitor": {
+   "main": [
+    [
+     {
+      "node": "Gmail \u2014 recent inbound VIRYA OS",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Gmail \u2014 recent inbound VIRYA OS": {
+   "main": [
+    [
+     {
+      "node": "Build provider correlation lookup",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Build provider correlation lookup": {
+   "main": [
+    [
+     {
+      "node": "CrowdRelay \u2014 resolve provider correlation",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Build CrowdRelay reply ingress": {
+   "main": [
+    [
+     {
+      "node": "CrowdRelay \u2014 record inbound reply1",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Provider execution claim": {
+   "main": [
+    [
+     {
+      "node": "Resolve provider execution claim",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Resolve provider execution claim": {
+   "main": [
+    [
+     {
+      "node": "Gmail \u2014 VIRYA OS SEND",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  }
+ },
+ "settings": {
+  "executionOrder": "v1",
+  "saveDataErrorExecution": "none",
+  "saveDataSuccessExecution": "none",
+  "saveManualExecutions": false,
+  "errorWorkflow": "98d5e1a4-2dba-5e5a-9be1-2e5d9220859d",
+  "saveExecutionProgress": false,
+  "executionTimeout": 180,
+  "binaryMode": "separate",
+  "timezone": "Europe/Warsaw"
+ },
+ "staticData": {
+  "node:Every 15m \u2014 reply monitor": {
+   "recurrenceRules": [
+    null
+   ],
+   "recurrenceRuleSignatures": [
+    null
+   ]
+  },
+  "node:Daily 10:15 \u2014 polish cold outreach": {
+   "recurrenceRules": [
+    null
+   ],
+   "recurrenceRuleSignatures": [
+    null
+   ]
+  },
+  "global": {
+   "threads": {}
+  }
+ },
+ "meta": {
+  "templateCredsSetupCompleted": true
+ },
+ "nodeGroups": [],
+ "pinData": {},
+ "versionId": "e3f9dede-27da-48fe-bf7e-ef97880059eb",
+ "activeVersionId": "e3f9dede-27da-48fe-bf7e-ef97880059eb",
+ "versionCounter": 7,
+ "triggerCount": 1,
+ "sourceWorkflowId": null,
+ "shared": [
+  {
+   "updatedAt": "2026-08-11T12:51:36.962Z",
+   "createdAt": "2026-08-11T12:51:36.962Z",
+   "role": "workflow:owner",
+   "workflowId": "VOSMAIL000000001",
+   "projectId": "e2rPVcUBR4DTE3mO",
+   "project": {
+    "updatedAt": "2026-07-24T09:45:30.763Z",
+    "createdAt": "2026-07-24T09:45:07.113Z",
+    "id": "e2rPVcUBR4DTE3mO",
+    "name": "Virya Crew <virya.crew@gmail.com>",
+    "type": "personal",
+    "icon": null,
+    "description": null,
+    "customTelemetryTags": [],
+    "creatorId": "89259ec0-46eb-41d3-a04e-eb12f52f6342"
+   }
+  }
+ ],
+ "tags": [],
+ "activeVersion": {
+  "updatedAt": "2026-08-25T12:20:51.980Z",
+  "createdAt": "2026-08-21T12:01:02.604Z",
+  "versionId": "e3f9dede-27da-48fe-bf7e-ef97880059eb",
+  "workflowId": "VOSMAIL000000001",
+  "nodes": [
+   {
+    "id": "3128f916-097d-4614-b4f0-766864f62efb",
+    "name": "CrowdRelay \u2014 record inbound reply",
+    "type": "n8n-nodes-base.httpRequest",
+    "onError": "continueRegularOutput",
+    "maxTries": 4,
+    "position": [
+     1104,
+     368
+    ],
+    "parameters": {
+     "url": "={{ $json.url }}",
+     "method": "POST",
+     "options": {
+      "timeout": 30000
+     },
+     "jsonBody": "={{ $json.body }}",
+     "sendBody": true,
+     "sendHeaders": true,
+     "specifyBody": "json",
+     "headerParameters": {
+      "parameters": [
+       {
+        "name": "Authorization",
+        "value": "={{ 'Bearer ' + $env.CROWDRELAY_COMMERCE_API_KEY }}"
+       },
+       {
+        "name": "Idempotency-Key",
+        "value": "={{ 'gmail-reply:' + $json.message_id }}"
+       }
+      ]
+     }
+    },
+    "retryOnFail": true,
+    "typeVersion": 4.2,
+    "waitBetweenTries": 5000
+   },
+   {
+    "id": "acf40e71-411f-4f31-839a-67eaf308316f",
+    "name": "Called by verified ingress",
+    "type": "n8n-nodes-base.executeWorkflowTrigger",
+    "position": [
+     416,
+     464
+    ],
+    "parameters": {
+     "inputSource": "passthrough"
+    },
+    "typeVersion": 1.1
+   },
+   {
+    "id": "49c774ec-abef-4632-b7ac-7851707249ba",
+    "name": "Build deterministic mail",
+    "type": "n8n-nodes-base.code",
+    "position": [
+     656,
+     464
+    ],
+    "parameters": {
+     "jsCode": "const e=$json;\nconst ok=new Set(['crowdrelay.fan_lifecycle.message_requested','crowdrelay.booking.outreach_requested','crowdrelay.outreach.requested']);\nif(!e||e.version!==1||!ok.has(String(e.type))) throw new Error('Unsupported VIRYA OS mail event');\nconst d=e.data??{}; const clean=v=>String(v??'').replace(/[\\r\\n\\t]+/g,' ').trim();\nconst pl=String(d.fan?.locale||'pl').toLowerCase().startsWith('pl');\nlet to='', subject='', body=''; const key=String(d.template_key||d.target_template_key||'');\nlet outreach_kind='transactional';\nif(e.type==='crowdrelay.fan_lifecycle.message_requested'){\n  to=clean(d.fan?.email); const name=clean(d.fan?.display_name); const hi=pl?(name?`Cze\u015b\u0107 ${name}!`:'Cze\u015b\u0107!'):(name?`Hi ${name}!`:'Hi!');\n  if(key==='crowdrelay.fan.welcome.v1'){ subject=pl?'Witaj w sygnale VIRYA':'Welcome to the VIRYA signal'; body=pl?`${hi}\\n\\nDzi\u0119ki, \u017ce jeste\u015b z nami. B\u0119dziemy odzywa\u0107 si\u0119 tylko wtedy, kiedy mamy co\u015b wartego Twojej uwagi \u2014 premiery, koncerty i rzeczy dla spo\u0142eczno\u015bci.\\n\\nVIRYA\\nhttps://virya.music/pl/signal/`:`${hi}\\n\\nThanks for joining us. We will only reach out when there is something worth your attention: releases, shows and community updates.\\n\\nVIRYA\\nhttps://virya.music/signal/`; }\n  else if(key==='crowdrelay.fan.reactivation.v1'){ subject=pl?'Co s\u0142ycha\u0107 u VIRYA?':'What is new with VIRYA?'; body=pl?`${hi}\\n\\nDawno si\u0119 nie odzywali\u015bmy. Je\u015bli nadal chcesz by\u0107 blisko VIRYA, tutaj masz aktualny sygna\u0142:\\nhttps://virya.music/pl/signal/\\n\\nDzi\u0119ki!`:`${hi}\\n\\nIt has been a while. If you still want to stay close to VIRYA, here is the current signal:\\nhttps://virya.music/signal/\\n\\nThanks!`; }\n  else { subject=pl?'VIRYA \u2014 dzi\u0119ki za Synestezj\u0119':'VIRYA \u2014 thanks for Synesthesia'; body=pl?`${hi}\\n\\nDzi\u0119ki za przej\u015bcie Synestezji. Je\u015bli chcesz zosta\u0107 z nami d\u0142u\u017cej, aktualno\u015bci i koncerty s\u0105 tutaj:\\nhttps://virya.music/pl/signal/`:`${hi}\\n\\nThanks for completing Synesthesia. If you want to stay with us, releases and shows are here:\\nhttps://virya.music/signal/`; }\n}else if(e.type==='crowdrelay.booking.outreach_requested'){\n  outreach_kind='booking'; to=clean(d.contact_email); const who=clean(d.target_name)||'ekipo'; const follow=String(d.phase)==='follow_up';\n  subject=follow?'Virya \u2014 follow-up koncertowy':`Virya \u00d7 ${who} \u2014 koncert`;\n  body=follow?`Cze\u015b\u0107,\\n\\nwracamy kr\u00f3tko do poprzedniej wiadomo\u015bci w sprawie koncertu VIRYA. Je\u015bli temat jest aktualny, ch\u0119tnie pode\u015blemy konkretny termin i warunki.\\n\\nEPK: https://virya.music/pl/epk/\\n\\nPozdrawiamy,\\nVIRYA`:`Cze\u015b\u0107,\\n\\njeste\u015bmy VIRYA z Wroc\u0142awia \u2014 nowoczesny metal na styku progresji, metalcore\u2019u i elektroniki. Ch\u0119tnie sprawdzimy mo\u017cliwo\u015b\u0107 zagrania u Was.\\n\\nEPK: https://virya.music/pl/epk/\\nMuzyka: https://virya.music/\\n\\nJe\u017celi widzicie przestrze\u0144 na termin, dajcie zna\u0107.\\n\\nPozdrawiamy,\\nVIRYA`;\n}else{\n  to=clean(d.contact_email); const follow=String(d.phase)==='follow_up';\n  const patron=key.includes('media_patronage'); const endorse=key.includes('endorsement');\n  outreach_kind=endorse?'endorsement':patron?'media_patronage':'press';\n  if(endorse){ subject=follow?'VIRYA \u00d7 wsp\u00f3\u0142praca sprz\u0119towa \u2014 follow-up':'VIRYA \u00d7 wsp\u00f3\u0142praca sprz\u0119towa'; body=follow?`Cze\u015b\u0107,\\n\\nkr\u00f3tki follow-up do naszej wiadomo\u015bci o potencjalnej wsp\u00f3\u0142pracy sprz\u0119towej. Je\u015bli temat pasuje do Waszego programu artist relations, ch\u0119tnie pode\u015blemy aktualne dane koncertowe i contentowe.\\n\\nEPK: https://virya.music/pl/epk/\\n\\nVIRYA`:`Cze\u015b\u0107,\\n\\njeste\u015bmy VIRYA \u2014 aktywny koncertowo zesp\u00f3\u0142 modern metal z Wroc\u0142awia. Szukamy wsp\u00f3\u0142prac wy\u0142\u0105cznie z markami, kt\u00f3rych sprz\u0119t realnie pasuje do naszego live rig i contentu.\\n\\nEPK: https://virya.music/pl/epk/\\n\\nJe\u017celi widzicie sens w rozmowie z artist relations, ch\u0119tnie pode\u015blemy konkretny profil wsp\u00f3\u0142pracy.\\n\\nVIRYA`; }\n  else if(patron){ subject=follow?'VIRYA \u2014 patronat medialny \u2014 follow-up':'VIRYA \u2014 propozycja patronatu medialnego'; body=follow?`Cze\u015b\u0107,\\n\\nwracamy kr\u00f3tko do propozycji patronatu medialnego VIRYA. Je\u015bli temat jest aktualny, pode\u015blemy komplet materia\u0142\u00f3w i uzgodnimy prosty zakres \u015bwiadcze\u0144.\\n\\nEPK: https://virya.music/pl/epk/\\n\\nVIRYA`:`Cze\u015b\u0107,\\n\\nchcieliby\u015bmy zaproponowa\u0107 patronat medialny przy najbli\u017cszej aktywno\u015bci VIRYA. Mamy gotowe EPK, materia\u0142y graficzne i komunikacj\u0119 po swojej stronie.\\n\\nEPK: https://virya.music/pl/epk/\\n\\nJe\u015bli pasuje to do Waszego profilu, dajcie zna\u0107 \u2014 pode\u015blemy konkretny zakres.\\n\\nVIRYA`; }\n  else { subject=follow?'VIRYA \u2014 materia\u0142 do recenzji / wywiadu \u2014 follow-up':'VIRYA \u2014 materia\u0142 do recenzji / wywiadu'; body=follow?`Cze\u015b\u0107,\\n\\nkr\u00f3tki follow-up do materia\u0142u VIRYA. Je\u015bli macie przestrze\u0144 na recenzj\u0119, wywiad, radio lub podcast, ch\u0119tnie dopasujemy format.\\n\\nEPK: https://virya.music/pl/epk/\\n\\nVIRYA`:`Cze\u015b\u0107,\\n\\npodsy\u0142amy VIRYA \u2014 modern metal z Wroc\u0142awia. Je\u015bli pasujemy do Waszego profilu, ch\u0119tnie pode\u015blemy materia\u0142 do recenzji albo um\u00f3wimy wywiad / radio / podcast.\\n\\nEPK: https://virya.music/pl/epk/\\nMuzyka: https://virya.music/\\n\\nPozdrawiamy,\\nVIRYA`; }\n}\nif(!to||!to.includes('@')) throw new Error('Missing verified contact email');\nconst phase=String(d.phase||'initial');\nconst queue_id=String(d.action_id||e.id||'').trim();\nreturn [{json:{queue_id,event_id:e.id,event_type:e.type,action_id:d.action_id||null,target_id:d.target_id||null,opportunity_id:d.opportunity_id||null,target_name:clean(d.target_name),score:Number.isFinite(Number(d.score))?Number(d.score):null,phase,SendTo:to,SendSubject:subject.slice(0,220),SendBody:body,template_key:key,outreach_kind,needs_copy_polish:e.type!=='crowdrelay.fan_lifecycle.message_requested'}}];"
+    },
+    "typeVersion": 2
+   },
+   {
+    "id": "586cd1b1-a8dd-4545-8522-f06e803fbdaa",
+    "name": "IF \u2014 transactional now",
+    "type": "n8n-nodes-base.if",
+    "position": [
+     896,
+     464
+    ],
+    "parameters": {
+     "options": {},
+     "conditions": {
+      "options": {
+       "version": 2,
+       "leftValue": "",
+       "caseSensitive": true,
+       "typeValidation": "strict"
+      },
+      "combinator": "and",
+      "conditions": [
+       {
+        "id": "1242fa3a-78ac-4e0b-9345-cf714c0791c1",
+        "operator": {
+         "type": "boolean",
+         "operation": "true",
+         "singleValue": true
+        },
+        "leftValue": "={{ !$json.needs_copy_polish }}",
+        "rightValue": ""
+       }
+      ]
+     }
+    },
+    "typeVersion": 2.2
+   },
+   {
+    "id": "d8e5e8fa-6cc8-4a52-b18f-600fac6cde86",
+    "name": "Build Gemini polish request",
+    "type": "n8n-nodes-base.code",
+    "position": [
+     1104,
+     224
+    ],
+    "parameters": {
+     "jsCode": "const base=$json||{};\nconst queue_id=String(base.queue_id||base.action_id||base.event_id||'').trim();\nconst compact={queue_id,kind:base.outreach_kind,phase:base.phase,target_name:base.target_name||'',recipient_domain:String(base.SendTo||'').split('@')[1]||'',template_key:base.template_key||'',base_subject:base.SendSubject,base_body:base.SendBody};\nconst style=`VIRYA outreach style: human independent-band voice; concise, direct and warm; concrete reason for contact; no corporate buzzwords; practical low-pressure CTA; Polish for clearly Polish recipients, otherwise English; never invent metrics, dates, relationships, fees, product use or promises.`;\nconst prompt=`You are ONLY a copy editor for VIRYA. Business decisions, recipient, offer and facts were fixed by deterministic Rust. Polish this one draft without research or invented facts.\n\n${style}\n\nReturn ONLY JSON array with exactly one object: queue_id, subject, body. Keep every URL unchanged; add no URL, number, date, commercial term or promise. Initial: 45-190 words. Follow-up: 20-110 words. Never mention AI, automation, scoring or internal systems. If facts are insufficient, only improve tone and clarity.\n\nDRAFT:\n${JSON.stringify(compact)}`;\nreturn [{json:{...base,rows:[{...base,queue_id}],payload:JSON.stringify({contents:[{role:'user',parts:[{text:prompt}]}],generationConfig:{temperature:0.25,responseMimeType:'application/json',maxOutputTokens:1800}})}}];"
+    },
+    "typeVersion": 2
+   },
+   {
+    "id": "434f9d74-7a48-46fa-9c57-14a1e9be66ba",
+    "name": "Gemini \u2014 VIRYA outreach polish",
+    "type": "n8n-nodes-base.httpRequest",
+    "position": [
+     1328,
+     224
+    ],
+    "parameters": {
+     "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent",
+     "body": "={{ $json.payload }}",
+     "method": "POST",
+     "options": {
+      "timeout": 90000,
+      "response": {
+       "response": {
+        "neverError": true
+       }
+      }
+     },
+     "sendBody": true,
+     "contentType": "raw",
+     "authentication": "genericCredentialType",
+     "rawContentType": "application/json",
+     "genericAuthType": "httpHeaderAuth"
+    },
+    "credentials": {
+     "httpHeaderAuth": {
+      "id": "8LSEwbWubxhnFYYB",
+      "name": "Header Auth account"
+     }
+    },
+    "typeVersion": 4.2
+   },
+   {
+    "id": "cc5656e1-df39-4502-9117-3bf214c6040a",
+    "name": "Validate Gemini copy or fallback",
+    "type": "n8n-nodes-base.code",
+    "position": [
+     1552,
+     224
+    ],
+    "parameters": {
+     "jsCode": "const source=$('Build Gemini polish request').item.json||{}; const rows=source.rows||[]; const byId=new Map(rows.map(r=>[String(r.queue_id),r]));\nconst response=$json||{}; let text='';\ntry{text=(response.candidates?.[0]?.content?.parts||[]).map(p=>String(p.text||'')).join('').trim();}catch{}\nif(!text && response.body){const b=response.body;text=typeof b==='string'?b:(b.candidates?.[0]?.content?.parts||[]).map(p=>String(p.text||'')).join('').trim();}\nlet parsed=[]; try{parsed=JSON.parse(text||'[]')}catch{const m=String(text||'').match(/\\[[\\s\\S]*\\]/);if(m)try{parsed=JSON.parse(m[0])}catch{}}\nif(!Array.isArray(parsed)) parsed=[]; const candidates=new Map(parsed.map(x=>[String(x?.queue_id||''),x]));\nconst urls=s=>String(s||'').match(/https?:\\/\\/[^\\s)\\]>]+/g)||[];\nconst nums=s=>String(s||'').replace(/https?:\\/\\/[^\\s)\\]>]+/g,' ').match(/\\b\\d+(?:[.,]\\d+)?\\b/g)||[];\nconst words=s=>String(s||'').trim().split(/\\s+/).filter(Boolean).length;\nconst out=[];\nfor(const base of rows){\n const c=candidates.get(String(base.queue_id)); let subject=String(c?.subject||'').trim(); let body=String(c?.body||'').trim(); let valid=!!subject&&!!body;\n const baseUrls=urls(base.SendBody); const outUrls=urls(body);\n if(valid && (outUrls.some(u=>!baseUrls.includes(u)) || baseUrls.some(u=>!outUrls.includes(u)))) valid=false;\n const allowedNums=new Set([...nums(base.SendSubject),...nums(base.SendBody),...nums(base.target_name)]);\n if(valid && nums(subject+' '+body).some(n=>!allowedNums.has(n))) valid=false;\n const wc=words(body), follow=String(base.phase)==='follow_up'; if(valid && (wc<(follow?20:45)||wc>(follow?120:210))) valid=false;\n if(valid && (subject.length>180||body.length>2600||/\\b(AI|automation|autopilot|scoring)\\b/i.test(body))) valid=false;\n if(!valid){subject=base.SendSubject;body=base.SendBody;}\n out.push({json:{...base,SendSubject:String(subject).slice(0,220),SendBody:body,copy_source:valid?'gemini_daily':'deterministic_fallback'}});\n}\nreturn out;"
+    },
+    "typeVersion": 2
+   },
+   {
+    "id": "6fa202ed-a6e6-4111-8b1c-bec4633edb5e",
+    "name": "Prepare send",
+    "type": "n8n-nodes-base.code",
+    "position": [
+     1776,
+     464
+    ],
+    "parameters": {
+     "jsCode": "return $input.all().map(i=>({json:i.json}));"
+    },
+    "typeVersion": 2
+   },
+   {
+    "id": "80e9464c-d726-4613-ba65-4582a38bd13f",
+    "name": "Gmail \u2014 VIRYA OS SEND",
+    "type": "n8n-nodes-base.gmail",
+    "onError": "continueErrorOutput",
+    "position": [
+     2272,
+     464
+    ],
+    "webhookId": "6eaf4558-0196-49d1-92c2-5d0f238f0f45",
+    "parameters": {
+     "sendTo": "={{ $json.SendTo }}",
+     "message": "={{ $json.SendBody }}",
+     "options": {
+      "senderName": "Wojciech Bator / Virya",
+      "appendAttribution": false
+     },
+     "subject": "={{ $json.SendSubject }}",
+     "emailType": "text"
+    },
+    "credentials": {
+     "gmailOAuth2": {
+      "id": "BJg5tKEWMNRw0GA1",
+      "name": "Gmail account"
+     }
+    },
+    "typeVersion": 2.1
+   },
+   {
+    "id": "c567f7c9-037f-473b-baad-cb6844918b60",
+    "name": "Prepare mail success receipt",
+    "type": "n8n-nodes-base.code",
+    "position": [
+     2208,
+     384
+    ],
+    "parameters": {
+     "jsCode": "const src=$('Prepare send').item.json||{};const sent=$('Gmail \u2014 VIRYA OS SEND').item.json||{};return [{json:{action_id:src.action_id,claim_token:$('Resolve provider execution claim').item.json.claim_token,status:'succeeded',provider_reference:String(sent.id||sent.messageId||sent.threadId||sent.thread_id||'gmail').slice(0,240),metadata:{event_id:src.event_id,event_type:src.event_type,provider:'gmail'},occurred_at:new Date().toISOString()}}];"
+    },
+    "typeVersion": 2
+   },
+   {
+    "id": "648b75ff-0d0c-4ebc-b830-5180ca9be828",
+    "name": "Queue mail success receipt",
+    "type": "n8n-nodes-base.executeWorkflow",
+    "position": [
+     2432,
+     384
+    ],
+    "parameters": {
+     "options": {},
+     "workflowId": {
+      "__rl": true,
+      "mode": "id",
+      "value": "VOSRECEIPT00001"
+     },
+     "workflowInputs": {
+      "value": {},
+      "mappingMode": "defineBelow"
+     }
+    },
+    "typeVersion": 1.3,
+    "alwaysOutputData": true
+   },
+   {
+    "id": "1557031b-edb3-4144-b4a1-bf054c177f59",
+    "name": "Fail closed on ambiguous provider error",
+    "type": "n8n-nodes-base.code",
+    "position": [
+     2208,
+     576
+    ],
+    "parameters": {
+     "jsCode": "const src=$('Resolve provider execution claim').item.json||{}; throw new Error(`Provider outcome ambiguous for action ${src.action_id||'unknown'}; claim retained to prevent automatic duplicate`);"
+    },
+    "typeVersion": 2
+   },
+   {
+    "id": "108c0575-d559-490c-b529-ea6068dd6252",
+    "name": "Every 15m \u2014 reply monitor",
+    "type": "n8n-nodes-base.scheduleTrigger",
+    "position": [
+     416,
+     832
+    ],
+    "parameters": {
+     "rule": {
+      "interval": [
+       {
+        "field": "minutes",
+        "minutesInterval": 15
+       }
+      ]
+     }
+    },
+    "typeVersion": 1.2
+   },
+   {
+    "id": "7431d51f-40c3-4fea-8e29-843a8a0b4269",
+    "name": "Gmail \u2014 recent inbound VIRYA OS",
+    "type": "n8n-nodes-base.gmail",
+    "maxTries": 4,
+    "position": [
+     624,
+     832
+    ],
+    "webhookId": "104e01dc-bd5e-46d0-92ce-00d662b04394",
+    "parameters": {
+     "limit": 40,
+     "filters": {
+      "q": "newer_than:7d -from:me"
+     },
+     "operation": "getAll"
+    },
+    "credentials": {
+     "gmailOAuth2": {
+      "id": "BJg5tKEWMNRw0GA1",
+      "name": "Gmail account"
+     }
+    },
+    "retryOnFail": true,
+    "typeVersion": 2.2,
+    "waitBetweenTries": 10000
+   },
+   {
+    "id": "6ddb9ac0-dc0c-4957-ad72-df2fa4873002",
+    "name": "Build provider correlation lookup",
+    "type": "n8n-nodes-base.code",
+    "position": [
+     848,
+     832
+    ],
+    "parameters": {
+     "jsCode": "const latestByThread=new Map();\nfor(const m of $input.all().map(i=>i.json||{})){\n  const thread_id=String(m.threadId||m.thread_id||'').trim(); if(!thread_id)continue;\n  const message_id=String(m.id||m.messageId||'').trim()||`${thread_id}:${String(m.internalDate||Date.now())}`;\n  const ts=Number(m.internalDate||Date.now());\n  const occurred_at=new Date(Number.isFinite(ts)?ts:Date.now()).toISOString();\n  const prev=latestByThread.get(thread_id);\n  if(!prev||Number(prev.ts)<(Number.isFinite(ts)?ts:0)){\n    latestByThread.set(thread_id,{thread_id,message_id,ts:Number.isFinite(ts)?ts:0,occurred_at,lookup_url:`https://signal-api.virya.music/v1/internal/autopilot/provider-actions/${encodeURIComponent(thread_id)}`});\n  }\n}\nreturn [...latestByThread.values()]\n  .sort((a,b)=>b.ts-a.ts)\n  .slice(0,30)\n  .map(({ts,...json})=>({json}));"
+    },
+    "typeVersion": 2
+   },
+   {
+    "id": "080c2712-326f-417f-9712-e10cb79647cb",
+    "name": "CrowdRelay \u2014 resolve provider correlation",
+    "type": "n8n-nodes-base.httpRequest",
+    "onError": "continueRegularOutput",
+    "position": [
+     1072,
+     832
+    ],
+    "parameters": {
+     "url": "={{ $json.lookup_url }}",
+     "options": {
+      "timeout": 15000,
+      "response": {
+       "response": {
+        "neverError": true,
+        "fullResponse": true
+       }
+      }
+     },
+     "sendHeaders": true,
+     "headerParameters": {
+      "parameters": [
+       {
+        "name": "Authorization",
+        "value": "={{ 'Bearer ' + $env.CROWDRELAY_COMMERCE_API_KEY }}"
+       },
+       {
+        "name": "X-Virya-Executor-Id",
+        "value": "viryaos-mail-v1"
+       }
+      ]
+     }
+    },
+    "typeVersion": 4.2
+   },
+   {
+    "id": "62a32aaf-c94e-439c-a49e-9fe53ed528f2",
+    "name": "Build CrowdRelay reply ingress",
+    "type": "n8n-nodes-base.code",
+    "position": [
+     1296,
+     832
+    ],
+    "parameters": {
+     "jsCode": "const src=$('Build provider correlation lookup').item.json||{};\nconst r=$json||{}; const status=Number(r.statusCode||r.status||200);\nif(status===404)return [];\n// The inbox monitor runs every 15m over a replay window. A transient upstream 5xx,\n// timeout or rate limit is therefore safely retried by the next scheduled scan instead\n// of failing the whole mail executor and producing a noisy automation alert.\nif(status===408||status===425||status===429||status>=500)return [];\nif(status<200||status>=300)throw new Error(`Provider correlation lookup failed: ${status}`);\nconst ref=(r.body&&typeof r.body==='object')?r.body:r;\nconst subject_kind=String(ref.subject_kind||''); const target_id=String(ref.subject_id||'');\nif(!target_id||!['booking_target','outreach_target'].includes(subject_kind))return [];\nconst encoded=encodeURIComponent(target_id);\nconst url=subject_kind==='booking_target'?`https://signal-api.virya.music/v1/admin/autopilot/booking-targets/${encoded}/reply`:`https://signal-api.virya.music/v1/admin/autopilot/outreach-targets/${encoded}/reply`;\nconst body=subject_kind==='booking_target'?{disposition:'received',occurred_at:src.occurred_at}:{opportunity_id:null,disposition:'received',occurred_at:src.occurred_at};\nreturn [{json:{message_id:src.message_id,thread_id:src.thread_id,url,body}}];"
+    },
+    "typeVersion": 2
+   },
+   {
+    "id": "44bf2006-668f-444a-9e99-3fa45b00a0c6",
+    "name": "Provider execution claim",
+    "type": "n8n-nodes-base.httpRequest",
+    "position": [
+     1936,
+     464
+    ],
+    "parameters": {
+     "url": "={{ 'https://signal-api.virya.music/v1/internal/autopilot/actions/' + $json.action_id + '/execution-claim' }}",
+     "method": "POST",
+     "options": {
+      "timeout": 30000
+     },
+     "jsonBody": "={{ ({executor_id:String($env.VIRYAOS_EXECUTOR_ID||'virya-n8n-primary').trim(),occurred_at:new Date().toISOString()}) }}",
+     "sendBody": true,
+     "sendHeaders": true,
+     "specifyBody": "json",
+     "headerParameters": {
+      "parameters": [
+       {
+        "name": "Authorization",
+        "value": "={{ 'Bearer ' + $env.CROWDRELAY_COMMERCE_API_KEY }}"
+       }
+      ]
+     }
+    },
+    "typeVersion": 4.4
+   },
+   {
+    "id": "1fa1dd3f-3ea6-4d1d-a0ca-dfb7ca511531",
+    "name": "Resolve provider execution claim",
+    "type": "n8n-nodes-base.code",
+    "position": [
+     2096,
+     464
+    ],
+    "parameters": {
+     "jsCode": "const src=$('Prepare send').item.json||{}; const r=$json||{}; const disposition=String(r.disposition||'');\nif(disposition==='already_succeeded') return [];\nif(disposition!=='claimed'||!r.claim_token) throw new Error(`Provider execution ${disposition||'unclaimed'}; fail closed to prevent duplicate external side effects`);\nreturn [{json:{...src,claim_token:String(r.claim_token),attempt_number:Number(r.attempt_number||1)}}];"
+    },
+    "typeVersion": 2
+   },
+   {
+    "id": "678d1499-0ffb-4c06-a355-0c258f10ab4d",
+    "name": "CrowdRelay \u2014 record inbound reply1",
+    "type": "n8n-nodes-base.httpRequest",
+    "onError": "continueRegularOutput",
+    "maxTries": 4,
+    "position": [
+     1504,
+     832
+    ],
+    "parameters": {
+     "url": "={{ $json.url }}",
+     "method": "POST",
+     "options": {
+      "timeout": 30000
+     },
+     "jsonBody": "={{ $json.body }}",
+     "sendBody": true,
+     "sendHeaders": true,
+     "specifyBody": "json",
+     "headerParameters": {
+      "parameters": [
+       {
+        "name": "Authorization",
+        "value": "={{ 'Bearer ' + ($env.CROWDRELAY_ADMIN_API_KEY || $env.CROWDRELAY_COMMERCE_API_KEY) }}"
+       },
+       {
+        "name": "Idempotency-Key",
+        "value": "={{ 'gmail-reply:' + $json.message_id }}"
+       }
+      ]
+     }
+    },
+    "retryOnFail": true,
+    "typeVersion": 4.2,
+    "waitBetweenTries": 5000
+   }
+  ],
+  "connections": {
+   "CrowdRelay \u2014 resolve provider correlation": {
+    "main": [
+     [
+      {
+       "node": "Build CrowdRelay reply ingress",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "Called by verified ingress": {
+    "main": [
+     [
+      {
+       "node": "Build deterministic mail",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "Build deterministic mail": {
+    "main": [
+     [
+      {
+       "node": "IF \u2014 transactional now",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "IF \u2014 transactional now": {
+    "main": [
+     [
+      {
+       "node": "Prepare send",
+       "type": "main",
+       "index": 0
+      }
+     ],
+     [
+      {
+       "node": "Build Gemini polish request",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "Build Gemini polish request": {
+    "main": [
+     [
+      {
+       "node": "Gemini \u2014 VIRYA outreach polish",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "Gemini \u2014 VIRYA outreach polish": {
+    "main": [
+     [
+      {
+       "node": "Validate Gemini copy or fallback",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "Validate Gemini copy or fallback": {
+    "main": [
+     [
+      {
+       "node": "Prepare send",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "Prepare send": {
+    "main": [
+     [
+      {
+       "node": "Provider execution claim",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "Gmail \u2014 VIRYA OS SEND": {
+    "main": [
+     [
+      {
+       "node": "Prepare mail success receipt",
+       "type": "main",
+       "index": 0
+      }
+     ],
+     [
+      {
+       "node": "Fail closed on ambiguous provider error",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "Prepare mail success receipt": {
+    "main": [
+     [
+      {
+       "node": "Queue mail success receipt",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "Every 15m \u2014 reply monitor": {
+    "main": [
+     [
+      {
+       "node": "Gmail \u2014 recent inbound VIRYA OS",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "Gmail \u2014 recent inbound VIRYA OS": {
+    "main": [
+     [
+      {
+       "node": "Build provider correlation lookup",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "Build provider correlation lookup": {
+    "main": [
+     [
+      {
+       "node": "CrowdRelay \u2014 resolve provider correlation",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "Build CrowdRelay reply ingress": {
+    "main": [
+     [
+      {
+       "node": "CrowdRelay \u2014 record inbound reply1",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "Provider execution claim": {
+    "main": [
+     [
+      {
+       "node": "Resolve provider execution claim",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "Resolve provider execution claim": {
+    "main": [
+     [
+      {
+       "node": "Gmail \u2014 VIRYA OS SEND",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   }
+  },
+  "nodeGroups": [],
+  "authors": "Virya Crew",
+  "name": "Version e3f9dede",
+  "description": "",
+  "autosaved": false,
+  "workflowPublishHistory": [
+   {
+    "createdAt": "2026-08-21T12:01:04.296Z",
+    "id": 633,
+    "workflowId": "VOSMAIL000000001",
+    "versionId": "e3f9dede-27da-48fe-bf7e-ef97880059eb",
+    "event": "activated",
+    "userId": "89259ec0-46eb-41d3-a04e-eb12f52f6342"
+   }
+  ]
+ }
+}

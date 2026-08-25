@@ -1,0 +1,745 @@
+{
+ "updatedAt": "2026-08-15T20:51:55.154Z",
+ "createdAt": "2026-07-25T14:33:40.860Z",
+ "id": "MHL20VIRYA000006",
+ "name": "VIRYA 20 \u2014 META OAuth Health Check",
+ "description": null,
+ "active": true,
+ "isArchived": false,
+ "nodes": [
+  {
+   "id": "84077540-1299-44b2-91c3-ec5c43f23950",
+   "name": "Manual Trigger",
+   "type": "n8n-nodes-base.manualTrigger",
+   "position": [
+    -1200,
+    -100
+   ],
+   "parameters": {},
+   "typeVersion": 1
+  },
+  {
+   "id": "74302c18-286f-493a-adcd-8e030bdc623e",
+   "name": "Daily \u2014 Meta health 03:45",
+   "type": "n8n-nodes-base.scheduleTrigger",
+   "notes": "Light runtime cadence: 0 45 3 * * * (Europe/Warsaw). Workflow logic and data mappings unchanged.",
+   "position": [
+    -1200,
+    120
+   ],
+   "parameters": {
+    "rule": {
+     "interval": [
+      {
+       "field": "cronExpression",
+       "expression": "0 45 3 * * *"
+      }
+     ]
+    }
+   },
+   "notesInFlow": true,
+   "typeVersion": 1.3
+  },
+  {
+   "id": "86f3051e-fa54-4975-a577-f5d1fe7940da",
+   "name": "META \u2014 Account health",
+   "type": "n8n-nodes-base.httpRequest",
+   "maxTries": 4,
+   "position": [
+    -650,
+    0
+   ],
+   "parameters": {
+    "url": "https://graph.facebook.com/v25.0/me/accounts",
+    "options": {
+     "timeout": 60000,
+     "response": {
+      "response": {
+       "neverError": true,
+       "responseFormat": "json"
+      }
+     }
+    },
+    "sendQuery": true,
+    "authentication": "genericCredentialType",
+    "genericAuthType": "oAuth2Api",
+    "queryParameters": {
+     "parameters": [
+      {
+       "name": "fields",
+       "value": "id,name,tasks,instagram_business_account{id,username,name,followers_count,media_count}"
+      },
+      {
+       "name": "limit",
+       "value": "100"
+      }
+     ]
+    }
+   },
+   "credentials": {
+    "oAuth2Api": {
+     "id": "u8PUa0YZcmFfEIGg",
+     "name": "Meta Virya OAuth2"
+    }
+   },
+   "retryOnFail": true,
+   "typeVersion": 4.4,
+   "waitBetweenTries": 10000
+  },
+  {
+   "id": "ca01f37e-896c-426a-9a6d-1f150ff3d34a",
+   "name": "Code \u2014 Alert only on failure",
+   "type": "n8n-nodes-base.code",
+   "position": [
+    -360,
+    0
+   ],
+   "parameters": {
+    "jsCode": "const r=$input.first().json||{},body=r.body||r,now=new Date().toISOString();if(body.error)return[{json:{alert:true,run_status:'ERROR_AUTH',error_count:1,content:`\ud83d\uded1 **META AUTH ERROR**\n${body.error.code||''}: ${body.error.message||JSON.stringify(body.error)}\nAutomaty Meta wymagaj\u0105 ponownego po\u0142\u0105czenia credentiala Meta Virya OAuth2.`}}];const pages=Array.isArray(body.data)?body.data.length:0;return[{json:{alert:false,run_status:'OK_AUTH',error_count:0,pages,notes:`Token dzia\u0142a; widoczne strony: ${pages}`}}];"
+   },
+   "typeVersion": 2
+  },
+  {
+   "id": "587787d0-a937-43bf-9d09-06df5e6b5369",
+   "name": "Discord \u2014 Meta auth failure",
+   "type": "n8n-nodes-base.httpRequest",
+   "maxTries": 5,
+   "position": [
+    -80,
+    0
+   ],
+   "parameters": {
+    "url": "https://discord.com/api/v10/channels/1529482376458276964/messages",
+    "method": "POST",
+    "options": {
+     "timeout": 30000
+    },
+    "jsonBody": "={{ ({ content: String((($json.content)) ?? '').slice(0, 2000), allowed_mentions: { parse: [] } }) }}",
+    "sendBody": true,
+    "sendHeaders": true,
+    "specifyBody": "json",
+    "authentication": "genericCredentialType",
+    "genericAuthType": "httpHeaderAuth",
+    "headerParameters": {
+     "parameters": [
+      {
+       "name": "User-Agent",
+       "value": "Virya-n8n/1.0 (https://virya.music)"
+      }
+     ]
+    }
+   },
+   "credentials": {
+    "httpHeaderAuth": {
+     "id": "FB7ONYMUsZFfObWB",
+     "name": "Discord Bot HTTP"
+    }
+   },
+   "retryOnFail": true,
+   "typeVersion": 4.4,
+   "waitBetweenTries": 5000
+  },
+  {
+   "id": "7688c390-d76f-40bc-bd1b-f3f20e56ffd5",
+   "name": "CICHA KONTROLA",
+   "type": "n8n-nodes-base.stickyNote",
+   "position": [
+    -900,
+    -320
+   ],
+   "parameters": {
+    "width": 500,
+    "height": 280,
+    "content": "## HEALTH CHECK\nSukces jest cichy. Discord dostaje wiadomo\u015b\u0107 tylko wtedy, gdy token wygas\u0142, strona znikn\u0119\u0142a albo konto IG przesta\u0142o by\u0107 powi\u0105zane."
+   },
+   "typeVersion": 1
+  },
+  {
+   "id": "9569f438-406f-4cea-b8a9-19342622cfaa",
+   "name": "IF \u2014 Meta auth failed?",
+   "type": "n8n-nodes-base.if",
+   "position": [
+    -100,
+    -120
+   ],
+   "parameters": {
+    "options": {},
+    "conditions": {
+     "options": {
+      "version": 2,
+      "leftValue": "",
+      "caseSensitive": true,
+      "typeValidation": "strict"
+     },
+     "combinator": "and",
+     "conditions": [
+      {
+       "id": "7bede577-a485-4812-8722-70b0c961ba25",
+       "operator": {
+        "type": "boolean",
+        "operation": "true",
+        "singleValue": true
+       },
+       "leftValue": "={{ $json.alert === true }}",
+       "rightValue": ""
+      }
+     ]
+    }
+   },
+   "typeVersion": 2.2
+  },
+  {
+   "id": "e1f60a4f-265c-4a0b-80a3-7ed4f30e8c36",
+   "name": "NoOp \u2014 Meta auth OK",
+   "type": "n8n-nodes-base.noOp",
+   "position": [
+    170,
+    80
+   ],
+   "parameters": {},
+   "typeVersion": 1
+  },
+  {
+   "id": "16a78d77-aaea-4181-a0a1-7e33c9b776da",
+   "name": "Code \u2014 Health run result",
+   "type": "n8n-nodes-base.code",
+   "position": [
+    -60,
+    220
+   ],
+   "parameters": {
+    "jsCode": "const x=$('Code \u2014 Alert only on failure').first().json||{},now=new Date().toISOString();return[{json:{Run_Key:`META20:${now}`,Workflow:'VIRYA 20 \u2014 META OAuth Health Check',Started_At:now,Finished_At:now,Status:x.run_status||'ERROR_UNKNOWN',Input_Count:1,Target_Count:Number(x.pages||0),API_OK:x.error_count?0:1,API_Errors:Number(x.error_count||0),New_Items:0,Filtered_or_Duplicates:0,Notes:x.notes||x.content||'',Execution_Mode:'scheduled/manual',Trace_JSON:JSON.stringify(x).slice(0,5000)}}];"
+   },
+   "typeVersion": 2
+  },
+  {
+   "id": "ebc9f2ea-b51f-4a75-a16b-ba79bf50b969",
+   "name": "GS \u2014 Append META_RUNS",
+   "type": "n8n-nodes-base.googleSheets",
+   "position": [
+    220,
+    220
+   ],
+   "parameters": {
+    "columns": {
+     "value": {},
+     "schema": [],
+     "mappingMode": "autoMapInputData",
+     "matchingColumns": [],
+     "attemptToConvertTypes": false,
+     "convertFieldsToString": false
+    },
+    "options": {
+     "locationDefine": {
+      "values": {
+       "headerRow": 3,
+       "firstDataRow": 4
+      }
+     }
+    },
+    "resource": "sheet",
+    "operation": "append",
+    "sheetName": {
+     "__rl": true,
+     "mode": "name",
+     "value": "META_RUNS"
+    },
+    "documentId": {
+     "__rl": true,
+     "mode": "id",
+     "value": "1aeOq_LFPp7HmFnNCenjz0RA5wIATgfd--ycbmmAGEk4"
+    }
+   },
+   "credentials": {
+    "googleSheetsOAuth2Api": {
+     "id": "bc2Y1XmIdyu5ySTa",
+     "name": "Google Sheets account"
+    }
+   },
+   "typeVersion": 4.7
+  }
+ ],
+ "connections": {
+  "Manual Trigger": {
+   "main": [
+    [
+     {
+      "node": "META \u2014 Account health",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Daily \u2014 Meta health 03:45": {
+   "main": [
+    [
+     {
+      "node": "META \u2014 Account health",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "META \u2014 Account health": {
+   "main": [
+    [
+     {
+      "node": "Code \u2014 Alert only on failure",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Code \u2014 Alert only on failure": {
+   "main": [
+    [
+     {
+      "node": "IF \u2014 Meta auth failed?",
+      "type": "main",
+      "index": 0
+     },
+     {
+      "node": "Code \u2014 Health run result",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "IF \u2014 Meta auth failed?": {
+   "main": [
+    [
+     {
+      "node": "Discord \u2014 Meta auth failure",
+      "type": "main",
+      "index": 0
+     }
+    ],
+    [
+     {
+      "node": "NoOp \u2014 Meta auth OK",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Code \u2014 Health run result": {
+   "main": [
+    [
+     {
+      "node": "GS \u2014 Append META_RUNS",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  }
+ },
+ "settings": {
+  "executionOrder": "v1",
+  "binaryMode": "separate",
+  "availableInMCP": false,
+  "timezone": "Europe/Warsaw",
+  "errorWorkflow": "98d5e1a4-2dba-5e5a-9be1-2e5d9220859d",
+  "executionTimeout": 180,
+  "saveExecutionProgress": false
+ },
+ "staticData": {
+  "node:Codziennie 07:00 \u2014 Meta health": {
+   "recurrenceRules": [
+    null
+   ],
+   "recurrenceRuleSignatures": [
+    null
+   ]
+  },
+  "node:Daily \u2014 Meta health 03:45": {
+   "recurrenceRules": [
+    null
+   ],
+   "recurrenceRuleSignatures": [
+    null
+   ]
+  }
+ },
+ "meta": {
+  "templateCredsSetupCompleted": true
+ },
+ "nodeGroups": [],
+ "pinData": {},
+ "versionId": "c364cd62-1ef4-448f-94a9-556e883c334a",
+ "activeVersionId": "c364cd62-1ef4-448f-94a9-556e883c334a",
+ "versionCounter": 9,
+ "triggerCount": 1,
+ "sourceWorkflowId": null,
+ "shared": [
+  {
+   "updatedAt": "2026-07-25T14:33:40.860Z",
+   "createdAt": "2026-07-25T14:33:40.860Z",
+   "role": "workflow:owner",
+   "workflowId": "MHL20VIRYA000006",
+   "projectId": "e2rPVcUBR4DTE3mO",
+   "project": {
+    "updatedAt": "2026-07-24T09:45:30.763Z",
+    "createdAt": "2026-07-24T09:45:07.113Z",
+    "id": "e2rPVcUBR4DTE3mO",
+    "name": "Virya Crew <virya.crew@gmail.com>",
+    "type": "personal",
+    "icon": null,
+    "description": null,
+    "customTelemetryTags": [],
+    "creatorId": "89259ec0-46eb-41d3-a04e-eb12f52f6342"
+   }
+  }
+ ],
+ "tags": [],
+ "activeVersion": {
+  "updatedAt": "2026-08-25T12:20:51.980Z",
+  "createdAt": "2026-08-12T17:01:41.269Z",
+  "versionId": "c364cd62-1ef4-448f-94a9-556e883c334a",
+  "workflowId": "MHL20VIRYA000006",
+  "nodes": [
+   {
+    "id": "84077540-1299-44b2-91c3-ec5c43f23950",
+    "name": "Manual Trigger",
+    "type": "n8n-nodes-base.manualTrigger",
+    "position": [
+     -1200,
+     -100
+    ],
+    "parameters": {},
+    "typeVersion": 1
+   },
+   {
+    "id": "74302c18-286f-493a-adcd-8e030bdc623e",
+    "name": "Daily \u2014 Meta health 03:45",
+    "type": "n8n-nodes-base.scheduleTrigger",
+    "notes": "Light runtime cadence: 0 45 3 * * * (Europe/Warsaw). Workflow logic and data mappings unchanged.",
+    "position": [
+     -1200,
+     120
+    ],
+    "parameters": {
+     "rule": {
+      "interval": [
+       {
+        "field": "cronExpression",
+        "expression": "0 45 3 * * *"
+       }
+      ]
+     }
+    },
+    "notesInFlow": true,
+    "typeVersion": 1.3
+   },
+   {
+    "id": "86f3051e-fa54-4975-a577-f5d1fe7940da",
+    "name": "META \u2014 Account health",
+    "type": "n8n-nodes-base.httpRequest",
+    "maxTries": 4,
+    "position": [
+     -650,
+     0
+    ],
+    "parameters": {
+     "url": "https://graph.facebook.com/v25.0/me/accounts",
+     "options": {
+      "timeout": 60000,
+      "response": {
+       "response": {
+        "neverError": true,
+        "responseFormat": "json"
+       }
+      }
+     },
+     "sendQuery": true,
+     "authentication": "genericCredentialType",
+     "genericAuthType": "oAuth2Api",
+     "queryParameters": {
+      "parameters": [
+       {
+        "name": "fields",
+        "value": "id,name,tasks,instagram_business_account{id,username,name,followers_count,media_count}"
+       },
+       {
+        "name": "limit",
+        "value": "100"
+       }
+      ]
+     }
+    },
+    "credentials": {
+     "oAuth2Api": {
+      "id": "u8PUa0YZcmFfEIGg",
+      "name": "Meta Virya OAuth2"
+     }
+    },
+    "retryOnFail": true,
+    "typeVersion": 4.4,
+    "waitBetweenTries": 10000
+   },
+   {
+    "id": "ca01f37e-896c-426a-9a6d-1f150ff3d34a",
+    "name": "Code \u2014 Alert only on failure",
+    "type": "n8n-nodes-base.code",
+    "position": [
+     -360,
+     0
+    ],
+    "parameters": {
+     "jsCode": "const r=$input.first().json||{},body=r.body||r,now=new Date().toISOString();if(body.error)return[{json:{alert:true,run_status:'ERROR_AUTH',error_count:1,content:`\ud83d\uded1 **META AUTH ERROR**\n${body.error.code||''}: ${body.error.message||JSON.stringify(body.error)}\nAutomaty Meta wymagaj\u0105 ponownego po\u0142\u0105czenia credentiala Meta Virya OAuth2.`}}];const pages=Array.isArray(body.data)?body.data.length:0;return[{json:{alert:false,run_status:'OK_AUTH',error_count:0,pages,notes:`Token dzia\u0142a; widoczne strony: ${pages}`}}];"
+    },
+    "typeVersion": 2
+   },
+   {
+    "id": "587787d0-a937-43bf-9d09-06df5e6b5369",
+    "name": "Discord \u2014 Meta auth failure",
+    "type": "n8n-nodes-base.httpRequest",
+    "maxTries": 5,
+    "position": [
+     -80,
+     0
+    ],
+    "parameters": {
+     "url": "https://discord.com/api/v10/channels/1529482376458276964/messages",
+     "method": "POST",
+     "options": {
+      "timeout": 30000
+     },
+     "jsonBody": "={{ ({ content: String((($json.content)) ?? '').slice(0, 2000), allowed_mentions: { parse: [] } }) }}",
+     "sendBody": true,
+     "sendHeaders": true,
+     "specifyBody": "json",
+     "authentication": "genericCredentialType",
+     "genericAuthType": "httpHeaderAuth",
+     "headerParameters": {
+      "parameters": [
+       {
+        "name": "User-Agent",
+        "value": "Virya-n8n/1.0 (https://virya.music)"
+       }
+      ]
+     }
+    },
+    "credentials": {
+     "httpHeaderAuth": {
+      "id": "FB7ONYMUsZFfObWB",
+      "name": "Discord Bot HTTP"
+     }
+    },
+    "retryOnFail": true,
+    "typeVersion": 4.4,
+    "waitBetweenTries": 5000
+   },
+   {
+    "id": "7688c390-d76f-40bc-bd1b-f3f20e56ffd5",
+    "name": "CICHA KONTROLA",
+    "type": "n8n-nodes-base.stickyNote",
+    "position": [
+     -900,
+     -320
+    ],
+    "parameters": {
+     "width": 500,
+     "height": 280,
+     "content": "## HEALTH CHECK\nSukces jest cichy. Discord dostaje wiadomo\u015b\u0107 tylko wtedy, gdy token wygas\u0142, strona znikn\u0119\u0142a albo konto IG przesta\u0142o by\u0107 powi\u0105zane."
+    },
+    "typeVersion": 1
+   },
+   {
+    "id": "9569f438-406f-4cea-b8a9-19342622cfaa",
+    "name": "IF \u2014 Meta auth failed?",
+    "type": "n8n-nodes-base.if",
+    "position": [
+     -100,
+     -120
+    ],
+    "parameters": {
+     "options": {},
+     "conditions": {
+      "options": {
+       "version": 2,
+       "leftValue": "",
+       "caseSensitive": true,
+       "typeValidation": "strict"
+      },
+      "combinator": "and",
+      "conditions": [
+       {
+        "id": "7bede577-a485-4812-8722-70b0c961ba25",
+        "operator": {
+         "type": "boolean",
+         "operation": "true",
+         "singleValue": true
+        },
+        "leftValue": "={{ $json.alert === true }}",
+        "rightValue": ""
+       }
+      ]
+     }
+    },
+    "typeVersion": 2.2
+   },
+   {
+    "id": "e1f60a4f-265c-4a0b-80a3-7ed4f30e8c36",
+    "name": "NoOp \u2014 Meta auth OK",
+    "type": "n8n-nodes-base.noOp",
+    "position": [
+     170,
+     80
+    ],
+    "parameters": {},
+    "typeVersion": 1
+   },
+   {
+    "id": "16a78d77-aaea-4181-a0a1-7e33c9b776da",
+    "name": "Code \u2014 Health run result",
+    "type": "n8n-nodes-base.code",
+    "position": [
+     -60,
+     220
+    ],
+    "parameters": {
+     "jsCode": "const x=$('Code \u2014 Alert only on failure').first().json||{},now=new Date().toISOString();return[{json:{Run_Key:`META20:${now}`,Workflow:'VIRYA 20 \u2014 META OAuth Health Check',Started_At:now,Finished_At:now,Status:x.run_status||'ERROR_UNKNOWN',Input_Count:1,Target_Count:Number(x.pages||0),API_OK:x.error_count?0:1,API_Errors:Number(x.error_count||0),New_Items:0,Filtered_or_Duplicates:0,Notes:x.notes||x.content||'',Execution_Mode:'scheduled/manual',Trace_JSON:JSON.stringify(x).slice(0,5000)}}];"
+    },
+    "typeVersion": 2
+   },
+   {
+    "id": "ebc9f2ea-b51f-4a75-a16b-ba79bf50b969",
+    "name": "GS \u2014 Append META_RUNS",
+    "type": "n8n-nodes-base.googleSheets",
+    "position": [
+     220,
+     220
+    ],
+    "parameters": {
+     "columns": {
+      "value": {},
+      "schema": [],
+      "mappingMode": "autoMapInputData",
+      "matchingColumns": [],
+      "attemptToConvertTypes": false,
+      "convertFieldsToString": false
+     },
+     "options": {
+      "locationDefine": {
+       "values": {
+        "headerRow": 3,
+        "firstDataRow": 4
+       }
+      }
+     },
+     "resource": "sheet",
+     "operation": "append",
+     "sheetName": {
+      "__rl": true,
+      "mode": "name",
+      "value": "META_RUNS"
+     },
+     "documentId": {
+      "__rl": true,
+      "mode": "id",
+      "value": "1aeOq_LFPp7HmFnNCenjz0RA5wIATgfd--ycbmmAGEk4"
+     }
+    },
+    "credentials": {
+     "googleSheetsOAuth2Api": {
+      "id": "bc2Y1XmIdyu5ySTa",
+      "name": "Google Sheets account"
+     }
+    },
+    "typeVersion": 4.7
+   }
+  ],
+  "connections": {
+   "Manual Trigger": {
+    "main": [
+     [
+      {
+       "node": "META \u2014 Account health",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "Daily \u2014 Meta health 03:45": {
+    "main": [
+     [
+      {
+       "node": "META \u2014 Account health",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "META \u2014 Account health": {
+    "main": [
+     [
+      {
+       "node": "Code \u2014 Alert only on failure",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "Code \u2014 Alert only on failure": {
+    "main": [
+     [
+      {
+       "node": "IF \u2014 Meta auth failed?",
+       "type": "main",
+       "index": 0
+      },
+      {
+       "node": "Code \u2014 Health run result",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "IF \u2014 Meta auth failed?": {
+    "main": [
+     [
+      {
+       "node": "Discord \u2014 Meta auth failure",
+       "type": "main",
+       "index": 0
+      }
+     ],
+     [
+      {
+       "node": "NoOp \u2014 Meta auth OK",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "Code \u2014 Health run result": {
+    "main": [
+     [
+      {
+       "node": "GS \u2014 Append META_RUNS",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   }
+  },
+  "nodeGroups": [],
+  "authors": "import",
+  "name": null,
+  "description": null,
+  "autosaved": false,
+  "workflowPublishHistory": []
+ }
+}

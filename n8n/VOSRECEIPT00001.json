@@ -1,0 +1,449 @@
+{
+ "updatedAt": "2026-08-15T20:52:40.664Z",
+ "createdAt": "2026-08-11T09:00:00.000Z",
+ "id": "VOSRECEIPT00001",
+ "name": "CrowdRelay \u2014 CrowdRelayOS execution receipt spooler",
+ "description": "Queues provider execution receipts before delivery and retries them without replaying the provider side effect.",
+ "active": true,
+ "isArchived": false,
+ "nodes": [
+  {
+   "parameters": {
+    "inputSource": "passthrough"
+   },
+   "id": "5ec6fe30-fe5f-44a6-8734-3b6a79c35eef",
+   "name": "Called by executor",
+   "type": "n8n-nodes-base.executeWorkflowTrigger",
+   "typeVersion": 1.1,
+   "position": [
+    0,
+    0
+   ]
+  },
+  {
+   "parameters": {
+    "jsCode": "const x=$json||{};\nconst action=String(x.action_id||'').trim(); const status=String(x.status||'').trim();\nif(!action||!['accepted','executing','succeeded','failed'].includes(status)) throw new Error('Invalid VIRYA OS receipt');\nconst executor=String($env.VIRYAOS_EXECUTOR_ID||'virya-n8n-primary').trim(); const claim=x.claim_token?String(x.claim_token).trim():null;\nconst key=`${action}:${executor}:${status}:${claim||'legacy'}`;\nconst body={receipt_key:key,executor_id:executor,status,claim_token:claim,provider_reference:x.provider_reference?String(x.provider_reference).slice(0,240):null,error_kind:status==='failed'?String(x.error_kind||'provider_failed').slice(0,96):null,metadata:(x.metadata&&typeof x.metadata==='object')?x.metadata:{},occurred_at:String(x.occurred_at||new Date().toISOString()),action_id:action};\nconst store=$getWorkflowStaticData('global'); store.pending_receipts=store.pending_receipts||{}; store.pending_receipts[key]=body;\nconst entries=Object.entries(store.pending_receipts).sort((a,b)=>String(b[1]?.occurred_at||'').localeCompare(String(a[1]?.occurred_at||'')));\nif(entries.length>1000) store.pending_receipts=Object.fromEntries(entries.slice(0,1000));\nreturn [{json:body}];"
+   },
+   "id": "d1f30c32-c341-4a3b-bc35-a86dc55e1cf2",
+   "name": "Queue stable receipt",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    256,
+    0
+   ]
+  },
+  {
+   "parameters": {
+    "rule": {
+     "interval": [
+      {
+       "field": "cronExpression",
+       "expression": "0 */5 * * * *"
+      }
+     ]
+    }
+   },
+   "id": "298d4576-7ac3-4a39-b41f-564903e8bba4",
+   "name": "Every 5m \u2014 retry receipts",
+   "type": "n8n-nodes-base.scheduleTrigger",
+   "typeVersion": 1.2,
+   "position": [
+    0,
+    272
+   ]
+  },
+  {
+   "parameters": {
+    "jsCode": "const store=$getWorkflowStaticData('global'); store.pending_receipts=store.pending_receipts||{};\nreturn Object.values(store.pending_receipts).sort((a,b)=>String(a.occurred_at||'').localeCompare(String(b.occurred_at||''))).slice(0,50).map(x=>({json:x}));"
+   },
+   "id": "1eee4666-409e-4c52-9d5f-0a513b182cf9",
+   "name": "Load pending receipts",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    256,
+    272
+   ]
+  },
+  {
+   "parameters": {
+    "method": "POST",
+    "url": "={{ 'https://signal-api.virya.music/v1/internal/autopilot/actions/' + $json.action_id + '/execution-report' }}",
+    "sendHeaders": true,
+    "headerParameters": {
+     "parameters": [
+      {
+       "name": "Authorization",
+       "value": "={{ 'Bearer ' + $env.CROWDRELAY_COMMERCE_API_KEY }}"
+      }
+     ]
+    },
+    "sendBody": true,
+    "specifyBody": "json",
+    "jsonBody": "={{ ({receipt_key:$json.receipt_key,executor_id:$json.executor_id,status:$json.status,claim_token:$json.claim_token||null,provider_reference:$json.provider_reference,error_kind:$json.error_kind,metadata:$json.metadata,occurred_at:$json.occurred_at}) }}",
+    "options": {
+     "timeout": 30000
+    }
+   },
+   "id": "a804cbab-521a-40f6-86da-131e0732dcb5",
+   "name": "CrowdRelay \u2014 execution report",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.4,
+   "position": [
+    544,
+    128
+   ],
+   "retryOnFail": true,
+   "maxTries": 3,
+   "waitBetweenTries": 1800,
+   "onError": "continueErrorOutput"
+  },
+  {
+   "parameters": {
+    "jsCode": "const action=String($json.action_id||'').trim(); const status=String($json.status||'').trim();\nif(action&&status){\n  const store=$getWorkflowStaticData('global'); store.pending_receipts=store.pending_receipts||{};\n  for(const [key,receipt] of Object.entries(store.pending_receipts)){\n    if(String(receipt?.action_id||'')===action&&String(receipt?.status||'')===status) delete store.pending_receipts[key];\n  }\n}\nreturn [{json:{receipt_delivered:true,action_id:action,status}}];"
+   },
+   "id": "a9b1951d-7707-41da-9d6c-a6bd6d7c317d",
+   "name": "Ack delivered receipt",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    848,
+    48
+   ]
+  },
+  {
+   "parameters": {},
+   "id": "0c5a3ab1-94da-4b20-a50e-2ecd576559fc",
+   "name": "Keep receipt queued",
+   "type": "n8n-nodes-base.noOp",
+   "typeVersion": 1,
+   "position": [
+    848,
+    224
+   ]
+  }
+ ],
+ "connections": {
+  "Called by executor": {
+   "main": [
+    [
+     {
+      "node": "Queue stable receipt",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Queue stable receipt": {
+   "main": [
+    [
+     {
+      "node": "CrowdRelay \u2014 execution report",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Every 5m \u2014 retry receipts": {
+   "main": [
+    [
+     {
+      "node": "Load pending receipts",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Load pending receipts": {
+   "main": [
+    [
+     {
+      "node": "CrowdRelay \u2014 execution report",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "CrowdRelay \u2014 execution report": {
+   "main": [
+    [
+     {
+      "node": "Ack delivered receipt",
+      "type": "main",
+      "index": 0
+     }
+    ],
+    [
+     {
+      "node": "Keep receipt queued",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  }
+ },
+ "settings": {
+  "executionOrder": "v1",
+  "saveDataErrorExecution": "none",
+  "saveDataSuccessExecution": "none",
+  "saveManualExecutions": false,
+  "errorWorkflow": "98d5e1a4-2dba-5e5a-9be1-2e5d9220859d",
+  "saveExecutionProgress": false,
+  "executionTimeout": 45,
+  "binaryMode": "separate",
+  "timezone": "Europe/Warsaw"
+ },
+ "staticData": {
+  "global": {
+   "pending_receipts": {}
+  },
+  "node:Every 5m \u2014 retry receipts": {
+   "recurrenceRules": [
+    null
+   ],
+   "recurrenceRuleSignatures": [
+    null
+   ]
+  }
+ },
+ "meta": {
+  "templateCredsSetupCompleted": true
+ },
+ "nodeGroups": [],
+ "pinData": {},
+ "versionId": "d6130522-51e8-4138-95d4-cbd1621491ff",
+ "activeVersionId": "d6130522-51e8-4138-95d4-cbd1621491ff",
+ "versionCounter": 4,
+ "triggerCount": 1,
+ "sourceWorkflowId": null,
+ "shared": [
+  {
+   "updatedAt": "2026-08-11T19:49:59.771Z",
+   "createdAt": "2026-08-11T19:49:59.771Z",
+   "role": "workflow:owner",
+   "workflowId": "VOSRECEIPT00001",
+   "projectId": "e2rPVcUBR4DTE3mO",
+   "project": {
+    "updatedAt": "2026-07-24T09:45:30.763Z",
+    "createdAt": "2026-07-24T09:45:07.113Z",
+    "id": "e2rPVcUBR4DTE3mO",
+    "name": "Virya Crew <virya.crew@gmail.com>",
+    "type": "personal",
+    "icon": null,
+    "description": null,
+    "customTelemetryTags": [],
+    "creatorId": "89259ec0-46eb-41d3-a04e-eb12f52f6342"
+   }
+  }
+ ],
+ "tags": [],
+ "activeVersion": {
+  "updatedAt": "2026-08-13T20:39:17.280Z",
+  "createdAt": "2026-08-13T20:39:03.882Z",
+  "versionId": "d6130522-51e8-4138-95d4-cbd1621491ff",
+  "workflowId": "VOSRECEIPT00001",
+  "nodes": [
+   {
+    "parameters": {
+     "inputSource": "passthrough"
+    },
+    "id": "5ec6fe30-fe5f-44a6-8734-3b6a79c35eef",
+    "name": "Called by executor",
+    "type": "n8n-nodes-base.executeWorkflowTrigger",
+    "typeVersion": 1.1,
+    "position": [
+     0,
+     0
+    ]
+   },
+   {
+    "parameters": {
+     "jsCode": "const x=$json||{};\nconst action=String(x.action_id||'').trim(); const status=String(x.status||'').trim();\nif(!action||!['accepted','executing','succeeded','failed'].includes(status)) throw new Error('Invalid VIRYA OS receipt');\nconst executor=String($env.VIRYAOS_EXECUTOR_ID||'virya-n8n-primary').trim(); const claim=x.claim_token?String(x.claim_token).trim():null;\nconst key=`${action}:${executor}:${status}:${claim||'legacy'}`;\nconst body={receipt_key:key,executor_id:executor,status,claim_token:claim,provider_reference:x.provider_reference?String(x.provider_reference).slice(0,240):null,error_kind:status==='failed'?String(x.error_kind||'provider_failed').slice(0,96):null,metadata:(x.metadata&&typeof x.metadata==='object')?x.metadata:{},occurred_at:String(x.occurred_at||new Date().toISOString()),action_id:action};\nconst store=$getWorkflowStaticData('global'); store.pending_receipts=store.pending_receipts||{}; store.pending_receipts[key]=body;\nconst entries=Object.entries(store.pending_receipts).sort((a,b)=>String(b[1]?.occurred_at||'').localeCompare(String(a[1]?.occurred_at||'')));\nif(entries.length>1000) store.pending_receipts=Object.fromEntries(entries.slice(0,1000));\nreturn [{json:body}];"
+    },
+    "id": "d1f30c32-c341-4a3b-bc35-a86dc55e1cf2",
+    "name": "Queue stable receipt",
+    "type": "n8n-nodes-base.code",
+    "typeVersion": 2,
+    "position": [
+     256,
+     0
+    ]
+   },
+   {
+    "parameters": {
+     "rule": {
+      "interval": [
+       {
+        "field": "cronExpression",
+        "expression": "0 */5 * * * *"
+       }
+      ]
+     }
+    },
+    "id": "298d4576-7ac3-4a39-b41f-564903e8bba4",
+    "name": "Every 5m \u2014 retry receipts",
+    "type": "n8n-nodes-base.scheduleTrigger",
+    "typeVersion": 1.2,
+    "position": [
+     0,
+     272
+    ]
+   },
+   {
+    "parameters": {
+     "jsCode": "const store=$getWorkflowStaticData('global'); store.pending_receipts=store.pending_receipts||{};\nreturn Object.values(store.pending_receipts).sort((a,b)=>String(a.occurred_at||'').localeCompare(String(b.occurred_at||''))).slice(0,50).map(x=>({json:x}));"
+    },
+    "id": "1eee4666-409e-4c52-9d5f-0a513b182cf9",
+    "name": "Load pending receipts",
+    "type": "n8n-nodes-base.code",
+    "typeVersion": 2,
+    "position": [
+     256,
+     272
+    ]
+   },
+   {
+    "parameters": {
+     "method": "POST",
+     "url": "={{ 'https://signal-api.virya.music/v1/internal/autopilot/actions/' + $json.action_id + '/execution-report' }}",
+     "sendHeaders": true,
+     "headerParameters": {
+      "parameters": [
+       {
+        "name": "Authorization",
+        "value": "={{ 'Bearer ' + $env.CROWDRELAY_COMMERCE_API_KEY }}"
+       }
+      ]
+     },
+     "sendBody": true,
+     "specifyBody": "json",
+     "jsonBody": "={{ ({receipt_key:$json.receipt_key,executor_id:$json.executor_id,status:$json.status,claim_token:$json.claim_token||null,provider_reference:$json.provider_reference,error_kind:$json.error_kind,metadata:$json.metadata,occurred_at:$json.occurred_at}) }}",
+     "options": {
+      "timeout": 30000
+     }
+    },
+    "id": "a804cbab-521a-40f6-86da-131e0732dcb5",
+    "name": "CrowdRelay \u2014 execution report",
+    "type": "n8n-nodes-base.httpRequest",
+    "typeVersion": 4.4,
+    "position": [
+     544,
+     128
+    ],
+    "retryOnFail": true,
+    "maxTries": 3,
+    "waitBetweenTries": 1800,
+    "onError": "continueErrorOutput"
+   },
+   {
+    "parameters": {
+     "jsCode": "const action=String($json.action_id||'').trim(); const status=String($json.status||'').trim();\nif(action&&status){\n  const store=$getWorkflowStaticData('global'); store.pending_receipts=store.pending_receipts||{};\n  for(const [key,receipt] of Object.entries(store.pending_receipts)){\n    if(String(receipt?.action_id||'')===action&&String(receipt?.status||'')===status) delete store.pending_receipts[key];\n  }\n}\nreturn [{json:{receipt_delivered:true,action_id:action,status}}];"
+    },
+    "id": "a9b1951d-7707-41da-9d6c-a6bd6d7c317d",
+    "name": "Ack delivered receipt",
+    "type": "n8n-nodes-base.code",
+    "typeVersion": 2,
+    "position": [
+     848,
+     48
+    ]
+   },
+   {
+    "parameters": {},
+    "id": "0c5a3ab1-94da-4b20-a50e-2ecd576559fc",
+    "name": "Keep receipt queued",
+    "type": "n8n-nodes-base.noOp",
+    "typeVersion": 1,
+    "position": [
+     848,
+     224
+    ]
+   }
+  ],
+  "connections": {
+   "Called by executor": {
+    "main": [
+     [
+      {
+       "node": "Queue stable receipt",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "Queue stable receipt": {
+    "main": [
+     [
+      {
+       "node": "CrowdRelay \u2014 execution report",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "Every 5m \u2014 retry receipts": {
+    "main": [
+     [
+      {
+       "node": "Load pending receipts",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "Load pending receipts": {
+    "main": [
+     [
+      {
+       "node": "CrowdRelay \u2014 execution report",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "CrowdRelay \u2014 execution report": {
+    "main": [
+     [
+      {
+       "node": "Ack delivered receipt",
+       "type": "main",
+       "index": 0
+      }
+     ],
+     [
+      {
+       "node": "Keep receipt queued",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   }
+  },
+  "nodeGroups": [],
+  "authors": "Virya Crew",
+  "name": "Version d6130522",
+  "description": "",
+  "autosaved": true,
+  "workflowPublishHistory": [
+   {
+    "createdAt": "2026-08-13T20:39:17.260Z",
+    "id": 604,
+    "workflowId": "VOSRECEIPT00001",
+    "versionId": "d6130522-51e8-4138-95d4-cbd1621491ff",
+    "event": "activated",
+    "userId": "89259ec0-46eb-41d3-a04e-eb12f52f6342"
+   }
+  ]
+ }
+}

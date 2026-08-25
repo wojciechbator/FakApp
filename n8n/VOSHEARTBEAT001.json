@@ -1,0 +1,264 @@
+{
+ "updatedAt": "2026-08-23T17:20:01.443Z",
+ "createdAt": "2026-08-11T09:00:00.000Z",
+ "id": "VOSHEARTBEAT001",
+ "name": "CrowdRelay \u2014 CrowdRelayOS executor heartbeat",
+ "description": "Registers the exact deployed n8n capability surface; omitted capabilities fail closed in CrowdRelay.",
+ "active": true,
+ "isArchived": false,
+ "nodes": [
+  {
+   "parameters": {
+    "rule": {
+     "interval": [
+      {
+       "field": "cronExpression",
+       "expression": "0 */30 * * * *"
+      }
+     ]
+    }
+   },
+   "id": "450550bb-d73b-442e-a1ff-0fea07632df3",
+   "name": "Every 30m \u2014 capability heartbeat",
+   "type": "n8n-nodes-base.scheduleTrigger",
+   "typeVersion": 1.2,
+   "position": [
+    1616,
+    -256
+   ]
+  },
+  {
+   "parameters": {
+    "jsCode": "const now = new Date();\nconst isSha256 = (value) => /^[a-f0-9]{64}$/.test(String(value || '').trim());\nconst manifestSha = String($env.VIRYAOS_WORKFLOW_MANIFEST_SHA || '9a4e58807417fc3504bbecd9c2b9d983fdcce7bbd26798e120229f9223df6ff1').trim();\nif (!isSha256(manifestSha)) throw new Error('VIRYAOS_WORKFLOW_MANIFEST_SHA must be lowercase sha256');\n\nconst caps = [\n  'fan.lifecycle.message',\n  'booking.outreach',\n  'outreach.send',\n  'opportunity.application',\n  'funding.submit',\n  'ops.alert',\n  'outreach.discovery',\n];\nif (String($env.VIRYAOS_ENABLE_TEAM_OPS || '0') === '1') caps.push('merch.reorder', 'merch.bundle', 'content.artifact', 'show.escalation');\nif (String($env.VIRYAOS_ENABLE_FUNDING_PACKAGE || '0') === '1') caps.push('funding.package');\nif (String($env.VIRYAOS_ENABLE_CALENDAR || '0') === '1') caps.push('calendar.upsert');\n\nconst metadata = {\n  runtime: 'n8n',\n  receipt_spooler: 'VOSRECEIPT00001',\n  team_ops_gate: String($env.VIRYAOS_ENABLE_TEAM_OPS || '0'),\n  team_email_gate: String($env.VIRYAOS_ENABLE_TEAM_EMAIL || '0'),\n};\n\n// team.email is fail-closed: desired state alone must never poison the whole\n// executor heartbeat. Advertise it only when the exact secretless workflow\n// attestation is fresh and bound to this manifest SHA.\nconst teamEmailDesired = String($env.VIRYAOS_ENABLE_TEAM_EMAIL || '0') === '1';\nconst attestationSha = String($env.VIRYAOS_WORKFLOW_ATTESTATION_SHA || '').trim();\nconst attestationManifestSha = String($env.VIRYAOS_WORKFLOW_ATTESTATION_MANIFEST_SHA || '').trim();\nconst attestedAtRaw = String($env.VIRYAOS_WORKFLOW_ATTESTED_AT || '').trim();\nconst attestedAtMs = Date.parse(attestedAtRaw);\nconst maxAttestationAgeMs = 14 * 24 * 60 * 60 * 1000;\nconst maxFutureSkewMs = 5 * 60 * 1000;\nconst attestationFresh = Number.isFinite(attestedAtMs)\n  && attestedAtMs <= now.getTime() + maxFutureSkewMs\n  && now.getTime() - attestedAtMs <= maxAttestationAgeMs;\nconst teamEmailAttested = teamEmailDesired\n  && isSha256(attestationSha)\n  && isSha256(attestationManifestSha)\n  && attestationManifestSha === manifestSha\n  && attestationFresh;\n\nmetadata.team_email_advertised = teamEmailAttested ? '1' : '0';\nif (teamEmailAttested) {\n  caps.push('team.email');\n  metadata.workflow_attestation_sha = attestationSha;\n  metadata.workflow_attestation_manifest_sha = attestationManifestSha;\n  metadata.workflow_attested_at = new Date(attestedAtMs).toISOString();\n} else if (teamEmailDesired) {\n  metadata.team_email_attestation = 'missing_stale_or_manifest_mismatch';\n}\n\nconst executor = String($env.VIRYAOS_EXECUTOR_ID || 'virya-n8n-primary').trim();\nreturn [{ json: {\n  executor_id: executor,\n  version: 'viryaos-n8n-2026-08-14.1',\n  manifest_sha: manifestSha,\n  capabilities: caps.map(capability => ({ capability, version: 'v1' })),\n  metadata,\n  observed_at: now.toISOString(),\n  expires_at: new Date(now.getTime() + 90 * 60 * 1000).toISOString(),\n} }];"
+   },
+   "id": "3141403c-3dff-495e-a3e3-10b656053d7c",
+   "name": "Build exact capability manifest",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    1888,
+    -256
+   ]
+  },
+  {
+   "parameters": {
+    "method": "POST",
+    "url": "https://signal-api.virya.music/v1/internal/autopilot/executors/heartbeat",
+    "sendHeaders": true,
+    "headerParameters": {
+     "parameters": [
+      {
+       "name": "Authorization",
+       "value": "={{ 'Bearer ' + $env.CROWDRELAY_COMMERCE_API_KEY }}"
+      }
+     ]
+    },
+    "sendBody": true,
+    "specifyBody": "json",
+    "jsonBody": "={{ $json }}",
+    "options": {
+     "timeout": 30000
+    }
+   },
+   "id": "88e88775-1685-47e9-abe4-8ca72ecc78a0",
+   "name": "CrowdRelay \u2014 executor heartbeat",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.4,
+   "position": [
+    2160,
+    -256
+   ],
+   "retryOnFail": true,
+   "maxTries": 3,
+   "waitBetweenTries": 1800
+  }
+ ],
+ "connections": {
+  "Every 30m \u2014 capability heartbeat": {
+   "main": [
+    [
+     {
+      "node": "Build exact capability manifest",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Build exact capability manifest": {
+   "main": [
+    [
+     {
+      "node": "CrowdRelay \u2014 executor heartbeat",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  }
+ },
+ "settings": {
+  "executionOrder": "v1",
+  "saveDataErrorExecution": "none",
+  "saveDataSuccessExecution": "none",
+  "saveManualExecutions": false,
+  "errorWorkflow": "98d5e1a4-2dba-5e5a-9be1-2e5d9220859d",
+  "saveExecutionProgress": false,
+  "executionTimeout": 40,
+  "binaryMode": "separate",
+  "timezone": "Europe/Warsaw"
+ },
+ "staticData": {
+  "node:Every 30m \u2014 capability heartbeat": {
+   "recurrenceRules": [
+    null
+   ],
+   "recurrenceRuleSignatures": [
+    null
+   ]
+  }
+ },
+ "meta": {
+  "templateCredsSetupCompleted": true
+ },
+ "nodeGroups": [],
+ "pinData": {},
+ "versionId": "30fe5a22-8c57-4145-86fd-dbe720af07dd",
+ "activeVersionId": "30fe5a22-8c57-4145-86fd-dbe720af07dd",
+ "versionCounter": 6,
+ "triggerCount": 1,
+ "sourceWorkflowId": null,
+ "shared": [
+  {
+   "updatedAt": "2026-08-11T19:49:59.771Z",
+   "createdAt": "2026-08-11T19:49:59.771Z",
+   "role": "workflow:owner",
+   "workflowId": "VOSHEARTBEAT001",
+   "projectId": "e2rPVcUBR4DTE3mO",
+   "project": {
+    "updatedAt": "2026-07-24T09:45:30.763Z",
+    "createdAt": "2026-07-24T09:45:07.113Z",
+    "id": "e2rPVcUBR4DTE3mO",
+    "name": "Virya Crew <virya.crew@gmail.com>",
+    "type": "personal",
+    "icon": null,
+    "description": null,
+    "customTelemetryTags": [],
+    "creatorId": "89259ec0-46eb-41d3-a04e-eb12f52f6342"
+   }
+  }
+ ],
+ "tags": [],
+ "activeVersion": {
+  "updatedAt": "2026-08-25T12:20:51.980Z",
+  "createdAt": "2026-08-14T16:45:49.362Z",
+  "versionId": "30fe5a22-8c57-4145-86fd-dbe720af07dd",
+  "workflowId": "VOSHEARTBEAT001",
+  "nodes": [
+   {
+    "parameters": {
+     "rule": {
+      "interval": [
+       {
+        "field": "cronExpression",
+        "expression": "0 */30 * * * *"
+       }
+      ]
+     }
+    },
+    "id": "450550bb-d73b-442e-a1ff-0fea07632df3",
+    "name": "Every 30m \u2014 capability heartbeat",
+    "type": "n8n-nodes-base.scheduleTrigger",
+    "typeVersion": 1.2,
+    "position": [
+     1616,
+     -256
+    ]
+   },
+   {
+    "parameters": {
+     "jsCode": "const now = new Date();\nconst isSha256 = (value) => /^[a-f0-9]{64}$/.test(String(value || '').trim());\nconst manifestSha = String($env.VIRYAOS_WORKFLOW_MANIFEST_SHA || '9a4e58807417fc3504bbecd9c2b9d983fdcce7bbd26798e120229f9223df6ff1').trim();\nif (!isSha256(manifestSha)) throw new Error('VIRYAOS_WORKFLOW_MANIFEST_SHA must be lowercase sha256');\n\nconst caps = [\n  'fan.lifecycle.message',\n  'booking.outreach',\n  'outreach.send',\n  'opportunity.application',\n  'funding.submit',\n  'ops.alert',\n  'outreach.discovery',\n];\nif (String($env.VIRYAOS_ENABLE_TEAM_OPS || '0') === '1') caps.push('merch.reorder', 'merch.bundle', 'content.artifact', 'show.escalation');\nif (String($env.VIRYAOS_ENABLE_FUNDING_PACKAGE || '0') === '1') caps.push('funding.package');\nif (String($env.VIRYAOS_ENABLE_CALENDAR || '0') === '1') caps.push('calendar.upsert');\n\nconst metadata = {\n  runtime: 'n8n',\n  receipt_spooler: 'VOSRECEIPT00001',\n  team_ops_gate: String($env.VIRYAOS_ENABLE_TEAM_OPS || '0'),\n  team_email_gate: String($env.VIRYAOS_ENABLE_TEAM_EMAIL || '0'),\n};\n\n// team.email is fail-closed: desired state alone must never poison the whole\n// executor heartbeat. Advertise it only when the exact secretless workflow\n// attestation is fresh and bound to this manifest SHA.\nconst teamEmailDesired = String($env.VIRYAOS_ENABLE_TEAM_EMAIL || '0') === '1';\nconst attestationSha = String($env.VIRYAOS_WORKFLOW_ATTESTATION_SHA || '').trim();\nconst attestationManifestSha = String($env.VIRYAOS_WORKFLOW_ATTESTATION_MANIFEST_SHA || '').trim();\nconst attestedAtRaw = String($env.VIRYAOS_WORKFLOW_ATTESTED_AT || '').trim();\nconst attestedAtMs = Date.parse(attestedAtRaw);\nconst maxAttestationAgeMs = 14 * 24 * 60 * 60 * 1000;\nconst maxFutureSkewMs = 5 * 60 * 1000;\nconst attestationFresh = Number.isFinite(attestedAtMs)\n  && attestedAtMs <= now.getTime() + maxFutureSkewMs\n  && now.getTime() - attestedAtMs <= maxAttestationAgeMs;\nconst teamEmailAttested = teamEmailDesired\n  && isSha256(attestationSha)\n  && isSha256(attestationManifestSha)\n  && attestationManifestSha === manifestSha\n  && attestationFresh;\n\nmetadata.team_email_advertised = teamEmailAttested ? '1' : '0';\nif (teamEmailAttested) {\n  caps.push('team.email');\n  metadata.workflow_attestation_sha = attestationSha;\n  metadata.workflow_attestation_manifest_sha = attestationManifestSha;\n  metadata.workflow_attested_at = new Date(attestedAtMs).toISOString();\n} else if (teamEmailDesired) {\n  metadata.team_email_attestation = 'missing_stale_or_manifest_mismatch';\n}\n\nconst executor = String($env.VIRYAOS_EXECUTOR_ID || 'virya-n8n-primary').trim();\nreturn [{ json: {\n  executor_id: executor,\n  version: 'viryaos-n8n-2026-08-14.1',\n  manifest_sha: manifestSha,\n  capabilities: caps.map(capability => ({ capability, version: 'v1' })),\n  metadata,\n  observed_at: now.toISOString(),\n  expires_at: new Date(now.getTime() + 90 * 60 * 1000).toISOString(),\n} }];"
+    },
+    "id": "3141403c-3dff-495e-a3e3-10b656053d7c",
+    "name": "Build exact capability manifest",
+    "type": "n8n-nodes-base.code",
+    "typeVersion": 2,
+    "position": [
+     1888,
+     -256
+    ]
+   },
+   {
+    "parameters": {
+     "method": "POST",
+     "url": "https://signal-api.virya.music/v1/internal/autopilot/executors/heartbeat",
+     "sendHeaders": true,
+     "headerParameters": {
+      "parameters": [
+       {
+        "name": "Authorization",
+        "value": "={{ 'Bearer ' + $env.CROWDRELAY_COMMERCE_API_KEY }}"
+       }
+      ]
+     },
+     "sendBody": true,
+     "specifyBody": "json",
+     "jsonBody": "={{ $json }}",
+     "options": {
+      "timeout": 30000
+     }
+    },
+    "id": "88e88775-1685-47e9-abe4-8ca72ecc78a0",
+    "name": "CrowdRelay \u2014 executor heartbeat",
+    "type": "n8n-nodes-base.httpRequest",
+    "typeVersion": 4.4,
+    "position": [
+     2160,
+     -256
+    ],
+    "retryOnFail": true,
+    "maxTries": 3,
+    "waitBetweenTries": 1800
+   }
+  ],
+  "connections": {
+   "Every 30m \u2014 capability heartbeat": {
+    "main": [
+     [
+      {
+       "node": "Build exact capability manifest",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "Build exact capability manifest": {
+    "main": [
+     [
+      {
+       "node": "CrowdRelay \u2014 executor heartbeat",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   }
+  },
+  "nodeGroups": [],
+  "authors": "Virya Crew",
+  "name": "Version 30fe5a22",
+  "description": "",
+  "autosaved": false,
+  "workflowPublishHistory": [
+   {
+    "createdAt": "2026-08-14T16:46:02.562Z",
+    "id": 610,
+    "workflowId": "VOSHEARTBEAT001",
+    "versionId": "30fe5a22-8c57-4145-86fd-dbe720af07dd",
+    "event": "activated",
+    "userId": "89259ec0-46eb-41d3-a04e-eb12f52f6342"
+   }
+  ]
+ }
+}

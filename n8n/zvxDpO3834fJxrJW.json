@@ -1,0 +1,582 @@
+{
+ "updatedAt": "2026-08-15T20:54:29.952Z",
+ "createdAt": "2026-07-24T09:45:08.790Z",
+ "id": "zvxDpO3834fJxrJW",
+ "name": "VIRYA 05 \u2014 Daily Scout + Support Radar \u2192 Discord Bot",
+ "description": null,
+ "active": true,
+ "isArchived": false,
+ "nodes": [
+  {
+   "id": "dba21308-5039-45f5-8990-55f44b2c1a37",
+   "name": "SETUP",
+   "type": "n8n-nodes-base.stickyNote",
+   "position": [
+    720,
+    224
+   ],
+   "parameters": {
+    "color": 5,
+    "width": 440,
+    "height": 320,
+    "content": "## DAILY SCOUT + SUPPORT RADAR\nCodziennie o 11:15 czyta SUPPORT_TARGETS i OPPORTUNITIES, a potem publikuje jeden kr\u00f3tki raport: najlepsze ruchy do zespo\u0142\u00f3w, nowe sloty supportowe, priorytety i deadline'y.\n\nPo imporcie pod\u0142\u0105cz Google Sheets oraz Discord Bot i wklej Server ID / Channel ID. Niczego nie wysy\u0142a do zespo\u0142\u00f3w ani medi\u00f3w."
+   },
+   "typeVersion": 1
+  },
+  {
+   "id": "86535784-f870-4203-ab21-2f3fd853aaed",
+   "name": "Daily \u2014 support digest 11:40",
+   "type": "n8n-nodes-base.scheduleTrigger",
+   "notes": "Light runtime cadence: 0 40 11 * * * (Europe/Warsaw). Workflow logic and data mappings unchanged.",
+   "position": [
+    784,
+    560
+   ],
+   "parameters": {
+    "rule": {
+     "interval": [
+      {
+       "field": "cronExpression",
+       "expression": "0 40 11 * * *"
+      }
+     ]
+    }
+   },
+   "notesInFlow": true,
+   "typeVersion": 1.3
+  },
+  {
+   "id": "9f90dab8-20c6-4758-96cd-2cba0511ac0c",
+   "name": "Czytaj SUPPORT_TARGETS",
+   "type": "n8n-nodes-base.googleSheets",
+   "maxTries": 5,
+   "position": [
+    1024,
+    560
+   ],
+   "parameters": {
+    "options": {
+     "dataLocationOnSheet": {
+      "values": {
+       "headerRow": 4,
+       "firstDataRow": 5,
+       "rangeDefinition": "specifyRange"
+      }
+     }
+    },
+    "filtersUI": {
+     "values": []
+    },
+    "sheetName": {
+     "__rl": true,
+     "mode": "name",
+     "value": "SUPPORT_TARGETS"
+    },
+    "documentId": {
+     "__rl": true,
+     "mode": "id",
+     "value": "1aeOq_LFPp7HmFnNCenjz0RA5wIATgfd--ycbmmAGEk4"
+    }
+   },
+   "credentials": {
+    "googleSheetsOAuth2Api": {
+     "id": "bc2Y1XmIdyu5ySTa",
+     "name": "Google Sheets account"
+    }
+   },
+   "retryOnFail": true,
+   "typeVersion": 4.7,
+   "alwaysOutputData": true,
+   "waitBetweenTries": 15000
+  },
+  {
+   "id": "5c32d966-c603-419d-bfaf-2143df6f3cb1",
+   "name": "Pack Support Targets",
+   "type": "n8n-nodes-base.code",
+   "position": [
+    1264,
+    560
+   ],
+   "parameters": {
+    "jsCode": "return [{ json: { targets: $input.all().map(item => item.json).filter(row => row.Target_ID) } }];"
+   },
+   "typeVersion": 2
+  },
+  {
+   "id": "cb57d099-5cb7-4c87-a6c2-8d18a3083c87",
+   "name": "Czytaj OPPORTUNITIES",
+   "type": "n8n-nodes-base.googleSheets",
+   "maxTries": 5,
+   "position": [
+    1504,
+    560
+   ],
+   "parameters": {
+    "options": {
+     "dataLocationOnSheet": {
+      "values": {
+       "headerRow": 4,
+       "firstDataRow": 5,
+       "rangeDefinition": "specifyRange"
+      }
+     }
+    },
+    "filtersUI": {
+     "values": []
+    },
+    "sheetName": {
+     "__rl": true,
+     "mode": "name",
+     "value": "OPPORTUNITIES"
+    },
+    "documentId": {
+     "__rl": true,
+     "mode": "id",
+     "value": "1aeOq_LFPp7HmFnNCenjz0RA5wIATgfd--ycbmmAGEk4"
+    }
+   },
+   "credentials": {
+    "googleSheetsOAuth2Api": {
+     "id": "bc2Y1XmIdyu5ySTa",
+     "name": "Google Sheets account"
+    }
+   },
+   "retryOnFail": true,
+   "typeVersion": 4.7,
+   "alwaysOutputData": true,
+   "waitBetweenTries": 15000
+  },
+  {
+   "id": "c7788d7e-30b7-478c-8e91-9fd4357b4db5",
+   "name": "Zbuduj daily digest",
+   "type": "n8n-nodes-base.code",
+   "position": [
+    1744,
+    560
+   ],
+   "parameters": {
+    "jsCode": "const targets=$('Pack Support Targets').first().json.targets||[];\nconst opportunities=$input.all().map(i=>i.json||{}).filter(r=>r.Opportunity_ID&&!['Odrzucone','Zamkni\u0119te','Nieaktualne'].includes(String(r.Status||'')));\nconst num=v=>Number(v||0);\nconst now=Date.now(),soon=now+14*86400000;\nconst actions=[];\nfor(const row of targets){if(!['Szkic gotowy','Do kontaktu','Follow-up'].includes(String(row.Status||'')))continue;actions.push({kind:'SUPPORT',title:String(row.Band||row.Target_ID),score:num(row.Priority_Score)+20,owner:String(row.Owner||'do przypisania'),due:String(row.Next_Action_Date||row.Deadline||'brak'),action:String(row.Next_Action||'sprawd\u017a i podejmij decyzj\u0119'),url:String(row.URL||row.Contact_URL||'')});}\nfor(const row of opportunities){const deadline=row.Deadline?new Date(String(row.Deadline).slice(0,10)+'T23:59:59').getTime():NaN;const urgent=Number.isFinite(deadline)&&deadline>=now&&deadline<=soon;const score=num(row.Relevance_Score)+(urgent?30:0)+(String(row.Priority||'')==='A'?15:0);if(score<70)continue;actions.push({kind:String(row.Category||'OKAZJA'),title:String(row.Title||row.Opportunity_ID),score,owner:String(row.Owner||'do przypisania'),due:String(row.Deadline||'brak'),action:String(row.Next_Action||'zweryfikuj i zdecyduj'),url:String(row.URL||'')});}\nactions.sort((a,b)=>b.score-a.score);\nconst top=actions.slice(0,5);if(!top.length)return[];\nconst lines=top.map((x,i)=>(i+1)+'. **'+x.title+'** ['+x.kind+']\\n   Owner: '+x.owner+' | termin: '+x.due+'\\n   Akcja: '+x.action+(x.url?'\\n   '+x.url:''));\nconst message='\ud83d\udef0\ufe0f **VIRYA \u2014 co robimy dzi\u015b?**\\n\\n'+lines.join('\\n\\n')+'\\n\\nKolejka: https://docs.google.com/spreadsheets/d/1aeOq_LFPp7HmFnNCenjz0RA5wIATgfd--ycbmmAGEk4/edit';\nreturn[{json:{discord_message:message.slice(0,1950),allowed_mentions:{parse:[]}}}];"
+   },
+   "typeVersion": 2
+  },
+  {
+   "id": "c1625265-3a73-4be9-bcea-a496b8fb8e46",
+   "name": "Discord Bot \u2014 daily scout",
+   "type": "n8n-nodes-base.httpRequest",
+   "maxTries": 5,
+   "position": [
+    2000,
+    560
+   ],
+   "parameters": {
+    "url": "https://discord.com/api/v10/channels/1529482376458276964/messages",
+    "method": "POST",
+    "options": {
+     "timeout": 30000
+    },
+    "jsonBody": "={{ ({ content: String((($json.discord_message)) ?? '').slice(0, 2000), allowed_mentions: ($json.allowed_mentions && typeof $json.allowed_mentions === 'object') ? $json.allowed_mentions : { parse: [] }, flags: 4096 }) }}",
+    "sendBody": true,
+    "sendHeaders": true,
+    "specifyBody": "json",
+    "authentication": "genericCredentialType",
+    "genericAuthType": "httpHeaderAuth",
+    "headerParameters": {
+     "parameters": [
+      {
+       "name": "User-Agent",
+       "value": "Virya-n8n/1.0 (https://virya.music)"
+      }
+     ]
+    }
+   },
+   "credentials": {
+    "httpHeaderAuth": {
+     "id": "FB7ONYMUsZFfObWB",
+     "name": "Discord Bot HTTP"
+    }
+   },
+   "retryOnFail": true,
+   "typeVersion": 4.4,
+   "waitBetweenTries": 5000
+  }
+ ],
+ "connections": {
+  "Daily \u2014 support digest 11:40": {
+   "main": [
+    [
+     {
+      "node": "Czytaj SUPPORT_TARGETS",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Czytaj SUPPORT_TARGETS": {
+   "main": [
+    [
+     {
+      "node": "Pack Support Targets",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Pack Support Targets": {
+   "main": [
+    [
+     {
+      "node": "Czytaj OPPORTUNITIES",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Czytaj OPPORTUNITIES": {
+   "main": [
+    [
+     {
+      "node": "Zbuduj daily digest",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Zbuduj daily digest": {
+   "main": [
+    [
+     {
+      "node": "Discord Bot \u2014 daily scout",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  }
+ },
+ "settings": {
+  "executionOrder": "v1",
+  "binaryMode": "separate",
+  "availableInMCP": false,
+  "timezone": "Europe/Warsaw",
+  "errorWorkflow": "98d5e1a4-2dba-5e5a-9be1-2e5d9220859d",
+  "executionTimeout": 180,
+  "saveExecutionProgress": false
+ },
+ "staticData": {
+  "node:Codziennie 11:15": {
+   "recurrenceRules": [
+    null
+   ],
+   "recurrenceRuleSignatures": [
+    null
+   ]
+  },
+  "node:Daily \u2014 support digest 11:40": {
+   "recurrenceRules": [
+    null
+   ],
+   "recurrenceRuleSignatures": [
+    null
+   ]
+  }
+ },
+ "meta": {
+  "templateCredsSetupCompleted": true,
+  "viryaLocalPackage": "2026-07-24"
+ },
+ "nodeGroups": [],
+ "pinData": {},
+ "versionId": "fb256f17-0283-4193-abdd-57a67bc5a939",
+ "activeVersionId": "fb256f17-0283-4193-abdd-57a67bc5a939",
+ "versionCounter": 12,
+ "triggerCount": 1,
+ "sourceWorkflowId": null,
+ "shared": [
+  {
+   "updatedAt": "2026-07-24T09:45:08.790Z",
+   "createdAt": "2026-07-24T09:45:08.790Z",
+   "role": "workflow:owner",
+   "workflowId": "zvxDpO3834fJxrJW",
+   "projectId": "e2rPVcUBR4DTE3mO",
+   "project": {
+    "updatedAt": "2026-07-24T09:45:30.763Z",
+    "createdAt": "2026-07-24T09:45:07.113Z",
+    "id": "e2rPVcUBR4DTE3mO",
+    "name": "Virya Crew <virya.crew@gmail.com>",
+    "type": "personal",
+    "icon": null,
+    "description": null,
+    "customTelemetryTags": [],
+    "creatorId": "89259ec0-46eb-41d3-a04e-eb12f52f6342"
+   }
+  }
+ ],
+ "tags": [],
+ "activeVersion": {
+  "updatedAt": "2026-08-25T12:20:51.980Z",
+  "createdAt": "2026-08-12T17:01:41.269Z",
+  "versionId": "fb256f17-0283-4193-abdd-57a67bc5a939",
+  "workflowId": "zvxDpO3834fJxrJW",
+  "nodes": [
+   {
+    "id": "dba21308-5039-45f5-8990-55f44b2c1a37",
+    "name": "SETUP",
+    "type": "n8n-nodes-base.stickyNote",
+    "position": [
+     720,
+     224
+    ],
+    "parameters": {
+     "color": 5,
+     "width": 440,
+     "height": 320,
+     "content": "## DAILY SCOUT + SUPPORT RADAR\nCodziennie o 11:15 czyta SUPPORT_TARGETS i OPPORTUNITIES, a potem publikuje jeden kr\u00f3tki raport: najlepsze ruchy do zespo\u0142\u00f3w, nowe sloty supportowe, priorytety i deadline'y.\n\nPo imporcie pod\u0142\u0105cz Google Sheets oraz Discord Bot i wklej Server ID / Channel ID. Niczego nie wysy\u0142a do zespo\u0142\u00f3w ani medi\u00f3w."
+    },
+    "typeVersion": 1
+   },
+   {
+    "id": "86535784-f870-4203-ab21-2f3fd853aaed",
+    "name": "Daily \u2014 support digest 11:40",
+    "type": "n8n-nodes-base.scheduleTrigger",
+    "notes": "Light runtime cadence: 0 40 11 * * * (Europe/Warsaw). Workflow logic and data mappings unchanged.",
+    "position": [
+     784,
+     560
+    ],
+    "parameters": {
+     "rule": {
+      "interval": [
+       {
+        "field": "cronExpression",
+        "expression": "0 40 11 * * *"
+       }
+      ]
+     }
+    },
+    "notesInFlow": true,
+    "typeVersion": 1.3
+   },
+   {
+    "id": "9f90dab8-20c6-4758-96cd-2cba0511ac0c",
+    "name": "Czytaj SUPPORT_TARGETS",
+    "type": "n8n-nodes-base.googleSheets",
+    "maxTries": 5,
+    "position": [
+     1024,
+     560
+    ],
+    "parameters": {
+     "options": {
+      "dataLocationOnSheet": {
+       "values": {
+        "headerRow": 4,
+        "firstDataRow": 5,
+        "rangeDefinition": "specifyRange"
+       }
+      }
+     },
+     "filtersUI": {
+      "values": []
+     },
+     "sheetName": {
+      "__rl": true,
+      "mode": "name",
+      "value": "SUPPORT_TARGETS"
+     },
+     "documentId": {
+      "__rl": true,
+      "mode": "id",
+      "value": "1aeOq_LFPp7HmFnNCenjz0RA5wIATgfd--ycbmmAGEk4"
+     }
+    },
+    "credentials": {
+     "googleSheetsOAuth2Api": {
+      "id": "bc2Y1XmIdyu5ySTa",
+      "name": "Google Sheets account"
+     }
+    },
+    "retryOnFail": true,
+    "typeVersion": 4.7,
+    "alwaysOutputData": true,
+    "waitBetweenTries": 15000
+   },
+   {
+    "id": "5c32d966-c603-419d-bfaf-2143df6f3cb1",
+    "name": "Pack Support Targets",
+    "type": "n8n-nodes-base.code",
+    "position": [
+     1264,
+     560
+    ],
+    "parameters": {
+     "jsCode": "return [{ json: { targets: $input.all().map(item => item.json).filter(row => row.Target_ID) } }];"
+    },
+    "typeVersion": 2
+   },
+   {
+    "id": "cb57d099-5cb7-4c87-a6c2-8d18a3083c87",
+    "name": "Czytaj OPPORTUNITIES",
+    "type": "n8n-nodes-base.googleSheets",
+    "maxTries": 5,
+    "position": [
+     1504,
+     560
+    ],
+    "parameters": {
+     "options": {
+      "dataLocationOnSheet": {
+       "values": {
+        "headerRow": 4,
+        "firstDataRow": 5,
+        "rangeDefinition": "specifyRange"
+       }
+      }
+     },
+     "filtersUI": {
+      "values": []
+     },
+     "sheetName": {
+      "__rl": true,
+      "mode": "name",
+      "value": "OPPORTUNITIES"
+     },
+     "documentId": {
+      "__rl": true,
+      "mode": "id",
+      "value": "1aeOq_LFPp7HmFnNCenjz0RA5wIATgfd--ycbmmAGEk4"
+     }
+    },
+    "credentials": {
+     "googleSheetsOAuth2Api": {
+      "id": "bc2Y1XmIdyu5ySTa",
+      "name": "Google Sheets account"
+     }
+    },
+    "retryOnFail": true,
+    "typeVersion": 4.7,
+    "alwaysOutputData": true,
+    "waitBetweenTries": 15000
+   },
+   {
+    "id": "c7788d7e-30b7-478c-8e91-9fd4357b4db5",
+    "name": "Zbuduj daily digest",
+    "type": "n8n-nodes-base.code",
+    "position": [
+     1744,
+     560
+    ],
+    "parameters": {
+     "jsCode": "const targets=$('Pack Support Targets').first().json.targets||[];\nconst opportunities=$input.all().map(i=>i.json||{}).filter(r=>r.Opportunity_ID&&!['Odrzucone','Zamkni\u0119te','Nieaktualne'].includes(String(r.Status||'')));\nconst num=v=>Number(v||0);\nconst now=Date.now(),soon=now+14*86400000;\nconst actions=[];\nfor(const row of targets){if(!['Szkic gotowy','Do kontaktu','Follow-up'].includes(String(row.Status||'')))continue;actions.push({kind:'SUPPORT',title:String(row.Band||row.Target_ID),score:num(row.Priority_Score)+20,owner:String(row.Owner||'do przypisania'),due:String(row.Next_Action_Date||row.Deadline||'brak'),action:String(row.Next_Action||'sprawd\u017a i podejmij decyzj\u0119'),url:String(row.URL||row.Contact_URL||'')});}\nfor(const row of opportunities){const deadline=row.Deadline?new Date(String(row.Deadline).slice(0,10)+'T23:59:59').getTime():NaN;const urgent=Number.isFinite(deadline)&&deadline>=now&&deadline<=soon;const score=num(row.Relevance_Score)+(urgent?30:0)+(String(row.Priority||'')==='A'?15:0);if(score<70)continue;actions.push({kind:String(row.Category||'OKAZJA'),title:String(row.Title||row.Opportunity_ID),score,owner:String(row.Owner||'do przypisania'),due:String(row.Deadline||'brak'),action:String(row.Next_Action||'zweryfikuj i zdecyduj'),url:String(row.URL||'')});}\nactions.sort((a,b)=>b.score-a.score);\nconst top=actions.slice(0,5);if(!top.length)return[];\nconst lines=top.map((x,i)=>(i+1)+'. **'+x.title+'** ['+x.kind+']\\n   Owner: '+x.owner+' | termin: '+x.due+'\\n   Akcja: '+x.action+(x.url?'\\n   '+x.url:''));\nconst message='\ud83d\udef0\ufe0f **VIRYA \u2014 co robimy dzi\u015b?**\\n\\n'+lines.join('\\n\\n')+'\\n\\nKolejka: https://docs.google.com/spreadsheets/d/1aeOq_LFPp7HmFnNCenjz0RA5wIATgfd--ycbmmAGEk4/edit';\nreturn[{json:{discord_message:message.slice(0,1950),allowed_mentions:{parse:[]}}}];"
+    },
+    "typeVersion": 2
+   },
+   {
+    "id": "c1625265-3a73-4be9-bcea-a496b8fb8e46",
+    "name": "Discord Bot \u2014 daily scout",
+    "type": "n8n-nodes-base.httpRequest",
+    "maxTries": 5,
+    "position": [
+     2000,
+     560
+    ],
+    "parameters": {
+     "url": "https://discord.com/api/v10/channels/1529482376458276964/messages",
+     "method": "POST",
+     "options": {
+      "timeout": 30000
+     },
+     "jsonBody": "={{ ({ content: String((($json.discord_message)) ?? '').slice(0, 2000), allowed_mentions: ($json.allowed_mentions && typeof $json.allowed_mentions === 'object') ? $json.allowed_mentions : { parse: [] }, flags: 4096 }) }}",
+     "sendBody": true,
+     "sendHeaders": true,
+     "specifyBody": "json",
+     "authentication": "genericCredentialType",
+     "genericAuthType": "httpHeaderAuth",
+     "headerParameters": {
+      "parameters": [
+       {
+        "name": "User-Agent",
+        "value": "Virya-n8n/1.0 (https://virya.music)"
+       }
+      ]
+     }
+    },
+    "credentials": {
+     "httpHeaderAuth": {
+      "id": "FB7ONYMUsZFfObWB",
+      "name": "Discord Bot HTTP"
+     }
+    },
+    "retryOnFail": true,
+    "typeVersion": 4.4,
+    "waitBetweenTries": 5000
+   }
+  ],
+  "connections": {
+   "Daily \u2014 support digest 11:40": {
+    "main": [
+     [
+      {
+       "node": "Czytaj SUPPORT_TARGETS",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "Czytaj SUPPORT_TARGETS": {
+    "main": [
+     [
+      {
+       "node": "Pack Support Targets",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "Pack Support Targets": {
+    "main": [
+     [
+      {
+       "node": "Czytaj OPPORTUNITIES",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "Czytaj OPPORTUNITIES": {
+    "main": [
+     [
+      {
+       "node": "Zbuduj daily digest",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "Zbuduj daily digest": {
+    "main": [
+     [
+      {
+       "node": "Discord Bot \u2014 daily scout",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   }
+  },
+  "nodeGroups": [],
+  "authors": "import",
+  "name": null,
+  "description": null,
+  "autosaved": false,
+  "workflowPublishHistory": []
+ }
+}

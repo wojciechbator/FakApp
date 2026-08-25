@@ -1,0 +1,590 @@
+{
+ "updatedAt": "2026-08-15T20:52:17.948Z",
+ "createdAt": "2026-08-11T09:00:00.000Z",
+ "id": "VOSCAL000000001",
+ "name": "CrowdRelay \u2014 CrowdRelayOS Calendar executor",
+ "description": "Idempotent Calendar upsert. Intentionally inactive until VIRYA Google Calendar OAuth credential and VIRYA_GOOGLE_CALENDAR_ID are configured.",
+ "active": true,
+ "isArchived": false,
+ "nodes": [
+  {
+   "id": "d6885792-641e-4785-af7b-cf416d015479",
+   "name": "Called by verified ingress",
+   "type": "n8n-nodes-base.executeWorkflowTrigger",
+   "position": [
+    80,
+    -160
+   ],
+   "parameters": {
+    "inputSource": "passthrough"
+   },
+   "typeVersion": 1.1
+  },
+  {
+   "id": "7728a3b2-f48e-4f78-8048-fa7f31238b9d",
+   "name": "Build calendar event",
+   "type": "n8n-nodes-base.code",
+   "position": [
+    320,
+    -160
+   ],
+   "parameters": {
+    "jsCode": "const e=$json;if(!e||e.type!=='crowdrelay.calendar.upsert_requested'||e.version!==1) throw new Error('Unsupported calendar event');const d=e.data??{};if(!d.calendar_key||!d.title||!d.starts_at) throw new Error('Invalid calendar payload');const key=String(d.calendar_key);let hex='';for(const ch of key){hex+=ch.codePointAt(0).toString(16)}const eventId=('v'+hex).slice(0,900);const start=new Date(d.starts_at);if(Number.isNaN(start.getTime())) throw new Error('Invalid starts_at');const end=new Date(start.getTime()+30*60*1000);const action_id=String(d.action_id||'').trim();if(!action_id) throw new Error('Missing action_id');return [{json:{event_id:e.id,action_id,eventId,title:String(d.title),start:start.toISOString(),end:end.toISOString(),description:`VIRYA OS \u00b7 ${d.source_kind||'operation'} \u00b7 ${d.source_id||''}\\nKey: ${key}`}}];"
+   },
+   "typeVersion": 2
+  },
+  {
+   "id": "f6f717a6-3ac5-4c42-aad0-ed1082aca33b",
+   "name": "Calendar \u2014 update if exists",
+   "type": "n8n-nodes-base.googleCalendar",
+   "position": [
+    608,
+    -160
+   ],
+   "parameters": {
+    "eventId": "={{ $json.eventId }}",
+    "calendar": {
+     "__rl": true,
+     "mode": "id",
+     "value": "={{ $env.VIRYA_GOOGLE_CALENDAR_ID }}"
+    },
+    "operation": "update",
+    "updateFields": {
+     "end": "={{ $json.end }}",
+     "start": "={{ $json.start }}",
+     "summary": "={{ $json.title }}",
+     "description": "={{ $json.description }}"
+    }
+   },
+   "credentials": {
+    "googleCalendarOAuth2Api": {
+     "id": "H3dyZAtTm6wfbY3y",
+     "name": "Google Calendar account"
+    }
+   },
+   "typeVersion": 1.3,
+   "continueOnFail": true,
+   "alwaysOutputData": true
+  },
+  {
+   "id": "ba2f313e-7dcc-4ad1-b08e-eadd944bbc94",
+   "name": "Update failed?",
+   "type": "n8n-nodes-base.if",
+   "position": [
+    864,
+    -160
+   ],
+   "parameters": {
+    "options": {},
+    "conditions": {
+     "options": {
+      "version": 2,
+      "leftValue": "",
+      "caseSensitive": true,
+      "typeValidation": "loose"
+     },
+     "combinator": "and",
+     "conditions": [
+      {
+       "id": "4cb5e1f0-4a77-448b-bd7b-edbdec0ec283",
+       "operator": {
+        "type": "boolean",
+        "operation": "true",
+        "singleValue": true
+       },
+       "leftValue": "={{ Boolean($json.error || $json.message) }}",
+       "rightValue": true
+      }
+     ]
+    }
+   },
+   "typeVersion": 2.2
+  },
+  {
+   "id": "16f5a1c7-9bec-4b48-82c9-46d43e89ee90",
+   "name": "Calendar \u2014 create",
+   "type": "n8n-nodes-base.googleCalendar",
+   "maxTries": 3,
+   "position": [
+    1120,
+    -256
+   ],
+   "parameters": {
+    "end": "={{ $('Build calendar event').first().json.end }}",
+    "start": "={{ $('Build calendar event').first().json.start }}",
+    "calendar": {
+     "__rl": true,
+     "mode": "id",
+     "value": "={{ $env.VIRYA_GOOGLE_CALENDAR_ID }}"
+    },
+    "additionalFields": {
+     "id": "={{ $('Build calendar event').first().json.eventId }}",
+     "summary": "={{ $('Build calendar event').first().json.title }}",
+     "showMeAs": "transparent",
+     "description": "={{ $('Build calendar event').first().json.description }}",
+     "sendUpdates": "none"
+    }
+   },
+   "credentials": {
+    "googleCalendarOAuth2Api": {
+     "id": "H3dyZAtTm6wfbY3y",
+     "name": "Google Calendar account"
+    }
+   },
+   "retryOnFail": true,
+   "typeVersion": 1.3,
+   "waitBetweenTries": 3000
+  },
+  {
+   "id": "e602f453-8450-4d6f-8b81-c54a6d345d43",
+   "name": "Calendar upsert complete",
+   "type": "n8n-nodes-base.noOp",
+   "position": [
+    1120,
+    -64
+   ],
+   "parameters": {},
+   "typeVersion": 1
+  },
+  {
+   "id": "3ce94429-2141-474d-926e-28c9c0f29358",
+   "name": "Prepare Calendar success receipt",
+   "type": "n8n-nodes-base.code",
+   "position": [
+    1504,
+    -160
+   ],
+   "parameters": {
+    "jsCode": "const src=$('Build calendar event').item.json||{};return [{json:{action_id:src.action_id,status:'succeeded',provider_reference:String(src.eventId||'google-calendar').slice(0,240),metadata:{event_id:src.event_id,provider:'google_calendar',calendar_event_id:src.eventId},occurred_at:new Date().toISOString()}}];"
+   },
+   "typeVersion": 2
+  },
+  {
+   "id": "f5116290-da81-4ceb-a833-e19b606f466a",
+   "name": "Queue Calendar success receipt",
+   "type": "n8n-nodes-base.executeWorkflow",
+   "position": [
+    1728,
+    -160
+   ],
+   "parameters": {
+    "options": {},
+    "workflowId": {
+     "__rl": true,
+     "mode": "id",
+     "value": "VOSRECEIPT00001"
+    }
+   },
+   "typeVersion": 1.3,
+   "alwaysOutputData": true
+  }
+ ],
+ "connections": {
+  "Called by verified ingress": {
+   "main": [
+    [
+     {
+      "node": "Build calendar event",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Build calendar event": {
+   "main": [
+    [
+     {
+      "node": "Calendar \u2014 update if exists",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Calendar \u2014 update if exists": {
+   "main": [
+    [
+     {
+      "node": "Update failed?",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Update failed?": {
+   "main": [
+    [
+     {
+      "node": "Calendar \u2014 create",
+      "type": "main",
+      "index": 0
+     }
+    ],
+    [
+     {
+      "node": "Calendar upsert complete",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Calendar \u2014 create": {
+   "main": [
+    [
+     {
+      "node": "Calendar upsert complete",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Calendar upsert complete": {
+   "main": [
+    [
+     {
+      "node": "Prepare Calendar success receipt",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Prepare Calendar success receipt": {
+   "main": [
+    [
+     {
+      "node": "Queue Calendar success receipt",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  }
+ },
+ "settings": {
+  "executionOrder": "v1",
+  "saveDataErrorExecution": "none",
+  "saveDataSuccessExecution": "none",
+  "saveManualExecutions": false,
+  "errorWorkflow": "98d5e1a4-2dba-5e5a-9be1-2e5d9220859d",
+  "saveExecutionProgress": false,
+  "executionTimeout": 70,
+  "binaryMode": "separate"
+ },
+ "staticData": null,
+ "meta": {
+  "templateCredsSetupCompleted": true
+ },
+ "nodeGroups": [],
+ "pinData": {},
+ "versionId": "c49b8434-6a9e-4ecc-b3d2-2a2ccc9512b6",
+ "activeVersionId": "c49b8434-6a9e-4ecc-b3d2-2a2ccc9512b6",
+ "versionCounter": 12,
+ "triggerCount": 0,
+ "sourceWorkflowId": null,
+ "shared": [
+  {
+   "updatedAt": "2026-08-11T12:55:19.882Z",
+   "createdAt": "2026-08-11T12:55:19.882Z",
+   "role": "workflow:owner",
+   "workflowId": "VOSCAL000000001",
+   "projectId": "e2rPVcUBR4DTE3mO",
+   "project": {
+    "updatedAt": "2026-07-24T09:45:30.763Z",
+    "createdAt": "2026-07-24T09:45:07.113Z",
+    "id": "e2rPVcUBR4DTE3mO",
+    "name": "Virya Crew <virya.crew@gmail.com>",
+    "type": "personal",
+    "icon": null,
+    "description": null,
+    "customTelemetryTags": [],
+    "creatorId": "89259ec0-46eb-41d3-a04e-eb12f52f6342"
+   }
+  }
+ ],
+ "tags": [],
+ "activeVersion": {
+  "updatedAt": "2026-08-25T12:20:51.980Z",
+  "createdAt": "2026-08-13T20:33:00.659Z",
+  "versionId": "c49b8434-6a9e-4ecc-b3d2-2a2ccc9512b6",
+  "workflowId": "VOSCAL000000001",
+  "nodes": [
+   {
+    "id": "d6885792-641e-4785-af7b-cf416d015479",
+    "name": "Called by verified ingress",
+    "type": "n8n-nodes-base.executeWorkflowTrigger",
+    "position": [
+     80,
+     -160
+    ],
+    "parameters": {
+     "inputSource": "passthrough"
+    },
+    "typeVersion": 1.1
+   },
+   {
+    "id": "7728a3b2-f48e-4f78-8048-fa7f31238b9d",
+    "name": "Build calendar event",
+    "type": "n8n-nodes-base.code",
+    "position": [
+     320,
+     -160
+    ],
+    "parameters": {
+     "jsCode": "const e=$json;if(!e||e.type!=='crowdrelay.calendar.upsert_requested'||e.version!==1) throw new Error('Unsupported calendar event');const d=e.data??{};if(!d.calendar_key||!d.title||!d.starts_at) throw new Error('Invalid calendar payload');const key=String(d.calendar_key);let hex='';for(const ch of key){hex+=ch.codePointAt(0).toString(16)}const eventId=('v'+hex).slice(0,900);const start=new Date(d.starts_at);if(Number.isNaN(start.getTime())) throw new Error('Invalid starts_at');const end=new Date(start.getTime()+30*60*1000);const action_id=String(d.action_id||'').trim();if(!action_id) throw new Error('Missing action_id');return [{json:{event_id:e.id,action_id,eventId,title:String(d.title),start:start.toISOString(),end:end.toISOString(),description:`VIRYA OS \u00b7 ${d.source_kind||'operation'} \u00b7 ${d.source_id||''}\\nKey: ${key}`}}];"
+    },
+    "typeVersion": 2
+   },
+   {
+    "id": "f6f717a6-3ac5-4c42-aad0-ed1082aca33b",
+    "name": "Calendar \u2014 update if exists",
+    "type": "n8n-nodes-base.googleCalendar",
+    "position": [
+     608,
+     -160
+    ],
+    "parameters": {
+     "eventId": "={{ $json.eventId }}",
+     "calendar": {
+      "__rl": true,
+      "mode": "id",
+      "value": "={{ $env.VIRYA_GOOGLE_CALENDAR_ID }}"
+     },
+     "operation": "update",
+     "updateFields": {
+      "end": "={{ $json.end }}",
+      "start": "={{ $json.start }}",
+      "summary": "={{ $json.title }}",
+      "description": "={{ $json.description }}"
+     }
+    },
+    "credentials": {
+     "googleCalendarOAuth2Api": {
+      "id": "H3dyZAtTm6wfbY3y",
+      "name": "Google Calendar account"
+     }
+    },
+    "typeVersion": 1.3,
+    "continueOnFail": true,
+    "alwaysOutputData": true
+   },
+   {
+    "id": "ba2f313e-7dcc-4ad1-b08e-eadd944bbc94",
+    "name": "Update failed?",
+    "type": "n8n-nodes-base.if",
+    "position": [
+     864,
+     -160
+    ],
+    "parameters": {
+     "options": {},
+     "conditions": {
+      "options": {
+       "version": 2,
+       "leftValue": "",
+       "caseSensitive": true,
+       "typeValidation": "loose"
+      },
+      "combinator": "and",
+      "conditions": [
+       {
+        "id": "4cb5e1f0-4a77-448b-bd7b-edbdec0ec283",
+        "operator": {
+         "type": "boolean",
+         "operation": "true",
+         "singleValue": true
+        },
+        "leftValue": "={{ Boolean($json.error || $json.message) }}",
+        "rightValue": true
+       }
+      ]
+     }
+    },
+    "typeVersion": 2.2
+   },
+   {
+    "id": "16f5a1c7-9bec-4b48-82c9-46d43e89ee90",
+    "name": "Calendar \u2014 create",
+    "type": "n8n-nodes-base.googleCalendar",
+    "maxTries": 3,
+    "position": [
+     1120,
+     -256
+    ],
+    "parameters": {
+     "end": "={{ $('Build calendar event').first().json.end }}",
+     "start": "={{ $('Build calendar event').first().json.start }}",
+     "calendar": {
+      "__rl": true,
+      "mode": "id",
+      "value": "={{ $env.VIRYA_GOOGLE_CALENDAR_ID }}"
+     },
+     "additionalFields": {
+      "id": "={{ $('Build calendar event').first().json.eventId }}",
+      "summary": "={{ $('Build calendar event').first().json.title }}",
+      "showMeAs": "transparent",
+      "description": "={{ $('Build calendar event').first().json.description }}",
+      "sendUpdates": "none"
+     }
+    },
+    "credentials": {
+     "googleCalendarOAuth2Api": {
+      "id": "H3dyZAtTm6wfbY3y",
+      "name": "Google Calendar account"
+     }
+    },
+    "retryOnFail": true,
+    "typeVersion": 1.3,
+    "waitBetweenTries": 3000
+   },
+   {
+    "id": "e602f453-8450-4d6f-8b81-c54a6d345d43",
+    "name": "Calendar upsert complete",
+    "type": "n8n-nodes-base.noOp",
+    "position": [
+     1120,
+     -64
+    ],
+    "parameters": {},
+    "typeVersion": 1
+   },
+   {
+    "id": "3ce94429-2141-474d-926e-28c9c0f29358",
+    "name": "Prepare Calendar success receipt",
+    "type": "n8n-nodes-base.code",
+    "position": [
+     1504,
+     -160
+    ],
+    "parameters": {
+     "jsCode": "const src=$('Build calendar event').item.json||{};return [{json:{action_id:src.action_id,status:'succeeded',provider_reference:String(src.eventId||'google-calendar').slice(0,240),metadata:{event_id:src.event_id,provider:'google_calendar',calendar_event_id:src.eventId},occurred_at:new Date().toISOString()}}];"
+    },
+    "typeVersion": 2
+   },
+   {
+    "id": "f5116290-da81-4ceb-a833-e19b606f466a",
+    "name": "Queue Calendar success receipt",
+    "type": "n8n-nodes-base.executeWorkflow",
+    "position": [
+     1728,
+     -160
+    ],
+    "parameters": {
+     "options": {},
+     "workflowId": {
+      "__rl": true,
+      "mode": "id",
+      "value": "VOSRECEIPT00001"
+     }
+    },
+    "typeVersion": 1.3,
+    "alwaysOutputData": true
+   }
+  ],
+  "connections": {
+   "Called by verified ingress": {
+    "main": [
+     [
+      {
+       "node": "Build calendar event",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "Build calendar event": {
+    "main": [
+     [
+      {
+       "node": "Calendar \u2014 update if exists",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "Calendar \u2014 update if exists": {
+    "main": [
+     [
+      {
+       "node": "Update failed?",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "Update failed?": {
+    "main": [
+     [
+      {
+       "node": "Calendar \u2014 create",
+       "type": "main",
+       "index": 0
+      }
+     ],
+     [
+      {
+       "node": "Calendar upsert complete",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "Calendar \u2014 create": {
+    "main": [
+     [
+      {
+       "node": "Calendar upsert complete",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "Calendar upsert complete": {
+    "main": [
+     [
+      {
+       "node": "Prepare Calendar success receipt",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "Prepare Calendar success receipt": {
+    "main": [
+     [
+      {
+       "node": "Queue Calendar success receipt",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   }
+  },
+  "nodeGroups": [],
+  "authors": "Virya Crew",
+  "name": "Version c49b8434",
+  "description": "",
+  "autosaved": true,
+  "workflowPublishHistory": [
+   {
+    "createdAt": "2026-08-13T20:33:29.729Z",
+    "id": 594,
+    "workflowId": "VOSCAL000000001",
+    "versionId": "c49b8434-6a9e-4ecc-b3d2-2a2ccc9512b6",
+    "event": "activated",
+    "userId": "89259ec0-46eb-41d3-a04e-eb12f52f6342"
+   }
+  ]
+ }
+}

@@ -1,0 +1,641 @@
+{
+ "updatedAt": "2026-08-21T11:30:24.304Z",
+ "createdAt": "2026-08-18T18:34:30.611Z",
+ "id": "XmIpx2OB4384Qf51",
+ "name": "CrowdRelay \u2014 CrowdRelayOS Latarnik network discovery executor",
+ "description": null,
+ "active": true,
+ "isArchived": false,
+ "nodes": [
+  {
+   "id": "c4d13703-b748-4469-a4ad-f92a127105f5",
+   "name": "Called by verified ingress",
+   "type": "n8n-nodes-base.executeWorkflowTrigger",
+   "position": [
+    1184,
+    -320
+   ],
+   "parameters": {
+    "inputSource": "passthrough"
+   },
+   "typeVersion": 1.1
+  },
+  {
+   "id": "e4d52b86-acfe-4a2c-9192-982e95e5d3d1",
+   "name": "Validate discovery intent",
+   "type": "n8n-nodes-base.code",
+   "position": [
+    1424,
+    -320
+   ],
+   "parameters": {
+    "jsCode": "const e=$json; if(!e||e.type!=='crowdrelay.beacon.network_discovery_requested'||e.version!==1) throw new Error('Unsupported event: got type='+((e&&e.type)||'(none)')+' version='+((e&&e.version)||'(none)')+' expected crowdrelay.beacon.network_discovery_requested v1'); const d=e.data??{}; if(!d.run_id||!d.country_code||!Number.isInteger(d.target_count)) throw new Error('Invalid discovery request'); return [{json:{event_id:e.id,run_id:d.run_id,country_code:d.country_code,target_count:d.target_count}}];"
+   },
+   "typeVersion": 2
+  },
+  {
+   "id": "388a7de9-2dd2-40b3-ab02-726459416a81",
+   "name": "Search configured public-source adapter",
+   "type": "n8n-nodes-base.httpRequest",
+   "position": [
+    1696,
+    -320
+   ],
+   "parameters": {
+    "url": "={{ $env.VIRYA_BEACON_PUBLIC_SEARCH_URL }}",
+    "body": "={{ JSON.stringify({country_code:$json.country_code,target_count:$json.target_count,public_sources_only:true,categories:['metal media','music radio','podcast','reviewer','creator','photographer','promoter','community']}) }}",
+    "method": "POST",
+    "options": {
+     "timeout": 30000
+    },
+    "sendBody": true,
+    "contentType": "raw",
+    "sendHeaders": true,
+    "rawContentType": "application/json",
+    "headerParameters": {
+     "parameters": [
+      {
+       "name": "Authorization",
+       "value": "={{ 'Bearer ' + $env.VIRYA_BEACON_PUBLIC_SEARCH_TOKEN }}"
+      }
+     ]
+    }
+   },
+   "typeVersion": 4.2
+  },
+  {
+   "id": "01ae7a79-703c-4ce1-a6ff-fb14d2a2285a",
+   "name": "Normalize source-backed candidates",
+   "type": "n8n-nodes-base.code",
+   "position": [
+    1952,
+    -320
+   ],
+   "parameters": {
+    "jsCode": "const req=$('Validate discovery intent').first().json; const rows=Array.isArray($json.candidates)?$json.candidates:[]; const clean=[]; for(const row of rows.slice(0,Math.min(req.target_count,500))){ const source=String(row.source_url??'').trim(); if(!source.startsWith('https://')) continue; const email=row.contact_email==null?null:String(row.contact_email).trim().toLowerCase(); const dest=row.destination_url==null?null:String(row.destination_url).trim(); if(!email&&!dest) continue; clean.push({beaconKind:String(row.beacon_kind??'').trim(),displayName:String(row.display_name??'').trim(),contactEmail:email,destinationUrl:dest,sourceUrl:source,cityId:row.city_id??null,sourceNote:row.source_note??null,relevanceBasisPoints:row.relevance_basis_points??5000,confidenceBasisPoints:row.confidence_basis_points??5000}); } return [{json:{...req,candidates:clean}}];"
+   },
+   "typeVersion": 2
+  },
+  {
+   "id": "ed33b43f-8636-4316-8953-264a4d357636",
+   "name": "Ingest as unverified review queue",
+   "type": "n8n-nodes-base.httpRequest",
+   "position": [
+    2208,
+    -320
+   ],
+   "parameters": {
+    "url": "={{ 'https://signal-api.virya.music' + '/v1/internal/beacon/network-discovery/' + $json.run_id + '/candidates' }}",
+    "body": "={{ JSON.stringify({candidates:$json.candidates}) }}",
+    "method": "POST",
+    "options": {
+     "timeout": 15000
+    },
+    "sendBody": true,
+    "contentType": "raw",
+    "sendHeaders": true,
+    "rawContentType": "application/json",
+    "headerParameters": {
+     "parameters": [
+      {
+       "name": "Authorization",
+       "value": "={{ 'Bearer ' + $env.CROWDRELAY_COMMERCE_API_KEY }}"
+      }
+     ]
+    }
+   },
+   "typeVersion": 4.2
+  },
+  {
+   "id": "35dfbe80-fdc0-4654-b2da-518d48abc3d9",
+   "name": "Build operator review rows",
+   "type": "n8n-nodes-base.code",
+   "position": [
+    2448,
+    -320
+   ],
+   "parameters": {
+    "jsCode": "const src=$('Normalize source-backed candidates').first().json; return src.candidates.map(c=>({json:{Name:c.displayName,Type:c.beaconKind,Email:c.contactEmail??'',Destination:c.destinationUrl??'',Source:c.sourceUrl,Evidence:c.sourceNote??'',Review:'REQUIRED',MarketingConsent:'NOT CONFIRMED'}}));"
+   },
+   "typeVersion": 2
+  },
+  {
+   "id": "9584e237-fd6b-433c-beb2-ab5f1ee432fa",
+   "name": "Convert review to XLSX",
+   "type": "n8n-nodes-base.convertToFile",
+   "position": [
+    2688,
+    -320
+   ],
+   "parameters": {
+    "options": {
+     "fileName": "latarnicy-pl-review.xlsx",
+     "headerRow": true,
+     "sheetName": "Latarnicy PL"
+    },
+    "operation": "xlsx"
+   },
+   "typeVersion": 1.1
+  },
+  {
+   "id": "95ec182b-b87a-451f-8c06-541caaa45bbe",
+   "name": "Email XLSX to operator",
+   "type": "n8n-nodes-base.gmail",
+   "position": [
+    2928,
+    -320
+   ],
+   "webhookId": "bcbfc88f-a96d-4358-b3ed-b99f55ec94d9",
+   "parameters": {
+    "sendTo": "={{ $env.VIRYA_OPERATOR_REVIEW_EMAIL }}",
+    "message": "Public-source candidates only. Review the source evidence and confirm explicit marketing-email consent in CrowdRelay before any invitation. The attached XLSX is not an authorization to send.",
+    "options": {
+     "attachmentsUi": {
+      "attachmentsBinary": [
+       {
+        "property": "=data"
+       }
+      ]
+     },
+     "appendAttribution": false
+    },
+    "subject": "={{ 'Latarnicy PL \u2014 review ' + $('Validate discovery intent').first().json.run_id }}",
+    "emailType": "text"
+   },
+   "credentials": {
+    "gmailOAuth2": {
+     "id": "BJg5tKEWMNRw0GA1",
+     "name": "Gmail account"
+    }
+   },
+   "typeVersion": 2.1
+  },
+  {
+   "id": "2319cde7-8be0-4e5e-872a-2ff87e7aec3d",
+   "name": "Report review artifact ready",
+   "type": "n8n-nodes-base.httpRequest",
+   "position": [
+    3168,
+    -320
+   ],
+   "parameters": {
+    "url": "={{ 'https://signal-api.virya.music' + '/v1/internal/beacon/network-discovery/' + $('Validate discovery intent').first().json.run_id + '/report' }}",
+    "body": "={{ JSON.stringify({status:'ready',discoveredCount:$('Normalize source-backed candidates').first().json.candidates.length,reportFilename:'latarnicy-pl-review.xlsx'}) }}",
+    "method": "POST",
+    "options": {
+     "timeout": 10000
+    },
+    "sendBody": true,
+    "contentType": "raw",
+    "sendHeaders": true,
+    "rawContentType": "application/json",
+    "headerParameters": {
+     "parameters": [
+      {
+       "name": "Authorization",
+       "value": "={{ 'Bearer ' + $env.CROWDRELAY_COMMERCE_API_KEY }}"
+      }
+     ]
+    }
+   },
+   "typeVersion": 4.2
+  }
+ ],
+ "connections": {
+  "Called by verified ingress": {
+   "main": [
+    [
+     {
+      "node": "Validate discovery intent",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Validate discovery intent": {
+   "main": [
+    [
+     {
+      "node": "Search configured public-source adapter",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Search configured public-source adapter": {
+   "main": [
+    [
+     {
+      "node": "Normalize source-backed candidates",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Normalize source-backed candidates": {
+   "main": [
+    [
+     {
+      "node": "Ingest as unverified review queue",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Ingest as unverified review queue": {
+   "main": [
+    [
+     {
+      "node": "Build operator review rows",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Build operator review rows": {
+   "main": [
+    [
+     {
+      "node": "Convert review to XLSX",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Convert review to XLSX": {
+   "main": [
+    [
+     {
+      "node": "Email XLSX to operator",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Email XLSX to operator": {
+   "main": [
+    [
+     {
+      "node": "Report review artifact ready",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  }
+ },
+ "settings": {
+  "executionOrder": "v1",
+  "binaryMode": "separate",
+  "availableInMCP": false,
+  "saveDataErrorExecution": "none",
+  "saveDataSuccessExecution": "none",
+  "saveManualExecutions": false,
+  "saveExecutionProgress": false
+ },
+ "staticData": null,
+ "meta": {
+  "templateCredsSetupCompleted": true
+ },
+ "nodeGroups": [],
+ "pinData": {},
+ "versionId": "3aa96c39-f235-4c6a-91ef-641586133e3f",
+ "activeVersionId": "3aa96c39-f235-4c6a-91ef-641586133e3f",
+ "versionCounter": 8,
+ "triggerCount": 0,
+ "sourceWorkflowId": null,
+ "shared": [
+  {
+   "updatedAt": "2026-08-18T18:34:30.611Z",
+   "createdAt": "2026-08-18T18:34:30.611Z",
+   "role": "workflow:owner",
+   "workflowId": "XmIpx2OB4384Qf51",
+   "projectId": "e2rPVcUBR4DTE3mO",
+   "project": {
+    "updatedAt": "2026-07-24T09:45:30.763Z",
+    "createdAt": "2026-07-24T09:45:07.113Z",
+    "id": "e2rPVcUBR4DTE3mO",
+    "name": "Virya Crew <virya.crew@gmail.com>",
+    "type": "personal",
+    "icon": null,
+    "description": null,
+    "customTelemetryTags": [],
+    "creatorId": "89259ec0-46eb-41d3-a04e-eb12f52f6342"
+   }
+  }
+ ],
+ "tags": [],
+ "activeVersion": {
+  "updatedAt": "2026-08-25T12:20:51.980Z",
+  "createdAt": "2026-08-21T11:30:24.305Z",
+  "versionId": "3aa96c39-f235-4c6a-91ef-641586133e3f",
+  "workflowId": "XmIpx2OB4384Qf51",
+  "nodes": [
+   {
+    "id": "c4d13703-b748-4469-a4ad-f92a127105f5",
+    "name": "Called by verified ingress",
+    "type": "n8n-nodes-base.executeWorkflowTrigger",
+    "position": [
+     1184,
+     -320
+    ],
+    "parameters": {
+     "inputSource": "passthrough"
+    },
+    "typeVersion": 1.1
+   },
+   {
+    "id": "e4d52b86-acfe-4a2c-9192-982e95e5d3d1",
+    "name": "Validate discovery intent",
+    "type": "n8n-nodes-base.code",
+    "position": [
+     1424,
+     -320
+    ],
+    "parameters": {
+     "jsCode": "const e=$json; if(!e||e.type!=='crowdrelay.beacon.network_discovery_requested'||e.version!==1) throw new Error('Unsupported event: got type='+((e&&e.type)||'(none)')+' version='+((e&&e.version)||'(none)')+' expected crowdrelay.beacon.network_discovery_requested v1'); const d=e.data??{}; if(!d.run_id||!d.country_code||!Number.isInteger(d.target_count)) throw new Error('Invalid discovery request'); return [{json:{event_id:e.id,run_id:d.run_id,country_code:d.country_code,target_count:d.target_count}}];"
+    },
+    "typeVersion": 2
+   },
+   {
+    "id": "388a7de9-2dd2-40b3-ab02-726459416a81",
+    "name": "Search configured public-source adapter",
+    "type": "n8n-nodes-base.httpRequest",
+    "position": [
+     1696,
+     -320
+    ],
+    "parameters": {
+     "url": "={{ $env.VIRYA_BEACON_PUBLIC_SEARCH_URL }}",
+     "body": "={{ JSON.stringify({country_code:$json.country_code,target_count:$json.target_count,public_sources_only:true,categories:['metal media','music radio','podcast','reviewer','creator','photographer','promoter','community']}) }}",
+     "method": "POST",
+     "options": {
+      "timeout": 30000
+     },
+     "sendBody": true,
+     "contentType": "raw",
+     "sendHeaders": true,
+     "rawContentType": "application/json",
+     "headerParameters": {
+      "parameters": [
+       {
+        "name": "Authorization",
+        "value": "={{ 'Bearer ' + $env.VIRYA_BEACON_PUBLIC_SEARCH_TOKEN }}"
+       }
+      ]
+     }
+    },
+    "typeVersion": 4.2
+   },
+   {
+    "id": "01ae7a79-703c-4ce1-a6ff-fb14d2a2285a",
+    "name": "Normalize source-backed candidates",
+    "type": "n8n-nodes-base.code",
+    "position": [
+     1952,
+     -320
+    ],
+    "parameters": {
+     "jsCode": "const req=$('Validate discovery intent').first().json; const rows=Array.isArray($json.candidates)?$json.candidates:[]; const clean=[]; for(const row of rows.slice(0,Math.min(req.target_count,500))){ const source=String(row.source_url??'').trim(); if(!source.startsWith('https://')) continue; const email=row.contact_email==null?null:String(row.contact_email).trim().toLowerCase(); const dest=row.destination_url==null?null:String(row.destination_url).trim(); if(!email&&!dest) continue; clean.push({beaconKind:String(row.beacon_kind??'').trim(),displayName:String(row.display_name??'').trim(),contactEmail:email,destinationUrl:dest,sourceUrl:source,cityId:row.city_id??null,sourceNote:row.source_note??null,relevanceBasisPoints:row.relevance_basis_points??5000,confidenceBasisPoints:row.confidence_basis_points??5000}); } return [{json:{...req,candidates:clean}}];"
+    },
+    "typeVersion": 2
+   },
+   {
+    "id": "ed33b43f-8636-4316-8953-264a4d357636",
+    "name": "Ingest as unverified review queue",
+    "type": "n8n-nodes-base.httpRequest",
+    "position": [
+     2208,
+     -320
+    ],
+    "parameters": {
+     "url": "={{ 'https://signal-api.virya.music' + '/v1/internal/beacon/network-discovery/' + $json.run_id + '/candidates' }}",
+     "body": "={{ JSON.stringify({candidates:$json.candidates}) }}",
+     "method": "POST",
+     "options": {
+      "timeout": 15000
+     },
+     "sendBody": true,
+     "contentType": "raw",
+     "sendHeaders": true,
+     "rawContentType": "application/json",
+     "headerParameters": {
+      "parameters": [
+       {
+        "name": "Authorization",
+        "value": "={{ 'Bearer ' + $env.CROWDRELAY_COMMERCE_API_KEY }}"
+       }
+      ]
+     }
+    },
+    "typeVersion": 4.2
+   },
+   {
+    "id": "35dfbe80-fdc0-4654-b2da-518d48abc3d9",
+    "name": "Build operator review rows",
+    "type": "n8n-nodes-base.code",
+    "position": [
+     2448,
+     -320
+    ],
+    "parameters": {
+     "jsCode": "const src=$('Normalize source-backed candidates').first().json; return src.candidates.map(c=>({json:{Name:c.displayName,Type:c.beaconKind,Email:c.contactEmail??'',Destination:c.destinationUrl??'',Source:c.sourceUrl,Evidence:c.sourceNote??'',Review:'REQUIRED',MarketingConsent:'NOT CONFIRMED'}}));"
+    },
+    "typeVersion": 2
+   },
+   {
+    "id": "9584e237-fd6b-433c-beb2-ab5f1ee432fa",
+    "name": "Convert review to XLSX",
+    "type": "n8n-nodes-base.convertToFile",
+    "position": [
+     2688,
+     -320
+    ],
+    "parameters": {
+     "options": {
+      "fileName": "latarnicy-pl-review.xlsx",
+      "headerRow": true,
+      "sheetName": "Latarnicy PL"
+     },
+     "operation": "xlsx"
+    },
+    "typeVersion": 1.1
+   },
+   {
+    "id": "95ec182b-b87a-451f-8c06-541caaa45bbe",
+    "name": "Email XLSX to operator",
+    "type": "n8n-nodes-base.gmail",
+    "position": [
+     2928,
+     -320
+    ],
+    "webhookId": "bcbfc88f-a96d-4358-b3ed-b99f55ec94d9",
+    "parameters": {
+     "sendTo": "={{ $env.VIRYA_OPERATOR_REVIEW_EMAIL }}",
+     "message": "Public-source candidates only. Review the source evidence and confirm explicit marketing-email consent in CrowdRelay before any invitation. The attached XLSX is not an authorization to send.",
+     "options": {
+      "attachmentsUi": {
+       "attachmentsBinary": [
+        {
+         "property": "=data"
+        }
+       ]
+      },
+      "appendAttribution": false
+     },
+     "subject": "={{ 'Latarnicy PL \u2014 review ' + $('Validate discovery intent').first().json.run_id }}",
+     "emailType": "text"
+    },
+    "credentials": {
+     "gmailOAuth2": {
+      "id": "BJg5tKEWMNRw0GA1",
+      "name": "Gmail account"
+     }
+    },
+    "typeVersion": 2.1
+   },
+   {
+    "id": "2319cde7-8be0-4e5e-872a-2ff87e7aec3d",
+    "name": "Report review artifact ready",
+    "type": "n8n-nodes-base.httpRequest",
+    "position": [
+     3168,
+     -320
+    ],
+    "parameters": {
+     "url": "={{ 'https://signal-api.virya.music' + '/v1/internal/beacon/network-discovery/' + $('Validate discovery intent').first().json.run_id + '/report' }}",
+     "body": "={{ JSON.stringify({status:'ready',discoveredCount:$('Normalize source-backed candidates').first().json.candidates.length,reportFilename:'latarnicy-pl-review.xlsx'}) }}",
+     "method": "POST",
+     "options": {
+      "timeout": 10000
+     },
+     "sendBody": true,
+     "contentType": "raw",
+     "sendHeaders": true,
+     "rawContentType": "application/json",
+     "headerParameters": {
+      "parameters": [
+       {
+        "name": "Authorization",
+        "value": "={{ 'Bearer ' + $env.CROWDRELAY_COMMERCE_API_KEY }}"
+       }
+      ]
+     }
+    },
+    "typeVersion": 4.2
+   }
+  ],
+  "connections": {
+   "Called by verified ingress": {
+    "main": [
+     [
+      {
+       "node": "Validate discovery intent",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "Validate discovery intent": {
+    "main": [
+     [
+      {
+       "node": "Search configured public-source adapter",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "Search configured public-source adapter": {
+    "main": [
+     [
+      {
+       "node": "Normalize source-backed candidates",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "Normalize source-backed candidates": {
+    "main": [
+     [
+      {
+       "node": "Ingest as unverified review queue",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "Ingest as unverified review queue": {
+    "main": [
+     [
+      {
+       "node": "Build operator review rows",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "Build operator review rows": {
+    "main": [
+     [
+      {
+       "node": "Convert review to XLSX",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "Convert review to XLSX": {
+    "main": [
+     [
+      {
+       "node": "Email XLSX to operator",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "Email XLSX to operator": {
+    "main": [
+     [
+      {
+       "node": "Report review artifact ready",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   }
+  },
+  "nodeGroups": [],
+  "authors": "Virya Crew",
+  "name": "Version 3aa96c39",
+  "description": "",
+  "autosaved": false,
+  "workflowPublishHistory": [
+   {
+    "createdAt": "2026-08-21T11:30:25.413Z",
+    "id": 627,
+    "workflowId": "XmIpx2OB4384Qf51",
+    "versionId": "3aa96c39-f235-4c6a-91ef-641586133e3f",
+    "event": "activated",
+    "userId": "89259ec0-46eb-41d3-a04e-eb12f52f6342"
+   }
+  ]
+ }
+}

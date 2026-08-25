@@ -1,0 +1,294 @@
+{
+ "updatedAt": "2026-08-15T20:53:03.311Z",
+ "createdAt": "2026-07-31T20:39:06.823Z",
+ "id": "boISLm5Y2AhzPRAm",
+ "name": "CrowdRelay \u2014 release.announcement_due mail branch",
+ "description": null,
+ "active": true,
+ "isArchived": false,
+ "nodes": [
+  {
+   "parameters": {
+    "inputSource": "passthrough"
+   },
+   "id": "21ec6093-e7ba-4694-affd-ebd78a7e183e",
+   "name": "Called by verified ingress",
+   "type": "n8n-nodes-base.executeWorkflowTrigger",
+   "typeVersion": 1.1,
+   "position": [
+    0,
+    0
+   ]
+  },
+  {
+   "parameters": {
+    "jsCode": "const envelope = $json;\nif (!envelope || envelope.type !== 'release.announcement_due' || envelope.version !== 1) {\n  throw new Error('Unsupported CrowdRelay event');\n}\nconst data = envelope.data ?? {};\nconst fan = data.fan ?? {};\nconst release = data.release ?? {};\nif (!fan.email || !release.id || !release.title || !release.release_date || !release.listen_url) {\n  throw new Error('Missing release announcement fields');\n}\nconst polish = String(fan.locale || 'pl').toLowerCase().startsWith('pl');\nconst publicBase = (\"https://virya.music\" || 'https://virya.music').replace(/\\/$/, '');\nconst siteUrl = release.site_url || `${publicBase}${polish ? '/pl/' : '/'}`;\nconst releaseTypes = {\n  single: { pl: 'singiel', en: 'single' },\n  ep: { pl: 'EP-ka', en: 'EP' },\n  album: { pl: 'album', en: 'album' }\n};\nconst releaseType = releaseTypes[String(release.release_type || '').toLowerCase()] || { pl: 'release', en: 'release' };\nreturn [{ json: {\n  event_id: envelope.id,\n  mail: {\n    template: 'crowdrelay-new-release',\n    to: fan.email,\n    variables: {\n      display_name: fan.display_name ?? null,\n      locale: fan.locale ?? 'pl-PL',\n      artist_name: release.artist_name || 'Virya',\n      release_title: release.title,\n      release_type: release.release_type || 'release',\n      release_type_pl: releaseType.pl,\n      release_type_en: releaseType.en,\n      release_date: release.release_date,\n      listen_url: release.listen_url,\n      image_url: release.image_url ?? null,\n      site_url: siteUrl,\n      total_tracks: release.total_tracks ?? null\n    },\n    idempotency_key: envelope.id\n  }\n} }];"
+   },
+   "id": "0cb8e962-e266-472f-a2f3-534e1f559854",
+   "name": "Validate and build release mail",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    280,
+    0
+   ]
+  },
+  {
+   "parameters": {
+    "method": "POST",
+    "url": "http://virya-crowdrelay-n8n-bridge:8080/mailer",
+    "sendHeaders": true,
+    "headerParameters": {
+     "parameters": [
+      {
+       "name": "Idempotency-Key",
+       "value": "={{ $json.event_id }}"
+      }
+     ]
+    },
+    "sendBody": true,
+    "contentType": "raw",
+    "rawContentType": "application/json",
+    "body": "={{ JSON.stringify($json.mail) }}",
+    "options": {
+     "response": {
+      "response": {
+       "neverError": false,
+       "responseFormat": "json"
+      }
+     },
+     "timeout": 40000
+    },
+    "authentication": "genericCredentialType",
+    "genericAuthType": "httpHeaderAuth"
+   },
+   "id": "34f8943d-31d6-47db-baf8-fd6ccb876512",
+   "name": "Send through Virya mailer",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.4,
+   "position": [
+    560,
+    0
+   ],
+   "retryOnFail": true,
+   "maxTries": 3,
+   "waitBetweenTries": 10000,
+   "credentials": {
+    "httpHeaderAuth": {
+     "id": "viryaBridgeHeaderAuthV10",
+     "name": "Virya CrowdRelay control-plane bridge"
+    }
+   },
+   "notesInFlow": true,
+   "notes": "Sekrety mailera s\u0105 wy\u0142\u0105cznie w prywatnym bridge; workflow przekazuje tylko payload i idempotency key."
+  },
+  {
+   "parameters": {
+    "content": "## release.announcement_due\n\nTa ga\u0142\u0105\u017a nie ma publicznego webhooka. Jest uruchamiana wy\u0142\u0105cznie przez istniej\u0105cy zweryfikowany ingress CrowdRelay po HMAC, wersji zdarzenia i deduplikacji.\n\nNie w\u0142\u0105czaj zapisywania payload\u00f3w executions \u2014 zawieraj\u0105 adres e-mail fana.",
+    "height": 280,
+    "width": 600
+   },
+   "id": "74c69176-4a7a-4b92-a6df-e37f461771b8",
+   "name": "SECURITY",
+   "type": "n8n-nodes-base.stickyNote",
+   "typeVersion": 1,
+   "position": [
+    0,
+    -360
+   ]
+  }
+ ],
+ "connections": {
+  "Called by verified ingress": {
+   "main": [
+    [
+     {
+      "node": "Validate and build release mail",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Validate and build release mail": {
+   "main": [
+    [
+     {
+      "node": "Send through Virya mailer",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  }
+ },
+ "settings": {
+  "executionOrder": "v1",
+  "saveDataErrorExecution": "none",
+  "saveDataSuccessExecution": "none",
+  "saveManualExecutions": false,
+  "timezone": "Europe/Warsaw",
+  "availableInMCP": false,
+  "errorWorkflow": "98d5e1a4-2dba-5e5a-9be1-2e5d9220859d"
+ },
+ "staticData": null,
+ "meta": {
+  "templateCredsSetupCompleted": false
+ },
+ "nodeGroups": [],
+ "pinData": {},
+ "versionId": "eed324ff-0a0e-413b-82f6-df1fe55ee9de",
+ "activeVersionId": "eed324ff-0a0e-413b-82f6-df1fe55ee9de",
+ "versionCounter": 11,
+ "triggerCount": 0,
+ "sourceWorkflowId": null,
+ "shared": [
+  {
+   "updatedAt": "2026-07-31T20:39:06.823Z",
+   "createdAt": "2026-07-31T20:39:06.823Z",
+   "role": "workflow:owner",
+   "workflowId": "boISLm5Y2AhzPRAm",
+   "projectId": "e2rPVcUBR4DTE3mO",
+   "project": {
+    "updatedAt": "2026-07-24T09:45:30.763Z",
+    "createdAt": "2026-07-24T09:45:07.113Z",
+    "id": "e2rPVcUBR4DTE3mO",
+    "name": "Virya Crew <virya.crew@gmail.com>",
+    "type": "personal",
+    "icon": null,
+    "description": null,
+    "customTelemetryTags": [],
+    "creatorId": "89259ec0-46eb-41d3-a04e-eb12f52f6342"
+   }
+  }
+ ],
+ "tags": [],
+ "activeVersion": {
+  "updatedAt": "2026-08-12T17:01:41.269Z",
+  "createdAt": "2026-08-12T17:01:41.269Z",
+  "versionId": "eed324ff-0a0e-413b-82f6-df1fe55ee9de",
+  "workflowId": "boISLm5Y2AhzPRAm",
+  "nodes": [
+   {
+    "parameters": {
+     "inputSource": "passthrough"
+    },
+    "id": "21ec6093-e7ba-4694-affd-ebd78a7e183e",
+    "name": "Called by verified ingress",
+    "type": "n8n-nodes-base.executeWorkflowTrigger",
+    "typeVersion": 1.1,
+    "position": [
+     0,
+     0
+    ]
+   },
+   {
+    "parameters": {
+     "jsCode": "const envelope = $json;\nif (!envelope || envelope.type !== 'release.announcement_due' || envelope.version !== 1) {\n  throw new Error('Unsupported CrowdRelay event');\n}\nconst data = envelope.data ?? {};\nconst fan = data.fan ?? {};\nconst release = data.release ?? {};\nif (!fan.email || !release.id || !release.title || !release.release_date || !release.listen_url) {\n  throw new Error('Missing release announcement fields');\n}\nconst polish = String(fan.locale || 'pl').toLowerCase().startsWith('pl');\nconst publicBase = (\"https://virya.music\" || 'https://virya.music').replace(/\\/$/, '');\nconst siteUrl = release.site_url || `${publicBase}${polish ? '/pl/' : '/'}`;\nconst releaseTypes = {\n  single: { pl: 'singiel', en: 'single' },\n  ep: { pl: 'EP-ka', en: 'EP' },\n  album: { pl: 'album', en: 'album' }\n};\nconst releaseType = releaseTypes[String(release.release_type || '').toLowerCase()] || { pl: 'release', en: 'release' };\nreturn [{ json: {\n  event_id: envelope.id,\n  mail: {\n    template: 'crowdrelay-new-release',\n    to: fan.email,\n    variables: {\n      display_name: fan.display_name ?? null,\n      locale: fan.locale ?? 'pl-PL',\n      artist_name: release.artist_name || 'Virya',\n      release_title: release.title,\n      release_type: release.release_type || 'release',\n      release_type_pl: releaseType.pl,\n      release_type_en: releaseType.en,\n      release_date: release.release_date,\n      listen_url: release.listen_url,\n      image_url: release.image_url ?? null,\n      site_url: siteUrl,\n      total_tracks: release.total_tracks ?? null\n    },\n    idempotency_key: envelope.id\n  }\n} }];"
+    },
+    "id": "0cb8e962-e266-472f-a2f3-534e1f559854",
+    "name": "Validate and build release mail",
+    "type": "n8n-nodes-base.code",
+    "typeVersion": 2,
+    "position": [
+     280,
+     0
+    ]
+   },
+   {
+    "parameters": {
+     "method": "POST",
+     "url": "http://virya-crowdrelay-n8n-bridge:8080/mailer",
+     "sendHeaders": true,
+     "headerParameters": {
+      "parameters": [
+       {
+        "name": "Idempotency-Key",
+        "value": "={{ $json.event_id }}"
+       }
+      ]
+     },
+     "sendBody": true,
+     "contentType": "raw",
+     "rawContentType": "application/json",
+     "body": "={{ JSON.stringify($json.mail) }}",
+     "options": {
+      "response": {
+       "response": {
+        "neverError": false,
+        "responseFormat": "json"
+       }
+      },
+      "timeout": 40000
+     },
+     "authentication": "genericCredentialType",
+     "genericAuthType": "httpHeaderAuth"
+    },
+    "id": "34f8943d-31d6-47db-baf8-fd6ccb876512",
+    "name": "Send through Virya mailer",
+    "type": "n8n-nodes-base.httpRequest",
+    "typeVersion": 4.4,
+    "position": [
+     560,
+     0
+    ],
+    "retryOnFail": true,
+    "maxTries": 3,
+    "waitBetweenTries": 10000,
+    "credentials": {
+     "httpHeaderAuth": {
+      "id": "viryaBridgeHeaderAuthV10",
+      "name": "Virya CrowdRelay control-plane bridge"
+     }
+    },
+    "notesInFlow": true,
+    "notes": "Sekrety mailera s\u0105 wy\u0142\u0105cznie w prywatnym bridge; workflow przekazuje tylko payload i idempotency key."
+   },
+   {
+    "parameters": {
+     "content": "## release.announcement_due\n\nTa ga\u0142\u0105\u017a nie ma publicznego webhooka. Jest uruchamiana wy\u0142\u0105cznie przez istniej\u0105cy zweryfikowany ingress CrowdRelay po HMAC, wersji zdarzenia i deduplikacji.\n\nNie w\u0142\u0105czaj zapisywania payload\u00f3w executions \u2014 zawieraj\u0105 adres e-mail fana.",
+     "height": 280,
+     "width": 600
+    },
+    "id": "74c69176-4a7a-4b92-a6df-e37f461771b8",
+    "name": "SECURITY",
+    "type": "n8n-nodes-base.stickyNote",
+    "typeVersion": 1,
+    "position": [
+     0,
+     -360
+    ]
+   }
+  ],
+  "connections": {
+   "Called by verified ingress": {
+    "main": [
+     [
+      {
+       "node": "Validate and build release mail",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "Validate and build release mail": {
+    "main": [
+     [
+      {
+       "node": "Send through Virya mailer",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   }
+  },
+  "nodeGroups": [],
+  "authors": "import",
+  "name": null,
+  "description": null,
+  "autosaved": false,
+  "workflowPublishHistory": []
+ }
+}

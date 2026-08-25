@@ -1,0 +1,241 @@
+{
+ "updatedAt": "2026-08-15T20:54:07.340Z",
+ "createdAt": "2026-07-24T09:45:08.790Z",
+ "id": "lX40rga8d9TbQ5cr",
+ "name": "VIRYA 03 \u2014 Follow-up due \u2192 Discord Bot",
+ "description": null,
+ "active": true,
+ "isArchived": false,
+ "nodes": [
+  {
+   "id": "fd4d7adb-dfbf-4866-945c-1f2b3a85a2c5",
+   "name": "START HERE",
+   "type": "n8n-nodes-base.stickyNote",
+   "position": [
+    784,
+    96
+   ],
+   "parameters": {
+    "color": 5,
+    "width": 420,
+    "height": 280,
+    "content": "## FOLLOW-UP QUEUE\nTen workflow niczego nie wysy\u0142a do medi\u00f3w. Codziennie o 09:00 wysy\u0142a jeden kr\u00f3tki digest tylko wtedy, gdy s\u0105 kontakty, dla kt\u00f3rych min\u0105\u0142 Follow_Up_At i nie ma odpowiedzi.\n\nRegu\u0142a: maksymalnie jeden follow-up. Wysy\u0142k\u0119 follow-upu uruchomimy dopiero po zaakceptowaniu tekst\u00f3w i te\u015bcie Reply Monitor."
+   },
+   "typeVersion": 1
+  },
+  {
+   "id": "a59b44be-7351-47c7-828f-096c57595bfc",
+   "name": "Daily \u2014 follow-up due 09:05",
+   "type": "n8n-nodes-base.scheduleTrigger",
+   "position": [
+    960,
+    416
+   ],
+   "parameters": {
+    "rule": {
+     "interval": [
+      {
+       "field": "cronExpression",
+       "expression": "0 5 9 * * *"
+      }
+     ]
+    }
+   },
+   "typeVersion": 1.3,
+   "notesInFlow": true,
+   "notes": "Light runtime cadence: 0 5 9 * * * (Europe/Warsaw). Workflow logic and data mappings unchanged."
+  },
+  {
+   "id": "b80334af-fedb-45d4-b0c3-a80bac8b43bf",
+   "name": "Czytaj OUTREACH_LOG",
+   "type": "n8n-nodes-base.googleSheets",
+   "position": [
+    1216,
+    416
+   ],
+   "parameters": {
+    "options": {
+     "dataLocationOnSheet": {
+      "values": {
+       "headerRow": 4,
+       "firstDataRow": 5,
+       "rangeDefinition": "specifyRange"
+      }
+     }
+    },
+    "filtersUI": {
+     "values": []
+    },
+    "sheetName": {
+     "__rl": true,
+     "mode": "name",
+     "value": "OUTREACH_LOG"
+    },
+    "documentId": {
+     "__rl": true,
+     "mode": "id",
+     "value": "1P9FqB7brPc6fZ2dkJMFCc3cVyKbcIjSAvMas-3mZD4g"
+    }
+   },
+   "credentials": {
+    "googleSheetsOAuth2Api": {
+     "id": "bc2Y1XmIdyu5ySTa",
+     "name": "Google Sheets account"
+    }
+   },
+   "typeVersion": 4.7,
+   "alwaysOutputData": true,
+   "retryOnFail": true,
+   "maxTries": 5,
+   "waitBetweenTries": 15000
+  },
+  {
+   "id": "2f655c4f-ad41-4378-a367-e3ca52f1dbe8",
+   "name": "Wybierz follow-up due",
+   "type": "n8n-nodes-base.code",
+   "position": [
+    1472,
+    416
+   ],
+   "parameters": {
+    "jsCode": "const today=new Intl.DateTimeFormat('sv-SE',{timeZone:'Europe/Warsaw',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());\nconst dateKey=value=>{const raw=String(value||'').trim();const match=raw.match(/^\\d{4}-\\d{2}-\\d{2}/);if(match)return match[0];const parsed=new Date(raw);return Number.isNaN(parsed.getTime())?'':new Intl.DateTimeFormat('sv-SE',{timeZone:'Europe/Warsaw',year:'numeric',month:'2-digit',day:'2-digit'}).format(parsed);};\nconst daysBetween=(a,b)=>Math.floor((Date.parse(a+'T12:00:00Z')-Date.parse(b+'T12:00:00Z'))/86400000);\nconst FOLLOWUP_WINDOW_DAYS=7;const rawDue=$input.all().map(item=>item.json||{}).filter(row=>{const key=dateKey(row.Follow_Up_At);const overdueDays=key?Math.floor((Date.parse(today+'T12:00:00Z')-Date.parse(key+'T12:00:00Z'))/86400000):9999;return row.Record_ID&&String(row.Status||'')==='Wys\u0142ano'&&!row.Reply_At&&key&&key<=today&&overdueDays>=0&&overdueDays<=FOLLOWUP_WINDOW_DAYS;}).sort((a,b)=>dateKey(a.Follow_Up_At).localeCompare(dateKey(b.Follow_Up_At)));const seen=new Set();const due=rawDue.filter(row=>{const key=String(row.Record_ID||'').trim();if(!key||seen.has(key))return false;seen.add(key);return true;});\nif(!due.length)return[];\nconst lines=due.slice(0,5).map((row,index)=>{const key=dateKey(row.Follow_Up_At);const late=Math.max(0,daysBetween(today,key));const owner=String(row.Owner||row.Assigned_To||'do przypisania').trim();return (index+1)+'. **'+String(row.Medium||row.Record_ID)+'** \u2014 '+String(row.Contact_Name||'kontakt')+'\\n   Owner: '+owner+' | '+(late?'zaleg\u0142e '+late+' d':'termin dzi\u015b')+'\\n   Akcja: zdecyduj, czy wys\u0142a\u0107 follow-up';});\nconst more=due.length>5?'\\n\\nPozosta\u0142e: '+(due.length-5)+' \u2014 w OUTREACH_LOG.':'';\nconst message=('\u23f0 **[AKCJA] VIRYA \u2014 follow-upy ('+due.length+')**\\n\\n'+lines.join('\\n\\n')+more+'\\n\\nNie wysy\u0142am automatycznie.').slice(0,1950);return[{json:{discord_message:message,allowed_mentions:{parse:[]}}}];"
+   },
+   "typeVersion": 2
+  },
+  {
+   "id": "4bef2467-e01c-425c-92e8-53d153992698",
+   "name": "Discord Bot \u2014 follow-up due",
+   "type": "n8n-nodes-base.httpRequest",
+   "maxTries": 3,
+   "position": [
+    1728,
+    416
+   ],
+   "parameters": {
+    "url": "https://discord.com/api/v10/channels/1355498740588482578/messages",
+    "method": "POST",
+    "options": {
+     "timeout": 30000
+    },
+    "jsonBody": "={{ ({ content: String((($json.discord_message)) ?? '').slice(0, 2000), allowed_mentions: ($json.allowed_mentions && typeof $json.allowed_mentions === 'object') ? $json.allowed_mentions : { parse: [] } }) }}",
+    "sendBody": true,
+    "sendHeaders": true,
+    "specifyBody": "json",
+    "authentication": "genericCredentialType",
+    "genericAuthType": "httpHeaderAuth",
+    "headerParameters": {
+     "parameters": [
+      {
+       "name": "User-Agent",
+       "value": "Virya-n8n/1.0 (https://virya.music)"
+      }
+     ]
+    }
+   },
+   "credentials": {
+    "httpHeaderAuth": {
+     "id": "FB7ONYMUsZFfObWB",
+     "name": "Discord Bot HTTP"
+    }
+   },
+   "retryOnFail": true,
+   "typeVersion": 4.4,
+   "waitBetweenTries": 1500
+  }
+ ],
+ "connections": {
+  "Daily \u2014 follow-up due 09:05": {
+   "main": [
+    [
+     {
+      "node": "Czytaj OUTREACH_LOG",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Czytaj OUTREACH_LOG": {
+   "main": [
+    [
+     {
+      "node": "Wybierz follow-up due",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Wybierz follow-up due": {
+   "main": [
+    [
+     {
+      "node": "Discord Bot \u2014 follow-up due",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  }
+ },
+ "settings": {
+  "executionOrder": "v1",
+  "binaryMode": "separate",
+  "availableInMCP": false,
+  "timezone": "Europe/Warsaw",
+  "errorWorkflow": "98d5e1a4-2dba-5e5a-9be1-2e5d9220859d",
+  "executionTimeout": 180,
+  "saveExecutionProgress": false
+ },
+ "staticData": {
+  "node:Codziennie 09:00": {
+   "recurrenceRules": [
+    null
+   ],
+   "recurrenceRuleSignatures": [
+    null
+   ]
+  },
+  "node:Daily \u2014 follow-up due 09:05": {
+   "recurrenceRules": [
+    null
+   ],
+   "recurrenceRuleSignatures": [
+    null
+   ]
+  }
+ },
+ "meta": {
+  "templateCredsSetupCompleted": true,
+  "viryaLocalPackage": "2026-07-24"
+ },
+ "nodeGroups": [],
+ "pinData": {},
+ "versionId": "8bbbc782-527f-48fe-8c1c-913b4381cb60",
+ "activeVersionId": null,
+ "versionCounter": 13,
+ "triggerCount": 1,
+ "sourceWorkflowId": null,
+ "shared": [
+  {
+   "updatedAt": "2026-07-24T09:45:08.790Z",
+   "createdAt": "2026-07-24T09:45:08.790Z",
+   "role": "workflow:owner",
+   "workflowId": "lX40rga8d9TbQ5cr",
+   "projectId": "e2rPVcUBR4DTE3mO",
+   "project": {
+    "updatedAt": "2026-07-24T09:45:30.763Z",
+    "createdAt": "2026-07-24T09:45:07.113Z",
+    "id": "e2rPVcUBR4DTE3mO",
+    "name": "Virya Crew <virya.crew@gmail.com>",
+    "type": "personal",
+    "icon": null,
+    "description": null,
+    "customTelemetryTags": [],
+    "creatorId": "89259ec0-46eb-41d3-a04e-eb12f52f6342"
+   }
+  }
+ ],
+ "tags": [],
+ "activeVersion": null
+}

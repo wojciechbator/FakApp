@@ -1,0 +1,527 @@
+{
+  "updatedAt": "2026-08-11T18:07:04.363Z",
+  "createdAt": "2026-07-31T14:03:45.056Z",
+  "id": "44808b183edf4ac7",
+  "name": "CrowdRelay — verified webhook ingress",
+  "description": "V3 hardening: no Execute Command nodes; serialized, bounded claim/commit/release state uses native workflow static data.",
+  "active": true,
+  "isArchived": false,
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "crowdrelay-events-v1",
+        "responseMode": "responseNode",
+        "options": {
+          "rawBody": true
+        }
+      },
+      "id": "59e5101d-9939-4eae-8a13-e026efef93c4",
+      "name": "CrowdRelay webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -900,
+        0
+      ],
+      "webhookId": "crowdrelay-events-v1"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://virya-crowdrelay-n8n-bridge:8080/verify-claim",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "CrowdRelay-Timestamp",
+              "value": "={{ $json.headers['crowdrelay-timestamp'] || '' }}"
+            },
+            {
+              "name": "CrowdRelay-Signature",
+              "value": "={{ $json.headers['crowdrelay-signature'] || '' }}"
+            },
+            {
+              "name": "CrowdRelay-Event-Id",
+              "value": "={{ $json.headers['crowdrelay-event-id'] || '' }}"
+            },
+            {
+              "name": "CrowdRelay-Event-Type",
+              "value": "={{ $json.headers['crowdrelay-event-type'] || '' }}"
+            },
+            {
+              "name": "CrowdRelay-Event-Version",
+              "value": "={{ $json.headers['crowdrelay-event-version'] || '' }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "binaryData",
+        "inputDataFieldName": "data",
+        "options": {
+          "timeout": 7000
+        },
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth"
+      },
+      "id": "1eab524e-83d0-485e-bd98-1f834e4ec52c",
+      "name": "Verify and claim exact Event-Id",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -620,
+        0
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 750,
+      "notesInFlow": true,
+      "notes": "Streams the exact webhook bytes to the private verifier. No JSON reserialization, Code node, environment expressions, or secret in the packaged workflow.",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "viryaBridgeHeaderAuthV10",
+          "name": "Virya CrowdRelay control-plane bridge"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "61327cdb-a85f-53ff-bced-20f5dccd90d9",
+              "leftValue": "={{ $json._kind }}",
+              "rightValue": "claim",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "8cfa4b58-1d36-588f-b89a-b0a7c33f8655",
+      "name": "Claim event?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -340,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "={{ $json._target_workflow_id }}",
+          "mode": "id"
+        },
+        "options": {}
+      },
+      "id": "325499bf-414e-46a0-acc7-e841499244f4",
+      "name": "Execute mapped branch",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        -60,
+        -180
+      ],
+      "alwaysOutputData": true,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://virya-crowdrelay-n8n-bridge:8080/commit",
+        "sendHeaders": false,
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ ({ claim_key: $('Verify and claim exact Event-Id').first().json._claim_key, claim_token: $('Verify and claim exact Event-Id').first().json._claim_token }) }}",
+        "options": {
+          "timeout": 5000
+        },
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth"
+      },
+      "id": "06544f1b-e074-446f-8cbc-e4962c972971",
+      "name": "Commit successful Event-Id",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        220,
+        -180
+      ],
+      "retryOnFail": true,
+      "maxTries": 4,
+      "waitBetweenTries": 750,
+      "notesInFlow": true,
+      "notes": "Idempotent commit. A lost response can be retried with the same claim token without re-running the branch.",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "viryaBridgeHeaderAuthV10",
+          "name": "Virya CrowdRelay control-plane bridge"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://virya-crowdrelay-n8n-bridge:8080/release",
+        "sendHeaders": false,
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ ({ claim_key: $('Verify and claim exact Event-Id').first().json._claim_key, claim_token: $('Verify and claim exact Event-Id').first().json._claim_token }) }}",
+        "options": {
+          "timeout": 5000
+        },
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth"
+      },
+      "id": "321b3e17-0c3b-46cc-a51f-09ff3d687abd",
+      "name": "Release failed Event-Id",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        220,
+        -20
+      ],
+      "retryOnFail": true,
+      "maxTries": 4,
+      "waitBetweenTries": 750,
+      "notesInFlow": true,
+      "notes": "Idempotent release. A branch failure remains retryable by CrowdRelay.",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "viryaBridgeHeaderAuthV10",
+          "name": "Virya CrowdRelay control-plane bridge"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"accepted\": true } }}",
+        "options": {
+          "responseCode": 202
+        }
+      },
+      "id": "7480f0b9-c10a-43e7-8d80-3b9eb01aeae6",
+      "name": "Accepted",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        500,
+        -180
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "0b34d88d-13b0-45f4-b2db-693288382be1",
+              "leftValue": "={{ $json._kind }}",
+              "rightValue": "duplicate",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "ba49ff29-a658-4f5b-b705-3d7cb9ee2eee",
+      "name": "Duplicate event?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -60,
+        80
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"accepted\": true, \"duplicate\": true } }}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "303abf00-62b8-46ca-8f1d-fde08694bdee",
+      "name": "Duplicate accepted",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        220,
+        60
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "6c53d025-2d93-47dd-b1fd-155338a6c083",
+              "leftValue": "={{ $json._kind }}",
+              "rightValue": "busy",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "7c11536b-4ce1-454a-90c8-3eda483d1dc0",
+      "name": "Event already in flight?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        220,
+        160
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { accepted: false, error: 'event_inflight', event_id: $json.id } }}",
+        "options": {
+          "responseCode": 503
+        }
+      },
+      "id": "ba065333-fd64-4107-bdb9-c94bf33d0b51",
+      "name": "Event in flight — retry",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        500,
+        120
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"accepted\": false, \"error\": $json._error } }}",
+        "options": {
+          "responseCode": "={{ $json._status }}"
+        }
+      },
+      "id": "fe0aa7e8-3e94-4e3a-bda8-abec370c641d",
+      "name": "Rejected",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        500,
+        240
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { accepted: false, error: 'branch_failed', event_id: $('Verify and claim exact Event-Id').first().json.id } }}",
+        "options": {
+          "responseCode": 503
+        }
+      },
+      "id": "08dd2820-c750-4d85-95b7-f4fdcf34b73c",
+      "name": "Branch failed — retry",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        500,
+        -20
+      ]
+    }
+  ],
+  "connections": {
+    "CrowdRelay webhook": {
+      "main": [
+        [
+          {
+            "node": "Verify and claim exact Event-Id",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verify and claim exact Event-Id": {
+      "main": [
+        [
+          {
+            "node": "Claim event?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Claim event?": {
+      "main": [
+        [
+          {
+            "node": "Execute mapped branch",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Duplicate event?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute mapped branch": {
+      "main": [
+        [
+          {
+            "node": "Commit successful Event-Id",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Release failed Event-Id",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Commit successful Event-Id": {
+      "main": [
+        [
+          {
+            "node": "Accepted",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Release failed Event-Id": {
+      "main": [
+        [
+          {
+            "node": "Branch failed — retry",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Duplicate event?": {
+      "main": [
+        [
+          {
+            "node": "Duplicate accepted",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Event already in flight?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Event already in flight?": {
+      "main": [
+        [
+          {
+            "node": "Event in flight — retry",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Rejected",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveDataErrorExecution": "none",
+    "saveDataSuccessExecution": "none",
+    "saveManualExecutions": false,
+    "errorWorkflow": "98d5e1a4-2dba-5e5a-9be1-2e5d9220859d",
+    "saveExecutionProgress": false,
+    "executionTimeout": 120
+  },
+  "staticData": {},
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "nodeGroups": [],
+  "pinData": {},
+  "versionId": "0c14758b-e784-4998-80cd-1db0a2ecd0d8",
+  "activeVersionId": "0c14758b-e784-4998-80cd-1db0a2ecd0d8",
+  "versionCounter": 17,
+  "triggerCount": 1,
+  "sourceWorkflowId": null,
+  "tags": [],
+  "shared": [
+    {
+      "updatedAt": "2026-07-31T14:03:45.056Z",
+      "createdAt": "2026-07-31T14:03:45.056Z",
+      "role": "workflow:owner",
+      "workflowId": "44808b183edf4ac7",
+      "projectId": "e2rPVcUBR4DTE3mO",
+      "project": {
+        "updatedAt": "2026-07-24T09:45:30.763Z",
+        "createdAt": "2026-07-24T09:45:07.113Z",
+        "id": "e2rPVcUBR4DTE3mO",
+        "name": "Virya Crew <virya.crew@gmail.com>",
+        "type": "personal",
+        "icon": null,
+        "description": null,
+        "customTelemetryTags": [],
+        "creatorId": "89259ec0-46eb-41d3-a04e-eb12f52f6342"
+      }
+    }
+  ],
+  "versionMetadata": {
+    "name": null,
+    "description": null
+  }
+}

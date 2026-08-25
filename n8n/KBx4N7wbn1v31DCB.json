@@ -1,0 +1,2237 @@
+{
+ "updatedAt": "2026-08-15T20:51:43.729Z",
+ "createdAt": "2026-07-24T09:45:08.790Z",
+ "id": "KBx4N7wbn1v31DCB",
+ "name": "VIRYA 08 \u2014 Playlist Pitching Engine",
+ "description": null,
+ "active": true,
+ "isArchived": false,
+ "nodes": [
+  {
+   "id": "1edf40ae-df7d-4274-b2e5-e176841b0b19",
+   "name": "Manual \u2014 build weekly pitch queue",
+   "type": "n8n-nodes-base.manualTrigger",
+   "position": [
+    2496,
+    1264
+   ],
+   "parameters": {},
+   "typeVersion": 1
+  },
+  {
+   "id": "91e56d70-190b-4cb5-92c7-6f084f885b66",
+   "name": "Schedule \u2014 Monday 08:30",
+   "type": "n8n-nodes-base.scheduleTrigger",
+   "notes": "Light runtime cadence: 0 30 8 * * 1 (Europe/Warsaw). Workflow logic and data mappings unchanged.",
+   "position": [
+    2496,
+    1424
+   ],
+   "parameters": {
+    "rule": {
+     "interval": [
+      {
+       "field": "cronExpression",
+       "expression": "0 30 8 * * 1"
+      }
+     ]
+    }
+   },
+   "notesInFlow": true,
+   "typeVersion": 1.3
+  },
+  {
+   "id": "74089572-edbc-4971-b4bf-d1bdc1fa545d",
+   "name": "GS \u2014 SETTINGS",
+   "type": "n8n-nodes-base.googleSheets",
+   "maxTries": 5,
+   "position": [
+    2736,
+    1344
+   ],
+   "parameters": {
+    "options": {
+     "dataLocationOnSheet": {
+      "values": {
+       "rangeDefinition": "specifyRange"
+      }
+     }
+    },
+    "sheetName": {
+     "__rl": true,
+     "mode": "name",
+     "value": "SETTINGS"
+    },
+    "documentId": {
+     "__rl": true,
+     "mode": "id",
+     "value": "1ksa6VePLgLQESHvJL-_zBZ2KzVNHYPndzwhXvVj4Vxw"
+    }
+   },
+   "credentials": {
+    "googleSheetsOAuth2Api": {
+     "id": "bc2Y1XmIdyu5ySTa",
+     "name": "Google Sheets account"
+    }
+   },
+   "executeOnce": true,
+   "retryOnFail": true,
+   "typeVersion": 4.7,
+   "alwaysOutputData": true,
+   "waitBetweenTries": 15000
+  },
+  {
+   "id": "712303ca-fd65-4c2c-a2e0-33830bf50f62",
+   "name": "GS \u2014 TRACKS",
+   "type": "n8n-nodes-base.googleSheets",
+   "maxTries": 5,
+   "position": [
+    2976,
+    1344
+   ],
+   "parameters": {
+    "options": {
+     "dataLocationOnSheet": {
+      "values": {
+       "rangeDefinition": "specifyRange"
+      }
+     }
+    },
+    "sheetName": {
+     "__rl": true,
+     "mode": "name",
+     "value": "TRACKS"
+    },
+    "documentId": {
+     "__rl": true,
+     "mode": "id",
+     "value": "1ksa6VePLgLQESHvJL-_zBZ2KzVNHYPndzwhXvVj4Vxw"
+    }
+   },
+   "credentials": {
+    "googleSheetsOAuth2Api": {
+     "id": "bc2Y1XmIdyu5ySTa",
+     "name": "Google Sheets account"
+    }
+   },
+   "executeOnce": true,
+   "retryOnFail": true,
+   "typeVersion": 4.7,
+   "alwaysOutputData": true,
+   "waitBetweenTries": 15000
+  },
+  {
+   "id": "05e69097-39f9-4ace-9c88-21e7c9e58901",
+   "name": "GS \u2014 SOURCES",
+   "type": "n8n-nodes-base.googleSheets",
+   "maxTries": 5,
+   "position": [
+    3216,
+    1344
+   ],
+   "parameters": {
+    "options": {
+     "dataLocationOnSheet": {
+      "values": {
+       "rangeDefinition": "specifyRange"
+      }
+     }
+    },
+    "sheetName": {
+     "__rl": true,
+     "mode": "name",
+     "value": "SOURCES"
+    },
+    "documentId": {
+     "__rl": true,
+     "mode": "id",
+     "value": "1ksa6VePLgLQESHvJL-_zBZ2KzVNHYPndzwhXvVj4Vxw"
+    }
+   },
+   "credentials": {
+    "googleSheetsOAuth2Api": {
+     "id": "bc2Y1XmIdyu5ySTa",
+     "name": "Google Sheets account"
+    }
+   },
+   "executeOnce": true,
+   "retryOnFail": true,
+   "typeVersion": 4.7,
+   "alwaysOutputData": true,
+   "waitBetweenTries": 15000
+  },
+  {
+   "id": "7edc067a-81b6-41a5-bbc8-d5cd1956060c",
+   "name": "GS \u2014 Existing PITCH_QUEUE",
+   "type": "n8n-nodes-base.googleSheets",
+   "maxTries": 5,
+   "position": [
+    3456,
+    1344
+   ],
+   "parameters": {
+    "options": {
+     "dataLocationOnSheet": {
+      "values": {
+       "rangeDefinition": "specifyRange"
+      }
+     }
+    },
+    "sheetName": {
+     "__rl": true,
+     "mode": "name",
+     "value": "PITCH_QUEUE"
+    },
+    "documentId": {
+     "__rl": true,
+     "mode": "id",
+     "value": "1ksa6VePLgLQESHvJL-_zBZ2KzVNHYPndzwhXvVj4Vxw"
+    }
+   },
+   "credentials": {
+    "googleSheetsOAuth2Api": {
+     "id": "bc2Y1XmIdyu5ySTa",
+     "name": "Google Sheets account"
+    }
+   },
+   "executeOnce": true,
+   "retryOnFail": true,
+   "typeVersion": 4.7,
+   "alwaysOutputData": true,
+   "waitBetweenTries": 15000
+  },
+  {
+   "id": "fe4f9cd0-5345-4086-ad25-4df5b8e43b29",
+   "name": "GS \u2014 SUBMISSION_LOG",
+   "type": "n8n-nodes-base.googleSheets",
+   "maxTries": 5,
+   "position": [
+    3696,
+    1344
+   ],
+   "parameters": {
+    "options": {
+     "dataLocationOnSheet": {
+      "values": {
+       "rangeDefinition": "specifyRange"
+      }
+     }
+    },
+    "sheetName": {
+     "__rl": true,
+     "mode": "name",
+     "value": "SUBMISSION_LOG"
+    },
+    "documentId": {
+     "__rl": true,
+     "mode": "id",
+     "value": "1ksa6VePLgLQESHvJL-_zBZ2KzVNHYPndzwhXvVj4Vxw"
+    }
+   },
+   "credentials": {
+    "googleSheetsOAuth2Api": {
+     "id": "bc2Y1XmIdyu5ySTa",
+     "name": "Google Sheets account"
+    }
+   },
+   "executeOnce": true,
+   "retryOnFail": true,
+   "typeVersion": 4.7,
+   "alwaysOutputData": true,
+   "waitBetweenTries": 15000
+  },
+  {
+   "id": "7955dbe0-8db7-404b-8bd9-bff6242533ec",
+   "name": "Code \u2014 Score and build pitch queue",
+   "type": "n8n-nodes-base.code",
+   "position": [
+    3936,
+    1344
+   ],
+   "parameters": {
+    "jsCode": "const NL=String.fromCharCode(10);function clean(value){return String(value===undefined||value===null?'':value).trim()}function truth(value){return ['TRUE','YES','TAK','1'].includes(clean(value).toUpperCase())}function numberValue(value,fallback){var parsed=Number(clean(value).replace(',','.'));return Number.isFinite(parsed)?parsed:fallback}function normalize(value){var source=clean(value).toLowerCase().normalize('NFD');var output='';for(var index=0;index<source.length;index+=1){var code=source.charCodeAt(index);if(code>=768&&code<=879)continue;var alpha=code>=97&&code<=122;var digit=code>=48&&code<=57;output+=alpha||digit?source[index]:' '}return output.split(' ').filter(Boolean).join(' ')}function tagList(value){return clean(value).split('|').map(function(item){return normalize(item)}).filter(Boolean)}function readRows(nodeName){try{return $(nodeName).all().map(function(item){return item.json||{}})}catch(error){return[]}}function table(nodeName,headers){var rawRows=readRows(nodeName);if(!rawRows.length)return[];var direct=headers.every(function(header){return Object.prototype.hasOwnProperty.call(rawRows[0],header)});if(direct)return rawRows;var headerIndex=rawRows.findIndex(function(row){var values=Object.values(row).map(function(value){return clean(value)});return headers.every(function(header){return values.includes(header)})});if(headerIndex<0)return rawRows;var headerRow=rawRows[headerIndex];var keys=Object.keys(headerRow).filter(function(key){return key!=='row_number'});var names=keys.map(function(key){return clean(headerRow[key])});return rawRows.slice(headerIndex+1).map(function(row){var result={};keys.forEach(function(key,index){if(names[index])result[names[index]]=row[key]});return result}).filter(function(row){return Object.values(row).some(function(value){return clean(value)!==''})})}function warsawStamp(date){return new Intl.DateTimeFormat('sv-SE',{timeZone:'Europe/Warsaw',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false}).format(date)}function priorityRank(value){var p=clean(value).toUpperCase();return p==='A'?3:p==='B'?2:1}function isTrackUrl(value){return clean(value).startsWith('https://open.spotify.com/track/')}function isSingleEmail(value){var email=clean(value).toLowerCase();return /^[^\\s@,;]+@[^\\s@,;]+\\.[^\\s@,;]+$/.test(email)}function containsSimilar(left,right){return left===right||left.includes(right)||right.includes(left)}var settingsRows=table('GS \u2014 SETTINGS',['Setting','Value','Type','Meaning']);var settings={};settingsRows.forEach(function(row){if(clean(row.Setting))settings[clean(row.Setting)]=row.Value});var tracks=table('GS \u2014 TRACKS',['Track_ID','Active','Track_Name','Spotify_Track_URL','Ready_For_Pitch']);var sources=table('GS \u2014 SOURCES',['Source_ID','Active','Platform','Source_Name','Action_Class','Submission_URL','Free']);var queue=table('GS \u2014 Existing PITCH_QUEUE',['Pitch_ID','Created_At','Track_ID','Source_ID','Dedupe_Key']);var logs=table('GS \u2014 SUBMISSION_LOG',['Log_ID','Pitch_ID','Sent_At','Track_ID','Source_ID','Dedupe_Key']);var lastByTarget={};function rememberTarget(row,dateValue){var target=clean(row.Contact_Email).toLowerCase()||clean(row.Submission_URL).toLowerCase()||clean(row.Source_ID).toLowerCase();if(!target)return;var time=new Date(dateValue||0).getTime();if(Number.isFinite(time)&&(!lastByTarget[target]||time>lastByTarget[target]))lastByTarget[target]=time}queue.forEach(function(row){rememberTarget(row,row.Created_At||row.Submitted_At)});logs.forEach(function(row){rememberTarget(row,row.Sent_At)});var now=new Date();var nowMs=now.getTime();var cooldownDays=Math.max(1,numberValue(settings.MIN_DAYS_BETWEEN_PITCHES,60));var cooldownMs=cooldownDays*86400000;var lastByKey={};function remember(key,dateValue){if(!key)return;var time=new Date(dateValue||0).getTime();if(!Number.isFinite(time))return;if(!lastByKey[key]||time>lastByKey[key])lastByKey[key]=time}queue.forEach(function(row){remember(clean(row.Dedupe_Key),row.Created_At||row.Submitted_At)});logs.forEach(function(row){remember(clean(row.Dedupe_Key),row.Sent_At)});var readyTracks=tracks.filter(function(track){return truth(track.Active)&&truth(track.Ready_For_Pitch)&&isTrackUrl(track.Spotify_Track_URL)});readyTracks.sort(function(a,b){return priorityRank(b.Priority)-priorityRank(a.Priority)});if(!readyTracks.length){return[{json:{skipAll:true,content:'\u2139\ufe0f Playlist Pitching: brak utwor\u00f3w gotowych do pitchu. W TRACKS wklej Spotify_Track_URL i ustaw Ready_For_Pitch=TRUE.'}}]}var activeSources=sources.filter(function(source){return truth(source.Active)&&truth(source.Free)&&clean(source.Action_Class)!=='PAID_EXCLUDED'});var bestTrack=readyTracks[0];var bestByKey={};for(var trackIndex=0;trackIndex<readyTracks.length;trackIndex+=1){var track=readyTracks[trackIndex];var releaseText=clean(track.Release_Date);var releaseMs=new Date(releaseText+'T00:00:00').getTime();var daysUntil=Number.isFinite(releaseMs)?Math.floor((releaseMs-nowMs)/86400000):0;var daysSince=Number.isFinite(releaseMs)?Math.floor((nowMs-releaseMs)/86400000):9999;for(var sourceIndex=0;sourceIndex<activeSources.length;sourceIndex+=1){var source=activeSources[sourceIndex];var action=clean(source.Action_Class);var platform=clean(source.Platform);if(action==='PROFILE_TASK'&&track.Track_ID!==bestTrack.Track_ID)continue;if(truth(source.Requires_Unreleased)&&daysUntil<1)continue;if(!truth(source.Released_Allowed)&&daysSince>=0)continue;if(action==='OFFICIAL_MANUAL'&&platform==='Spotify'&&daysUntil<7)continue;if(action==='OFFICIAL_MANUAL'&&platform==='Amazon Music'&&(daysSince>14||daysUntil>60))continue;var sourceTags=tagList(source.Genres);var trackTags=tagList([track.Primary_Genres,track.Secondary_Tags,track.Mood,track.Best_For].join('|'));var allGenres=sourceTags.includes('all genres');var matched=[];if(!allGenres){sourceTags.forEach(function(sourceTag){trackTags.forEach(function(trackTag){if(containsSimilar(sourceTag,trackTag)&&!matched.includes(sourceTag))matched.push(sourceTag)})})}var genreScore=allGenres?32:Math.min(45,matched.length?10+matched.length*14:0);if(action==='PROFILE_TASK')genreScore=20;if(action==='OFFICIAL_MANUAL')genreScore=Math.max(genreScore,25);if(!allGenres&&matched.length===0&&!['PROFILE_TASK','OFFICIAL_MANUAL'].includes(action))continue;var trustScore=numberValue(source.Trust_Score,50)*0.15;var reachScore=numberValue(source.Reach_Score,50)*0.15;var freshnessScore=numberValue(source.Freshness_Score,50)*0.10;var actionBonus=action==='OFFICIAL_MANUAL'?10:action==='AUTO_EMAIL'?5:action==='MANUAL_FORM'?4:2;var priorityBonus=priorityRank(track.Priority)===3?6:priorityRank(track.Priority)===2?3:0;var score=genreScore+trustScore+reachScore+freshnessScore+actionBonus+priorityBonus;if(daysSince>730)score-=10;else if(daysSince>365)score-=5;var sourceGenres=normalize(source.Genres);var vocalStyle=normalize(track.Vocal_Style);if(sourceGenres.includes('instrumental')&&!vocalStyle.includes('instrumental'))score-=35;if(sourceGenres.includes('melodic death')&&!trackTags.some(function(tag){return tag.includes('melodic death')}))score-=18;score=Math.max(0,Math.min(100,Math.round(score)));var minManual=numberValue(settings.MIN_SCORE_MANUAL,55);if(score<minManual)continue;var contact=clean(source.Contact_Email).toLowerCase();var targetKey=contact||clean(source.Submission_URL).toLowerCase()||clean(source.Source_ID).toLowerCase();if(lastByTarget[targetKey]&&nowMs-lastByTarget[targetKey]<cooldownMs)continue;var dedupeKey=action==='PROFILE_TASK'?'PROFILE|'+clean(source.Source_ID):clean(track.Track_ID)+'|'+targetKey;if(lastByKey[dedupeKey]&&nowMs-lastByKey[dedupeKey]<cooldownMs)continue;var fitText=matched.length?'Matched tags: '+matched.join(', '):action==='PROFILE_TASK'?'Profile and catalogue growth task':'Official platform release task';var risks=[];if(daysSince>365)risks.push('older release');if(numberValue(source.Freshness_Score,50)<70)risks.push('source freshness requires review');if(truth(source.Requires_Login))risks.push('manual login or OAuth required');var candidate={track:track,source:source,action:action,score:score,fitText:fitText,risks:risks.join('; '),dedupeKey:dedupeKey,targetKey:targetKey};if(!bestByKey[dedupeKey]||candidate.score>bestByKey[dedupeKey].score)bestByKey[dedupeKey]=candidate}}var candidates=Object.values(bestByKey);candidates.sort(function(a,b){return b.score-a.score||priorityRank(b.track.Priority)-priorityRank(a.track.Priority)});if(!candidates.length){return[{json:{skipAll:true,content:'\u2139\ufe0f Playlist Pitching: brak nowych dopasowa\u0144 po scoringu, deduplikacji i cooldownie.'}}]}var dryRun=truth(settings.DRY_RUN);var autoEnabled=truth(settings.AUTO_EMAIL_ENABLED);var autoThreshold=numberValue(settings.MIN_SCORE_AUTO_EMAIL,75);var maxAuto=Math.min(3,Math.max(0,numberValue(settings.MAX_AUTO_EMAIL_PER_RUN,3)));var maxManual=Math.min(10,Math.max(0,numberValue(settings.MAX_MANUAL_TASKS_PER_RUN,10)));var maxPerTrack=Math.max(1,numberValue(settings.MAX_PITCHES_PER_TRACK_PER_WEEK,12));var selected=[];var perTrack={};var autoCount=0;var manualCount=0;var runSeenTargets={};for(var candidateIndex=0;candidateIndex<candidates.length;candidateIndex+=1){var candidate=candidates[candidateIndex];var trackKey=clean(candidate.track.Track_ID);var limitKey=candidate.action==='PROFILE_TASK'?'PROFILE':trackKey;if((perTrack[limitKey]||0)>=maxPerTrack)continue;var sameTargetKey=candidate.targetKey;if(runSeenTargets[sameTargetKey])continue;var qualifiesAuto=candidate.action==='AUTO_EMAIL'&&candidate.score>=autoThreshold&&truth(candidate.source.Auto_Send_Allowed)&&isSingleEmail(candidate.source.Contact_Email);if(qualifiesAuto){if(autoCount>=maxAuto)continue;autoCount+=1}else{if(manualCount>=maxManual)continue;manualCount+=1}runSeenTargets[sameTargetKey]=true;perTrack[limitKey]=(perTrack[limitKey]||0)+1;selected.push(candidate)}if(!selected.length){return[{json:{skipAll:true,content:'\u2139\ufe0f Playlist Pitching: kandydaci istniej\u0105, ale limity lub recipient guard odrzuci\u0142y ca\u0142y run.'}}]}var stamp=warsawStamp(now);var dateKey=stamp.slice(0,10).split('-').join('');var timeKey=stamp.slice(11,19).split(':').join('');var output=[];for(var outputIndex=0;outputIndex<selected.length;outputIndex+=1){var chosen=selected[outputIndex];var trackData=chosen.track;var sourceData=chosen.source;var pitchId='PIT-'+dateKey+'-'+timeKey+'-'+String(outputIndex+1).padStart(2,'0');var qualifiesForSend=chosen.action==='AUTO_EMAIL'&&chosen.score>=autoThreshold&&truth(sourceData.Auto_Send_Allowed)&&isSingleEmail(sourceData.Contact_Email);var autoAllowed=qualifiesForSend&&autoEnabled&&!dryRun;var status=dryRun?'READY_DRY_RUN':autoAllowed?'READY_TO_SEND':chosen.action==='AUTO_EMAIL'?'REVIEW_REQUIRED':'PENDING_MANUAL';var subjectTemplate=clean(sourceData.Special_Subject)||'Playlist submission: Virya \u2014 {{TRACK_NAME}}';var subject=subjectTemplate.split('{{TRACK_NAME}}').join(clean(trackData.Track_Name));var why=chosen.fitText+'. Fit score '+chosen.score+'/100.';var body=['Hello,','I\u2019m Wojciech from Virya, a modern / alternative / progressive metal band from Wroc\u0142aw, Poland.','I\u2019d like to submit \u201c'+clean(trackData.Track_Name)+'\u201d for '+clean(sourceData.Source_Name)+'.',clean(trackData.One_Liner_EN), 'Why it fits: '+why,'Listen: '+clean(trackData.Spotify_Track_URL),'Artist: '+clean(settings.SPOTIFY_ARTIST_URL),'EPK: '+clean(settings.EPK_URL),'If it is not a fit, no problem \u2014 thank you for taking the time to listen.','Best,',clean(settings.PITCH_SENDER_NAME||'Wojciech / Virya')].filter(function(line){return clean(line)!==''}).join(NL+NL);output.push({json:{skipAll:false,Pitch_ID:pitchId,Created_At:stamp,Track_ID:clean(trackData.Track_ID),Track_Name:clean(trackData.Track_Name),Source_ID:clean(sourceData.Source_ID),Source_Name:clean(sourceData.Source_Name),Platform:clean(sourceData.Platform),Action_Class:chosen.action,Submission_URL:clean(sourceData.Submission_URL),Contact_Email:clean(sourceData.Contact_Email),Fit_Score:chosen.score,Priority:chosen.score>=80?'A':chosen.score>=65?'B':'C',Fit_Reasons:chosen.fitText,Risks:chosen.risks,Status:status,Approval_Status:autoAllowed?'AUTO':'PENDING',Auto_Send_Allowed:autoAllowed?'TRUE':'FALSE',Pitch_Subject:subject,Pitch_Body:body,Submitted_At:'',Gmail_Message_ID:'',Gmail_Thread_ID:'',Follow_Up_At:'',Response_Status:'',Response_Summary:'',Placement_URL:'',Estimated_Reach:'index '+Math.round(numberValue(sourceData.Reach_Score,0))+'/100',Dedupe_Key:chosen.dedupeKey,Owner:'Virya Crew',Notes:clean(sourceData.Notes),Spotify_Track_URL:clean(trackData.Spotify_Track_URL)}})}return output;"
+   },
+   "typeVersion": 2
+  },
+  {
+   "id": "6a1d8968-b16a-4a10-b1a1-15050491a328",
+   "name": "Code \u2014 Route no work",
+   "type": "n8n-nodes-base.code",
+   "position": [
+    4176,
+    1072
+   ],
+   "parameters": {
+    "jsCode": "return $input.all().filter(i => i.json?.skipAll && i.json?.content).map((item, index) => ({json:{...item.json,content:String(item.json.content).slice(0,1950)},pairedItem:{item:index}}));"
+   },
+   "typeVersion": 2
+  },
+  {
+   "id": "45ba1256-8286-450a-a812-147421434293",
+   "name": "Discord \u2014 No work",
+   "type": "n8n-nodes-base.httpRequest",
+   "maxTries": 5,
+   "position": [
+    4416,
+    1072
+   ],
+   "parameters": {
+    "url": "https://discord.com/api/v10/channels/1529796008144404500/messages",
+    "method": "POST",
+    "options": {
+     "timeout": 30000
+    },
+    "jsonBody": "={{ ({ content: String((($json.content)) ?? '').slice(0, 2000), allowed_mentions: ($json.allowed_mentions && typeof $json.allowed_mentions === 'object') ? $json.allowed_mentions : { parse: [] } }) }}",
+    "sendBody": true,
+    "sendHeaders": true,
+    "specifyBody": "json",
+    "authentication": "genericCredentialType",
+    "genericAuthType": "httpHeaderAuth",
+    "headerParameters": {
+     "parameters": [
+      {
+       "name": "User-Agent",
+       "value": "Virya-n8n/1.0 (https://virya.music)"
+      }
+     ]
+    }
+   },
+   "credentials": {
+    "httpHeaderAuth": {
+     "id": "FB7ONYMUsZFfObWB",
+     "name": "Discord Bot HTTP"
+    }
+   },
+   "retryOnFail": true,
+   "typeVersion": 4.4,
+   "waitBetweenTries": 5000
+  },
+  {
+   "id": "bb7b939e-78d0-42e2-8288-27accc32b33b",
+   "name": "Code \u2014 Rows to append",
+   "type": "n8n-nodes-base.code",
+   "position": [
+    4176,
+    1264
+   ],
+   "parameters": {
+    "jsCode": "return $input.all().filter(function(item){return item.json&&!item.json.skipAll&&item.json.Pitch_ID}).map(function(item){var row=Object.assign({},item.json);delete row.Spotify_Track_URL;return{json:row}});"
+   },
+   "typeVersion": 2
+  },
+  {
+   "id": "38c8c508-f74e-4f54-aec7-2179191879e9",
+   "name": "GS \u2014 Append PITCH_QUEUE",
+   "type": "n8n-nodes-base.googleSheets",
+   "position": [
+    4416,
+    1264
+   ],
+   "parameters": {
+    "columns": {
+     "value": {},
+     "schema": [
+      {
+       "id": "Pitch_ID",
+       "type": "string",
+       "display": true,
+       "removed": false,
+       "required": false,
+       "displayName": "Pitch_ID",
+       "defaultMatch": false,
+       "canBeUsedToMatch": true
+      },
+      {
+       "id": "Created_At",
+       "type": "string",
+       "display": true,
+       "removed": false,
+       "required": false,
+       "displayName": "Created_At",
+       "defaultMatch": false,
+       "canBeUsedToMatch": true
+      },
+      {
+       "id": "Track_ID",
+       "type": "string",
+       "display": true,
+       "removed": false,
+       "required": false,
+       "displayName": "Track_ID",
+       "defaultMatch": false,
+       "canBeUsedToMatch": true
+      },
+      {
+       "id": "Track_Name",
+       "type": "string",
+       "display": true,
+       "removed": false,
+       "required": false,
+       "displayName": "Track_Name",
+       "defaultMatch": false,
+       "canBeUsedToMatch": true
+      },
+      {
+       "id": "Source_ID",
+       "type": "string",
+       "display": true,
+       "removed": false,
+       "required": false,
+       "displayName": "Source_ID",
+       "defaultMatch": false,
+       "canBeUsedToMatch": true
+      },
+      {
+       "id": "Source_Name",
+       "type": "string",
+       "display": true,
+       "removed": false,
+       "required": false,
+       "displayName": "Source_Name",
+       "defaultMatch": false,
+       "canBeUsedToMatch": true
+      },
+      {
+       "id": "Platform",
+       "type": "string",
+       "display": true,
+       "removed": false,
+       "required": false,
+       "displayName": "Platform",
+       "defaultMatch": false,
+       "canBeUsedToMatch": true
+      },
+      {
+       "id": "Action_Class",
+       "type": "string",
+       "display": true,
+       "removed": false,
+       "required": false,
+       "displayName": "Action_Class",
+       "defaultMatch": false,
+       "canBeUsedToMatch": true
+      },
+      {
+       "id": "Submission_URL",
+       "type": "string",
+       "display": true,
+       "removed": false,
+       "required": false,
+       "displayName": "Submission_URL",
+       "defaultMatch": false,
+       "canBeUsedToMatch": true
+      },
+      {
+       "id": "Contact_Email",
+       "type": "string",
+       "display": true,
+       "removed": false,
+       "required": false,
+       "displayName": "Contact_Email",
+       "defaultMatch": false,
+       "canBeUsedToMatch": true
+      },
+      {
+       "id": "Fit_Score",
+       "type": "string",
+       "display": true,
+       "removed": false,
+       "required": false,
+       "displayName": "Fit_Score",
+       "defaultMatch": false,
+       "canBeUsedToMatch": true
+      },
+      {
+       "id": "Priority",
+       "type": "string",
+       "display": true,
+       "removed": false,
+       "required": false,
+       "displayName": "Priority",
+       "defaultMatch": false,
+       "canBeUsedToMatch": true
+      },
+      {
+       "id": "Fit_Reasons",
+       "type": "string",
+       "display": true,
+       "removed": false,
+       "required": false,
+       "displayName": "Fit_Reasons",
+       "defaultMatch": false,
+       "canBeUsedToMatch": true
+      },
+      {
+       "id": "Risks",
+       "type": "string",
+       "display": true,
+       "removed": false,
+       "required": false,
+       "displayName": "Risks",
+       "defaultMatch": false,
+       "canBeUsedToMatch": true
+      },
+      {
+       "id": "Status",
+       "type": "string",
+       "display": true,
+       "removed": false,
+       "required": false,
+       "displayName": "Status",
+       "defaultMatch": false,
+       "canBeUsedToMatch": true
+      },
+      {
+       "id": "Approval_Status",
+       "type": "string",
+       "display": true,
+       "removed": false,
+       "required": false,
+       "displayName": "Approval_Status",
+       "defaultMatch": false,
+       "canBeUsedToMatch": true
+      },
+      {
+       "id": "Auto_Send_Allowed",
+       "type": "string",
+       "display": true,
+       "removed": false,
+       "required": false,
+       "displayName": "Auto_Send_Allowed",
+       "defaultMatch": false,
+       "canBeUsedToMatch": true
+      },
+      {
+       "id": "Pitch_Subject",
+       "type": "string",
+       "display": true,
+       "removed": false,
+       "required": false,
+       "displayName": "Pitch_Subject",
+       "defaultMatch": false,
+       "canBeUsedToMatch": true
+      },
+      {
+       "id": "Pitch_Body",
+       "type": "string",
+       "display": true,
+       "removed": false,
+       "required": false,
+       "displayName": "Pitch_Body",
+       "defaultMatch": false,
+       "canBeUsedToMatch": true
+      },
+      {
+       "id": "Submitted_At",
+       "type": "string",
+       "display": true,
+       "removed": false,
+       "required": false,
+       "displayName": "Submitted_At",
+       "defaultMatch": false,
+       "canBeUsedToMatch": true
+      },
+      {
+       "id": "Gmail_Message_ID",
+       "type": "string",
+       "display": true,
+       "removed": false,
+       "required": false,
+       "displayName": "Gmail_Message_ID",
+       "defaultMatch": false,
+       "canBeUsedToMatch": true
+      },
+      {
+       "id": "Gmail_Thread_ID",
+       "type": "string",
+       "display": true,
+       "removed": false,
+       "required": false,
+       "displayName": "Gmail_Thread_ID",
+       "defaultMatch": false,
+       "canBeUsedToMatch": true
+      },
+      {
+       "id": "Follow_Up_At",
+       "type": "string",
+       "display": true,
+       "removed": false,
+       "required": false,
+       "displayName": "Follow_Up_At",
+       "defaultMatch": false,
+       "canBeUsedToMatch": true
+      },
+      {
+       "id": "Response_Status",
+       "type": "string",
+       "display": true,
+       "removed": false,
+       "required": false,
+       "displayName": "Response_Status",
+       "defaultMatch": false,
+       "canBeUsedToMatch": true
+      },
+      {
+       "id": "Response_Summary",
+       "type": "string",
+       "display": true,
+       "removed": false,
+       "required": false,
+       "displayName": "Response_Summary",
+       "defaultMatch": false,
+       "canBeUsedToMatch": true
+      },
+      {
+       "id": "Placement_URL",
+       "type": "string",
+       "display": true,
+       "removed": false,
+       "required": false,
+       "displayName": "Placement_URL",
+       "defaultMatch": false,
+       "canBeUsedToMatch": true
+      },
+      {
+       "id": "Estimated_Reach",
+       "type": "string",
+       "display": true,
+       "removed": false,
+       "required": false,
+       "displayName": "Estimated_Reach",
+       "defaultMatch": false,
+       "canBeUsedToMatch": true
+      },
+      {
+       "id": "Dedupe_Key",
+       "type": "string",
+       "display": true,
+       "removed": false,
+       "required": false,
+       "displayName": "Dedupe_Key",
+       "defaultMatch": false,
+       "canBeUsedToMatch": true
+      },
+      {
+       "id": "Owner",
+       "type": "string",
+       "display": true,
+       "removed": false,
+       "required": false,
+       "displayName": "Owner",
+       "defaultMatch": false,
+       "canBeUsedToMatch": true
+      },
+      {
+       "id": "Notes",
+       "type": "string",
+       "display": true,
+       "removed": false,
+       "required": false,
+       "displayName": "Notes",
+       "defaultMatch": false,
+       "canBeUsedToMatch": true
+      },
+      {
+       "id": "skipAll",
+       "type": "string",
+       "display": true,
+       "removed": false,
+       "required": false,
+       "displayName": "skipAll",
+       "defaultMatch": false,
+       "canBeUsedToMatch": true
+      }
+     ],
+     "mappingMode": "autoMapInputData",
+     "matchingColumns": [],
+     "attemptToConvertTypes": false,
+     "convertFieldsToString": false
+    },
+    "options": {
+     "locationDefine": {
+      "values": {}
+     }
+    },
+    "operation": "append",
+    "sheetName": {
+     "__rl": true,
+     "mode": "name",
+     "value": "PITCH_QUEUE"
+    },
+    "documentId": {
+     "__rl": true,
+     "mode": "id",
+     "value": "1ksa6VePLgLQESHvJL-_zBZ2KzVNHYPndzwhXvVj4Vxw"
+    }
+   },
+   "credentials": {
+    "googleSheetsOAuth2Api": {
+     "id": "bc2Y1XmIdyu5ySTa",
+     "name": "Google Sheets account"
+    }
+   },
+   "typeVersion": 4.7
+  },
+  {
+   "id": "12d58bdb-1d46-455f-9f8c-6c53e51c40e4",
+   "name": "Code \u2014 Auto-send gate",
+   "type": "n8n-nodes-base.code",
+   "position": [
+    4176,
+    1472
+   ],
+   "parameters": {
+    "jsCode": "const rows = $input.all().filter((item) => {\n  const row = item.json ?? {};\n\n  return (\n    !row.skipAll &&\n    row.Status === 'READY_TO_SEND' &&\n    row.Auto_Send_Allowed === 'TRUE' &&\n    String(row.Contact_Email ?? '').includes('@')\n  );\n});\n\nreturn rows;"
+   },
+   "typeVersion": 2
+  },
+  {
+   "id": "14d5bacf-ca1a-4734-bfa2-0169fc631a1b",
+   "name": "Gmail \u2014 Send playlist pitch",
+   "type": "n8n-nodes-base.gmail",
+   "disabled": true,
+   "position": [
+    4416,
+    1472
+   ],
+   "webhookId": "f85fc35f-92df-4cf7-bce3-8a9dc46cac54",
+   "parameters": {
+    "sendTo": "={{ $json.Contact_Email }}",
+    "message": "={{ $json.Pitch_Body }}",
+    "options": {
+     "appendAttribution": false
+    },
+    "subject": "={{ $json.Pitch_Subject }}",
+    "emailType": "text"
+   },
+   "credentials": {
+    "gmailOAuth2": {
+     "id": "BJg5tKEWMNRw0GA1",
+     "name": "Gmail account"
+    }
+   },
+   "typeVersion": 2.1,
+   "continueOnFail": true,
+   "alwaysOutputData": true
+  },
+  {
+   "id": "a13a2c66-2379-48fd-8adf-6946f7f6d520",
+   "name": "Code \u2014 Build send log",
+   "type": "n8n-nodes-base.code",
+   "position": [
+    4656,
+    1472
+   ],
+   "parameters": {
+    "jsCode": "function clean(value){return String(value===undefined||value===null?'':value).trim()}\nfunction warsawStamp(date){return new Intl.DateTimeFormat('sv-SE',{timeZone:'Europe/Warsaw',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false}).format(date)}\nconst results=$input.all();\nlet originals=[];\ntry{originals=$('Code \u2014 Auto-send gate').all().map(item=>item.json||{})}catch(error){originals=[]}\nlet followDays=10;\ntry{\n  const settings=$('GS \u2014 SETTINGS').all().map(item=>item.json||{});\n  const row=settings.find(item=>clean(item.Setting)==='FOLLOW_UP_DAYS');\n  if(row&&Number.isFinite(Number(row.Value)))followDays=Number(row.Value);\n}catch(error){}\nconst now=new Date();\nconst stamp=warsawStamp(now);\nconst dateKey=stamp.slice(0,10).split('-').join('');\nconst timeKey=stamp.slice(11,19).split(':').join('');\nreturn results.map((item,index)=>{\n  const result=item.json||{};\n  const source=originals[index]||{};\n  const messageId=clean(result.id||result.messageId);\n  const threadId=clean(result.threadId);\n  const explicitError=clean(result.error?.message||result.error||result.message);\n  const deliveryConfirmed=Boolean(messageId) && !result.error;\n  const failed=!deliveryConfirmed;\n  const error=failed\n    ? (explicitError || 'gmail_delivery_not_confirmed: Gmail node is disabled, misconfigured, or returned no message id')\n    : '';\n  const follow=new Date(now.getTime()+followDays*86400000);\n  return{json:{\n    Log_ID:'LOG-'+dateKey+'-'+timeKey+'-'+String(index+1).padStart(2,'0'),\n    Pitch_ID:clean(source.Pitch_ID),Sent_At:failed?'':stamp,\n    Track_ID:clean(source.Track_ID),Track_Name:clean(source.Track_Name),\n    Source_ID:clean(source.Source_ID),Source_Name:clean(source.Source_Name),\n    Submission_Method:'AUTO_EMAIL',Recipient:clean(source.Contact_Email),\n    Subject:clean(source.Pitch_Subject),Message_ID:messageId,Thread_ID:threadId,\n    Status:failed?'ERROR':'SENT',Follow_Up_At:failed?'':warsawStamp(follow).slice(0,10),\n    Follow_Up_Count:0,Reply_At:'',Reply_Class:'',Reply_Summary:'',Placement_At:'',\n    Placement_URL:'',Playlist_Name:clean(source.Source_Name),Estimated_Reach:clean(source.Estimated_Reach),\n    Streams_Attributed:'',Monthly_Listeners_Before:'',Monthly_Listeners_After:'',\n    Dedupe_Key:clean(source.Dedupe_Key),Error:error,Discord_Reported_At:'',\n    Send_Attempt_ID:clean(source._viryaSendAttemptId)\n  }};\n});"
+   },
+   "typeVersion": 2
+  },
+  {
+   "id": "26c1d6aa-ff99-420c-9c77-11892c02c637",
+   "name": "GS \u2014 Append SUBMISSION_LOG",
+   "type": "n8n-nodes-base.googleSheets",
+   "position": [
+    4896,
+    1472
+   ],
+   "parameters": {
+    "columns": {
+     "value": {},
+     "schema": [],
+     "mappingMode": "autoMapInputData",
+     "matchingColumns": [],
+     "attemptToConvertTypes": false,
+     "convertFieldsToString": false
+    },
+    "options": {
+     "locationDefine": {
+      "values": {}
+     }
+    },
+    "operation": "append",
+    "sheetName": {
+     "__rl": true,
+     "mode": "name",
+     "value": "SUBMISSION_LOG"
+    },
+    "documentId": {
+     "__rl": true,
+     "mode": "id",
+     "value": "1ksa6VePLgLQESHvJL-_zBZ2KzVNHYPndzwhXvVj4Vxw"
+    }
+   },
+   "credentials": {
+    "googleSheetsOAuth2Api": {
+     "id": "bc2Y1XmIdyu5ySTa",
+     "name": "Google Sheets account"
+    }
+   },
+   "typeVersion": 4.7
+  },
+  {
+   "id": "6794ff28-3298-4d2a-b6c7-38506148bf5b",
+   "name": "Code \u2014 Sent pitches Discord",
+   "type": "n8n-nodes-base.code",
+   "position": [
+    5136,
+    1472
+   ],
+   "parameters": {
+    "jsCode": "const NL=String.fromCharCode(10);const DOUBLE=NL+NL;var rows=[];try{rows=$('Code \u2014 Build send log').all().map(function(item){return item.json||{}})}catch(error){}if(!rows.length)return[];var parts=['\ud83d\udce8 **VIRYA \u2014 wynik automatycznych pitchy**'];rows.forEach(function(row){parts.push((row.Status==='SENT'?'\u2705':'\u26a0\ufe0f')+' **'+row.Track_Name+'** \u2192 '+row.Source_Name+NL+(row.Status==='SENT'?'Wys\u0142ano: '+row.Sent_At+' | follow-up: '+row.Follow_Up_At:'B\u0142\u0105d: '+String(row.Error||'nieznany').slice(0,300)))});var messages=[];var current='';parts.forEach(function(part){var next=current?current+DOUBLE+part:part;if(next.length>1850&&current){messages.push(current);current=part}else{current=next}});if(current)messages.push(current);return messages.map(function(content){return{json:{content:content,allowed_mentions:{parse:[]}}}});"
+   },
+   "typeVersion": 2
+  },
+  {
+   "id": "f9e16260-1b72-464b-b021-d41b1b95c857",
+   "name": "Discord \u2014 Sent pitches",
+   "type": "n8n-nodes-base.httpRequest",
+   "maxTries": 5,
+   "position": [
+    5376,
+    1472
+   ],
+   "parameters": {
+    "url": "https://discord.com/api/v10/channels/1529796008144404500/messages",
+    "method": "POST",
+    "options": {
+     "timeout": 30000
+    },
+    "jsonBody": "={{ ({ content: String((($json.content)) ?? '').slice(0, 2000), allowed_mentions: ($json.allowed_mentions && typeof $json.allowed_mentions === 'object') ? $json.allowed_mentions : { parse: [] } }) }}",
+    "sendBody": true,
+    "sendHeaders": true,
+    "specifyBody": "json",
+    "authentication": "genericCredentialType",
+    "genericAuthType": "httpHeaderAuth",
+    "headerParameters": {
+     "parameters": [
+      {
+       "name": "User-Agent",
+       "value": "Virya-n8n/1.0 (https://virya.music)"
+      }
+     ]
+    }
+   },
+   "credentials": {
+    "httpHeaderAuth": {
+     "id": "FB7ONYMUsZFfObWB",
+     "name": "Discord Bot HTTP"
+    }
+   },
+   "retryOnFail": true,
+   "typeVersion": 4.4,
+   "waitBetweenTries": 5000
+  },
+  {
+   "id": "a0296ae7-321c-4c6f-ac93-5d3d827c59d3",
+   "name": "Code \u2014 Manual and dry-run Discord",
+   "type": "n8n-nodes-base.code",
+   "position": [
+    4176,
+    1664
+   ],
+   "parameters": {
+    "jsCode": "const NL=String.fromCharCode(10);var rows=$input.all().map(i=>i.json||{}).filter(row=>!row.skipAll&&row.Pitch_ID&&row.Status!=='READY_TO_SEND').sort((a,b)=>Number(b.Fit_Score||0)-Number(a.Fit_Score||0)).slice(0,5);if(!rows.length)return[];const lines=rows.map((row,index)=>{const email=String(row.Contact_Email||'').trim()||'brak \u2014 formularz/link';return[(index+1)+'. ['+String(row.Priority||'?')+' \u2022 '+String(row.Fit_Score||0)+'] **'+String(row.Track_Name||'utw\u00f3r')+'** \u2192 **'+String(row.Source_Name||'\u017ar\u00f3d\u0142o')+'**','   Status: '+String(row.Status||'')+' | tryb: '+String(row.Action_Class||''),'   Email: '+email,'   Akcja: '+String(row.Submission_URL||'brak linku'),'   Utw\u00f3r: '+String(row.Spotify_Track_URL||'')].join(NL)});const content=['\ud83c\udfaf **[DECYZJA] VIRYA \u2014 playlist pitching ('+rows.length+')**',lines.join(NL+NL),'Pe\u0142ny pitch i statusy: https://docs.google.com/spreadsheets/d/1ksa6VePLgLQESHvJL-_zBZ2KzVNHYPndzwhXvVj4Vxw/edit'].join(NL+NL);return[{json:{content:content.slice(0,1950),allowed_mentions:{parse:[]}}}];"
+   },
+   "typeVersion": 2
+  },
+  {
+   "id": "8c248041-78b8-43e9-bd0f-ca7bb1ab5c12",
+   "name": "Discord \u2014 Manual queue",
+   "type": "n8n-nodes-base.httpRequest",
+   "maxTries": 5,
+   "position": [
+    4416,
+    1664
+   ],
+   "parameters": {
+    "url": "https://discord.com/api/v10/channels/1529796008144404500/messages",
+    "method": "POST",
+    "options": {
+     "timeout": 30000
+    },
+    "jsonBody": "={{ ({ content: String((($json.content)) ?? '').slice(0, 2000), allowed_mentions: ($json.allowed_mentions && typeof $json.allowed_mentions === 'object') ? $json.allowed_mentions : { parse: [] } }) }}",
+    "sendBody": true,
+    "sendHeaders": true,
+    "specifyBody": "json",
+    "authentication": "genericCredentialType",
+    "genericAuthType": "httpHeaderAuth",
+    "headerParameters": {
+     "parameters": [
+      {
+       "name": "User-Agent",
+       "value": "Virya-n8n/1.0 (https://virya.music)"
+      }
+     ]
+    }
+   },
+   "credentials": {
+    "httpHeaderAuth": {
+     "id": "FB7ONYMUsZFfObWB",
+     "name": "Discord Bot HTTP"
+    }
+   },
+   "retryOnFail": true,
+   "typeVersion": 4.4,
+   "waitBetweenTries": 5000
+  },
+  {
+   "id": "1c0cbc4c-8230-4901-aee8-bed6f3016981",
+   "name": "SETUP",
+   "type": "n8n-nodes-base.stickyNote",
+   "position": [
+    2496,
+    864
+   ],
+   "parameters": {
+    "width": 720,
+    "height": 340,
+    "content": "## PLAYLIST PITCHING \u2014 WDRO\u017bENIE\n1. W arkuszu TRACKS wklej Spotify_Track_URL i ustaw Ready_For_Pitch=TRUE.\n2. W trzech node'ach Discord wybierz thread Playlisty.\n3. Zostaw DRY_RUN=TRUE i AUTO_EMAIL_ENABLED=FALSE.\n4. Uruchom Manual \u2014 build weekly pitch queue.\n5. Sprawd\u017a arkusz oraz Discord. Dopiero potem w SETTINGS ustaw DRY_RUN=FALSE i AUTO_EMAIL_ENABLED=TRUE.\n\nWorkflow nie klika formularzy, nie obchodzi login\u00f3w/CAPTCHA i nie p\u0142aci za placementy."
+   },
+   "typeVersion": 1
+  }
+ ],
+ "connections": {
+  "Manual \u2014 build weekly pitch queue": {
+   "main": [
+    [
+     {
+      "node": "GS \u2014 SETTINGS",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Schedule \u2014 Monday 08:30": {
+   "main": [
+    [
+     {
+      "node": "GS \u2014 SETTINGS",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "GS \u2014 SETTINGS": {
+   "main": [
+    [
+     {
+      "node": "GS \u2014 TRACKS",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "GS \u2014 TRACKS": {
+   "main": [
+    [
+     {
+      "node": "GS \u2014 SOURCES",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "GS \u2014 SOURCES": {
+   "main": [
+    [
+     {
+      "node": "GS \u2014 Existing PITCH_QUEUE",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "GS \u2014 Existing PITCH_QUEUE": {
+   "main": [
+    [
+     {
+      "node": "GS \u2014 SUBMISSION_LOG",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "GS \u2014 SUBMISSION_LOG": {
+   "main": [
+    [
+     {
+      "node": "Code \u2014 Score and build pitch queue",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Code \u2014 Score and build pitch queue": {
+   "main": [
+    [
+     {
+      "node": "Code \u2014 Route no work",
+      "type": "main",
+      "index": 0
+     },
+     {
+      "node": "Code \u2014 Rows to append",
+      "type": "main",
+      "index": 0
+     },
+     {
+      "node": "Code \u2014 Auto-send gate",
+      "type": "main",
+      "index": 0
+     },
+     {
+      "node": "Code \u2014 Manual and dry-run Discord",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Code \u2014 Route no work": {
+   "main": [
+    [
+     {
+      "node": "Discord \u2014 No work",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Code \u2014 Rows to append": {
+   "main": [
+    [
+     {
+      "node": "GS \u2014 Append PITCH_QUEUE",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Code \u2014 Auto-send gate": {
+   "main": [
+    [
+     {
+      "node": "Gmail \u2014 Send playlist pitch",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Gmail \u2014 Send playlist pitch": {
+   "main": [
+    [
+     {
+      "node": "Code \u2014 Build send log",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Code \u2014 Build send log": {
+   "main": [
+    [
+     {
+      "node": "GS \u2014 Append SUBMISSION_LOG",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "GS \u2014 Append SUBMISSION_LOG": {
+   "main": [
+    [
+     {
+      "node": "Code \u2014 Sent pitches Discord",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Code \u2014 Sent pitches Discord": {
+   "main": [
+    [
+     {
+      "node": "Discord \u2014 Sent pitches",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Code \u2014 Manual and dry-run Discord": {
+   "main": [
+    [
+     {
+      "node": "Discord \u2014 Manual queue",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  }
+ },
+ "settings": {
+  "executionOrder": "v1",
+  "binaryMode": "separate",
+  "availableInMCP": false,
+  "timezone": "Europe/Warsaw",
+  "errorWorkflow": "98d5e1a4-2dba-5e5a-9be1-2e5d9220859d",
+  "saveDataSuccessExecution": "none",
+  "saveDataErrorExecution": "none",
+  "saveExecutionProgress": false,
+  "executionTimeout": 600
+ },
+ "staticData": {
+  "node:Schedule \u2014 Monday 09:00": {
+   "recurrenceRules": [
+    null
+   ],
+   "recurrenceRuleSignatures": [
+    null
+   ]
+  },
+  "node:Schedule \u2014 Monday 08:30": {
+   "recurrenceRules": [
+    null
+   ],
+   "recurrenceRuleSignatures": [
+    null
+   ]
+  }
+ },
+ "meta": {
+  "viryaLocalPackage": "2026-07-24"
+ },
+ "nodeGroups": [],
+ "pinData": {},
+ "versionId": "4bbec498-a3f6-4b6b-b33d-b562a25faaac",
+ "activeVersionId": "4bbec498-a3f6-4b6b-b33d-b562a25faaac",
+ "versionCounter": 17,
+ "triggerCount": 1,
+ "sourceWorkflowId": null,
+ "shared": [
+  {
+   "updatedAt": "2026-07-24T09:45:08.790Z",
+   "createdAt": "2026-07-24T09:45:08.790Z",
+   "role": "workflow:owner",
+   "workflowId": "KBx4N7wbn1v31DCB",
+   "projectId": "e2rPVcUBR4DTE3mO",
+   "project": {
+    "updatedAt": "2026-07-24T09:45:30.763Z",
+    "createdAt": "2026-07-24T09:45:07.113Z",
+    "id": "e2rPVcUBR4DTE3mO",
+    "name": "Virya Crew <virya.crew@gmail.com>",
+    "type": "personal",
+    "icon": null,
+    "description": null,
+    "customTelemetryTags": [],
+    "creatorId": "89259ec0-46eb-41d3-a04e-eb12f52f6342"
+   }
+  }
+ ],
+ "tags": [],
+ "activeVersion": {
+  "updatedAt": "2026-08-25T12:20:51.980Z",
+  "createdAt": "2026-08-12T17:01:41.269Z",
+  "versionId": "4bbec498-a3f6-4b6b-b33d-b562a25faaac",
+  "workflowId": "KBx4N7wbn1v31DCB",
+  "nodes": [
+   {
+    "id": "1edf40ae-df7d-4274-b2e5-e176841b0b19",
+    "name": "Manual \u2014 build weekly pitch queue",
+    "type": "n8n-nodes-base.manualTrigger",
+    "position": [
+     2496,
+     1264
+    ],
+    "parameters": {},
+    "typeVersion": 1
+   },
+   {
+    "id": "91e56d70-190b-4cb5-92c7-6f084f885b66",
+    "name": "Schedule \u2014 Monday 08:30",
+    "type": "n8n-nodes-base.scheduleTrigger",
+    "notes": "Light runtime cadence: 0 30 8 * * 1 (Europe/Warsaw). Workflow logic and data mappings unchanged.",
+    "position": [
+     2496,
+     1424
+    ],
+    "parameters": {
+     "rule": {
+      "interval": [
+       {
+        "field": "cronExpression",
+        "expression": "0 30 8 * * 1"
+       }
+      ]
+     }
+    },
+    "notesInFlow": true,
+    "typeVersion": 1.3
+   },
+   {
+    "id": "74089572-edbc-4971-b4bf-d1bdc1fa545d",
+    "name": "GS \u2014 SETTINGS",
+    "type": "n8n-nodes-base.googleSheets",
+    "maxTries": 5,
+    "position": [
+     2736,
+     1344
+    ],
+    "parameters": {
+     "options": {
+      "dataLocationOnSheet": {
+       "values": {
+        "rangeDefinition": "specifyRange"
+       }
+      }
+     },
+     "sheetName": {
+      "__rl": true,
+      "mode": "name",
+      "value": "SETTINGS"
+     },
+     "documentId": {
+      "__rl": true,
+      "mode": "id",
+      "value": "1ksa6VePLgLQESHvJL-_zBZ2KzVNHYPndzwhXvVj4Vxw"
+     }
+    },
+    "credentials": {
+     "googleSheetsOAuth2Api": {
+      "id": "bc2Y1XmIdyu5ySTa",
+      "name": "Google Sheets account"
+     }
+    },
+    "executeOnce": true,
+    "retryOnFail": true,
+    "typeVersion": 4.7,
+    "alwaysOutputData": true,
+    "waitBetweenTries": 15000
+   },
+   {
+    "id": "712303ca-fd65-4c2c-a2e0-33830bf50f62",
+    "name": "GS \u2014 TRACKS",
+    "type": "n8n-nodes-base.googleSheets",
+    "maxTries": 5,
+    "position": [
+     2976,
+     1344
+    ],
+    "parameters": {
+     "options": {
+      "dataLocationOnSheet": {
+       "values": {
+        "rangeDefinition": "specifyRange"
+       }
+      }
+     },
+     "sheetName": {
+      "__rl": true,
+      "mode": "name",
+      "value": "TRACKS"
+     },
+     "documentId": {
+      "__rl": true,
+      "mode": "id",
+      "value": "1ksa6VePLgLQESHvJL-_zBZ2KzVNHYPndzwhXvVj4Vxw"
+     }
+    },
+    "credentials": {
+     "googleSheetsOAuth2Api": {
+      "id": "bc2Y1XmIdyu5ySTa",
+      "name": "Google Sheets account"
+     }
+    },
+    "executeOnce": true,
+    "retryOnFail": true,
+    "typeVersion": 4.7,
+    "alwaysOutputData": true,
+    "waitBetweenTries": 15000
+   },
+   {
+    "id": "05e69097-39f9-4ace-9c88-21e7c9e58901",
+    "name": "GS \u2014 SOURCES",
+    "type": "n8n-nodes-base.googleSheets",
+    "maxTries": 5,
+    "position": [
+     3216,
+     1344
+    ],
+    "parameters": {
+     "options": {
+      "dataLocationOnSheet": {
+       "values": {
+        "rangeDefinition": "specifyRange"
+       }
+      }
+     },
+     "sheetName": {
+      "__rl": true,
+      "mode": "name",
+      "value": "SOURCES"
+     },
+     "documentId": {
+      "__rl": true,
+      "mode": "id",
+      "value": "1ksa6VePLgLQESHvJL-_zBZ2KzVNHYPndzwhXvVj4Vxw"
+     }
+    },
+    "credentials": {
+     "googleSheetsOAuth2Api": {
+      "id": "bc2Y1XmIdyu5ySTa",
+      "name": "Google Sheets account"
+     }
+    },
+    "executeOnce": true,
+    "retryOnFail": true,
+    "typeVersion": 4.7,
+    "alwaysOutputData": true,
+    "waitBetweenTries": 15000
+   },
+   {
+    "id": "7edc067a-81b6-41a5-bbc8-d5cd1956060c",
+    "name": "GS \u2014 Existing PITCH_QUEUE",
+    "type": "n8n-nodes-base.googleSheets",
+    "maxTries": 5,
+    "position": [
+     3456,
+     1344
+    ],
+    "parameters": {
+     "options": {
+      "dataLocationOnSheet": {
+       "values": {
+        "rangeDefinition": "specifyRange"
+       }
+      }
+     },
+     "sheetName": {
+      "__rl": true,
+      "mode": "name",
+      "value": "PITCH_QUEUE"
+     },
+     "documentId": {
+      "__rl": true,
+      "mode": "id",
+      "value": "1ksa6VePLgLQESHvJL-_zBZ2KzVNHYPndzwhXvVj4Vxw"
+     }
+    },
+    "credentials": {
+     "googleSheetsOAuth2Api": {
+      "id": "bc2Y1XmIdyu5ySTa",
+      "name": "Google Sheets account"
+     }
+    },
+    "executeOnce": true,
+    "retryOnFail": true,
+    "typeVersion": 4.7,
+    "alwaysOutputData": true,
+    "waitBetweenTries": 15000
+   },
+   {
+    "id": "fe4f9cd0-5345-4086-ad25-4df5b8e43b29",
+    "name": "GS \u2014 SUBMISSION_LOG",
+    "type": "n8n-nodes-base.googleSheets",
+    "maxTries": 5,
+    "position": [
+     3696,
+     1344
+    ],
+    "parameters": {
+     "options": {
+      "dataLocationOnSheet": {
+       "values": {
+        "rangeDefinition": "specifyRange"
+       }
+      }
+     },
+     "sheetName": {
+      "__rl": true,
+      "mode": "name",
+      "value": "SUBMISSION_LOG"
+     },
+     "documentId": {
+      "__rl": true,
+      "mode": "id",
+      "value": "1ksa6VePLgLQESHvJL-_zBZ2KzVNHYPndzwhXvVj4Vxw"
+     }
+    },
+    "credentials": {
+     "googleSheetsOAuth2Api": {
+      "id": "bc2Y1XmIdyu5ySTa",
+      "name": "Google Sheets account"
+     }
+    },
+    "executeOnce": true,
+    "retryOnFail": true,
+    "typeVersion": 4.7,
+    "alwaysOutputData": true,
+    "waitBetweenTries": 15000
+   },
+   {
+    "id": "7955dbe0-8db7-404b-8bd9-bff6242533ec",
+    "name": "Code \u2014 Score and build pitch queue",
+    "type": "n8n-nodes-base.code",
+    "position": [
+     3936,
+     1344
+    ],
+    "parameters": {
+     "jsCode": "const NL=String.fromCharCode(10);function clean(value){return String(value===undefined||value===null?'':value).trim()}function truth(value){return ['TRUE','YES','TAK','1'].includes(clean(value).toUpperCase())}function numberValue(value,fallback){var parsed=Number(clean(value).replace(',','.'));return Number.isFinite(parsed)?parsed:fallback}function normalize(value){var source=clean(value).toLowerCase().normalize('NFD');var output='';for(var index=0;index<source.length;index+=1){var code=source.charCodeAt(index);if(code>=768&&code<=879)continue;var alpha=code>=97&&code<=122;var digit=code>=48&&code<=57;output+=alpha||digit?source[index]:' '}return output.split(' ').filter(Boolean).join(' ')}function tagList(value){return clean(value).split('|').map(function(item){return normalize(item)}).filter(Boolean)}function readRows(nodeName){try{return $(nodeName).all().map(function(item){return item.json||{}})}catch(error){return[]}}function table(nodeName,headers){var rawRows=readRows(nodeName);if(!rawRows.length)return[];var direct=headers.every(function(header){return Object.prototype.hasOwnProperty.call(rawRows[0],header)});if(direct)return rawRows;var headerIndex=rawRows.findIndex(function(row){var values=Object.values(row).map(function(value){return clean(value)});return headers.every(function(header){return values.includes(header)})});if(headerIndex<0)return rawRows;var headerRow=rawRows[headerIndex];var keys=Object.keys(headerRow).filter(function(key){return key!=='row_number'});var names=keys.map(function(key){return clean(headerRow[key])});return rawRows.slice(headerIndex+1).map(function(row){var result={};keys.forEach(function(key,index){if(names[index])result[names[index]]=row[key]});return result}).filter(function(row){return Object.values(row).some(function(value){return clean(value)!==''})})}function warsawStamp(date){return new Intl.DateTimeFormat('sv-SE',{timeZone:'Europe/Warsaw',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false}).format(date)}function priorityRank(value){var p=clean(value).toUpperCase();return p==='A'?3:p==='B'?2:1}function isTrackUrl(value){return clean(value).startsWith('https://open.spotify.com/track/')}function isSingleEmail(value){var email=clean(value).toLowerCase();return /^[^\\s@,;]+@[^\\s@,;]+\\.[^\\s@,;]+$/.test(email)}function containsSimilar(left,right){return left===right||left.includes(right)||right.includes(left)}var settingsRows=table('GS \u2014 SETTINGS',['Setting','Value','Type','Meaning']);var settings={};settingsRows.forEach(function(row){if(clean(row.Setting))settings[clean(row.Setting)]=row.Value});var tracks=table('GS \u2014 TRACKS',['Track_ID','Active','Track_Name','Spotify_Track_URL','Ready_For_Pitch']);var sources=table('GS \u2014 SOURCES',['Source_ID','Active','Platform','Source_Name','Action_Class','Submission_URL','Free']);var queue=table('GS \u2014 Existing PITCH_QUEUE',['Pitch_ID','Created_At','Track_ID','Source_ID','Dedupe_Key']);var logs=table('GS \u2014 SUBMISSION_LOG',['Log_ID','Pitch_ID','Sent_At','Track_ID','Source_ID','Dedupe_Key']);var lastByTarget={};function rememberTarget(row,dateValue){var target=clean(row.Contact_Email).toLowerCase()||clean(row.Submission_URL).toLowerCase()||clean(row.Source_ID).toLowerCase();if(!target)return;var time=new Date(dateValue||0).getTime();if(Number.isFinite(time)&&(!lastByTarget[target]||time>lastByTarget[target]))lastByTarget[target]=time}queue.forEach(function(row){rememberTarget(row,row.Created_At||row.Submitted_At)});logs.forEach(function(row){rememberTarget(row,row.Sent_At)});var now=new Date();var nowMs=now.getTime();var cooldownDays=Math.max(1,numberValue(settings.MIN_DAYS_BETWEEN_PITCHES,60));var cooldownMs=cooldownDays*86400000;var lastByKey={};function remember(key,dateValue){if(!key)return;var time=new Date(dateValue||0).getTime();if(!Number.isFinite(time))return;if(!lastByKey[key]||time>lastByKey[key])lastByKey[key]=time}queue.forEach(function(row){remember(clean(row.Dedupe_Key),row.Created_At||row.Submitted_At)});logs.forEach(function(row){remember(clean(row.Dedupe_Key),row.Sent_At)});var readyTracks=tracks.filter(function(track){return truth(track.Active)&&truth(track.Ready_For_Pitch)&&isTrackUrl(track.Spotify_Track_URL)});readyTracks.sort(function(a,b){return priorityRank(b.Priority)-priorityRank(a.Priority)});if(!readyTracks.length){return[{json:{skipAll:true,content:'\u2139\ufe0f Playlist Pitching: brak utwor\u00f3w gotowych do pitchu. W TRACKS wklej Spotify_Track_URL i ustaw Ready_For_Pitch=TRUE.'}}]}var activeSources=sources.filter(function(source){return truth(source.Active)&&truth(source.Free)&&clean(source.Action_Class)!=='PAID_EXCLUDED'});var bestTrack=readyTracks[0];var bestByKey={};for(var trackIndex=0;trackIndex<readyTracks.length;trackIndex+=1){var track=readyTracks[trackIndex];var releaseText=clean(track.Release_Date);var releaseMs=new Date(releaseText+'T00:00:00').getTime();var daysUntil=Number.isFinite(releaseMs)?Math.floor((releaseMs-nowMs)/86400000):0;var daysSince=Number.isFinite(releaseMs)?Math.floor((nowMs-releaseMs)/86400000):9999;for(var sourceIndex=0;sourceIndex<activeSources.length;sourceIndex+=1){var source=activeSources[sourceIndex];var action=clean(source.Action_Class);var platform=clean(source.Platform);if(action==='PROFILE_TASK'&&track.Track_ID!==bestTrack.Track_ID)continue;if(truth(source.Requires_Unreleased)&&daysUntil<1)continue;if(!truth(source.Released_Allowed)&&daysSince>=0)continue;if(action==='OFFICIAL_MANUAL'&&platform==='Spotify'&&daysUntil<7)continue;if(action==='OFFICIAL_MANUAL'&&platform==='Amazon Music'&&(daysSince>14||daysUntil>60))continue;var sourceTags=tagList(source.Genres);var trackTags=tagList([track.Primary_Genres,track.Secondary_Tags,track.Mood,track.Best_For].join('|'));var allGenres=sourceTags.includes('all genres');var matched=[];if(!allGenres){sourceTags.forEach(function(sourceTag){trackTags.forEach(function(trackTag){if(containsSimilar(sourceTag,trackTag)&&!matched.includes(sourceTag))matched.push(sourceTag)})})}var genreScore=allGenres?32:Math.min(45,matched.length?10+matched.length*14:0);if(action==='PROFILE_TASK')genreScore=20;if(action==='OFFICIAL_MANUAL')genreScore=Math.max(genreScore,25);if(!allGenres&&matched.length===0&&!['PROFILE_TASK','OFFICIAL_MANUAL'].includes(action))continue;var trustScore=numberValue(source.Trust_Score,50)*0.15;var reachScore=numberValue(source.Reach_Score,50)*0.15;var freshnessScore=numberValue(source.Freshness_Score,50)*0.10;var actionBonus=action==='OFFICIAL_MANUAL'?10:action==='AUTO_EMAIL'?5:action==='MANUAL_FORM'?4:2;var priorityBonus=priorityRank(track.Priority)===3?6:priorityRank(track.Priority)===2?3:0;var score=genreScore+trustScore+reachScore+freshnessScore+actionBonus+priorityBonus;if(daysSince>730)score-=10;else if(daysSince>365)score-=5;var sourceGenres=normalize(source.Genres);var vocalStyle=normalize(track.Vocal_Style);if(sourceGenres.includes('instrumental')&&!vocalStyle.includes('instrumental'))score-=35;if(sourceGenres.includes('melodic death')&&!trackTags.some(function(tag){return tag.includes('melodic death')}))score-=18;score=Math.max(0,Math.min(100,Math.round(score)));var minManual=numberValue(settings.MIN_SCORE_MANUAL,55);if(score<minManual)continue;var contact=clean(source.Contact_Email).toLowerCase();var targetKey=contact||clean(source.Submission_URL).toLowerCase()||clean(source.Source_ID).toLowerCase();if(lastByTarget[targetKey]&&nowMs-lastByTarget[targetKey]<cooldownMs)continue;var dedupeKey=action==='PROFILE_TASK'?'PROFILE|'+clean(source.Source_ID):clean(track.Track_ID)+'|'+targetKey;if(lastByKey[dedupeKey]&&nowMs-lastByKey[dedupeKey]<cooldownMs)continue;var fitText=matched.length?'Matched tags: '+matched.join(', '):action==='PROFILE_TASK'?'Profile and catalogue growth task':'Official platform release task';var risks=[];if(daysSince>365)risks.push('older release');if(numberValue(source.Freshness_Score,50)<70)risks.push('source freshness requires review');if(truth(source.Requires_Login))risks.push('manual login or OAuth required');var candidate={track:track,source:source,action:action,score:score,fitText:fitText,risks:risks.join('; '),dedupeKey:dedupeKey,targetKey:targetKey};if(!bestByKey[dedupeKey]||candidate.score>bestByKey[dedupeKey].score)bestByKey[dedupeKey]=candidate}}var candidates=Object.values(bestByKey);candidates.sort(function(a,b){return b.score-a.score||priorityRank(b.track.Priority)-priorityRank(a.track.Priority)});if(!candidates.length){return[{json:{skipAll:true,content:'\u2139\ufe0f Playlist Pitching: brak nowych dopasowa\u0144 po scoringu, deduplikacji i cooldownie.'}}]}var dryRun=truth(settings.DRY_RUN);var autoEnabled=truth(settings.AUTO_EMAIL_ENABLED);var autoThreshold=numberValue(settings.MIN_SCORE_AUTO_EMAIL,75);var maxAuto=Math.min(3,Math.max(0,numberValue(settings.MAX_AUTO_EMAIL_PER_RUN,3)));var maxManual=Math.min(10,Math.max(0,numberValue(settings.MAX_MANUAL_TASKS_PER_RUN,10)));var maxPerTrack=Math.max(1,numberValue(settings.MAX_PITCHES_PER_TRACK_PER_WEEK,12));var selected=[];var perTrack={};var autoCount=0;var manualCount=0;var runSeenTargets={};for(var candidateIndex=0;candidateIndex<candidates.length;candidateIndex+=1){var candidate=candidates[candidateIndex];var trackKey=clean(candidate.track.Track_ID);var limitKey=candidate.action==='PROFILE_TASK'?'PROFILE':trackKey;if((perTrack[limitKey]||0)>=maxPerTrack)continue;var sameTargetKey=candidate.targetKey;if(runSeenTargets[sameTargetKey])continue;var qualifiesAuto=candidate.action==='AUTO_EMAIL'&&candidate.score>=autoThreshold&&truth(candidate.source.Auto_Send_Allowed)&&isSingleEmail(candidate.source.Contact_Email);if(qualifiesAuto){if(autoCount>=maxAuto)continue;autoCount+=1}else{if(manualCount>=maxManual)continue;manualCount+=1}runSeenTargets[sameTargetKey]=true;perTrack[limitKey]=(perTrack[limitKey]||0)+1;selected.push(candidate)}if(!selected.length){return[{json:{skipAll:true,content:'\u2139\ufe0f Playlist Pitching: kandydaci istniej\u0105, ale limity lub recipient guard odrzuci\u0142y ca\u0142y run.'}}]}var stamp=warsawStamp(now);var dateKey=stamp.slice(0,10).split('-').join('');var timeKey=stamp.slice(11,19).split(':').join('');var output=[];for(var outputIndex=0;outputIndex<selected.length;outputIndex+=1){var chosen=selected[outputIndex];var trackData=chosen.track;var sourceData=chosen.source;var pitchId='PIT-'+dateKey+'-'+timeKey+'-'+String(outputIndex+1).padStart(2,'0');var qualifiesForSend=chosen.action==='AUTO_EMAIL'&&chosen.score>=autoThreshold&&truth(sourceData.Auto_Send_Allowed)&&isSingleEmail(sourceData.Contact_Email);var autoAllowed=qualifiesForSend&&autoEnabled&&!dryRun;var status=dryRun?'READY_DRY_RUN':autoAllowed?'READY_TO_SEND':chosen.action==='AUTO_EMAIL'?'REVIEW_REQUIRED':'PENDING_MANUAL';var subjectTemplate=clean(sourceData.Special_Subject)||'Playlist submission: Virya \u2014 {{TRACK_NAME}}';var subject=subjectTemplate.split('{{TRACK_NAME}}').join(clean(trackData.Track_Name));var why=chosen.fitText+'. Fit score '+chosen.score+'/100.';var body=['Hello,','I\u2019m Wojciech from Virya, a modern / alternative / progressive metal band from Wroc\u0142aw, Poland.','I\u2019d like to submit \u201c'+clean(trackData.Track_Name)+'\u201d for '+clean(sourceData.Source_Name)+'.',clean(trackData.One_Liner_EN), 'Why it fits: '+why,'Listen: '+clean(trackData.Spotify_Track_URL),'Artist: '+clean(settings.SPOTIFY_ARTIST_URL),'EPK: '+clean(settings.EPK_URL),'If it is not a fit, no problem \u2014 thank you for taking the time to listen.','Best,',clean(settings.PITCH_SENDER_NAME||'Wojciech / Virya')].filter(function(line){return clean(line)!==''}).join(NL+NL);output.push({json:{skipAll:false,Pitch_ID:pitchId,Created_At:stamp,Track_ID:clean(trackData.Track_ID),Track_Name:clean(trackData.Track_Name),Source_ID:clean(sourceData.Source_ID),Source_Name:clean(sourceData.Source_Name),Platform:clean(sourceData.Platform),Action_Class:chosen.action,Submission_URL:clean(sourceData.Submission_URL),Contact_Email:clean(sourceData.Contact_Email),Fit_Score:chosen.score,Priority:chosen.score>=80?'A':chosen.score>=65?'B':'C',Fit_Reasons:chosen.fitText,Risks:chosen.risks,Status:status,Approval_Status:autoAllowed?'AUTO':'PENDING',Auto_Send_Allowed:autoAllowed?'TRUE':'FALSE',Pitch_Subject:subject,Pitch_Body:body,Submitted_At:'',Gmail_Message_ID:'',Gmail_Thread_ID:'',Follow_Up_At:'',Response_Status:'',Response_Summary:'',Placement_URL:'',Estimated_Reach:'index '+Math.round(numberValue(sourceData.Reach_Score,0))+'/100',Dedupe_Key:chosen.dedupeKey,Owner:'Virya Crew',Notes:clean(sourceData.Notes),Spotify_Track_URL:clean(trackData.Spotify_Track_URL)}})}return output;"
+    },
+    "typeVersion": 2
+   },
+   {
+    "id": "6a1d8968-b16a-4a10-b1a1-15050491a328",
+    "name": "Code \u2014 Route no work",
+    "type": "n8n-nodes-base.code",
+    "position": [
+     4176,
+     1072
+    ],
+    "parameters": {
+     "jsCode": "return $input.all().filter(i => i.json?.skipAll && i.json?.content).map((item, index) => ({json:{...item.json,content:String(item.json.content).slice(0,1950)},pairedItem:{item:index}}));"
+    },
+    "typeVersion": 2
+   },
+   {
+    "id": "45ba1256-8286-450a-a812-147421434293",
+    "name": "Discord \u2014 No work",
+    "type": "n8n-nodes-base.httpRequest",
+    "maxTries": 5,
+    "position": [
+     4416,
+     1072
+    ],
+    "parameters": {
+     "url": "https://discord.com/api/v10/channels/1529796008144404500/messages",
+     "method": "POST",
+     "options": {
+      "timeout": 30000
+     },
+     "jsonBody": "={{ ({ content: String((($json.content)) ?? '').slice(0, 2000), allowed_mentions: ($json.allowed_mentions && typeof $json.allowed_mentions === 'object') ? $json.allowed_mentions : { parse: [] } }) }}",
+     "sendBody": true,
+     "sendHeaders": true,
+     "specifyBody": "json",
+     "authentication": "genericCredentialType",
+     "genericAuthType": "httpHeaderAuth",
+     "headerParameters": {
+      "parameters": [
+       {
+        "name": "User-Agent",
+        "value": "Virya-n8n/1.0 (https://virya.music)"
+       }
+      ]
+     }
+    },
+    "credentials": {
+     "httpHeaderAuth": {
+      "id": "FB7ONYMUsZFfObWB",
+      "name": "Discord Bot HTTP"
+     }
+    },
+    "retryOnFail": true,
+    "typeVersion": 4.4,
+    "waitBetweenTries": 5000
+   },
+   {
+    "id": "bb7b939e-78d0-42e2-8288-27accc32b33b",
+    "name": "Code \u2014 Rows to append",
+    "type": "n8n-nodes-base.code",
+    "position": [
+     4176,
+     1264
+    ],
+    "parameters": {
+     "jsCode": "return $input.all().filter(function(item){return item.json&&!item.json.skipAll&&item.json.Pitch_ID}).map(function(item){var row=Object.assign({},item.json);delete row.Spotify_Track_URL;return{json:row}});"
+    },
+    "typeVersion": 2
+   },
+   {
+    "id": "38c8c508-f74e-4f54-aec7-2179191879e9",
+    "name": "GS \u2014 Append PITCH_QUEUE",
+    "type": "n8n-nodes-base.googleSheets",
+    "position": [
+     4416,
+     1264
+    ],
+    "parameters": {
+     "columns": {
+      "value": {},
+      "schema": [
+       {
+        "id": "Pitch_ID",
+        "type": "string",
+        "display": true,
+        "removed": false,
+        "required": false,
+        "displayName": "Pitch_ID",
+        "defaultMatch": false,
+        "canBeUsedToMatch": true
+       },
+       {
+        "id": "Created_At",
+        "type": "string",
+        "display": true,
+        "removed": false,
+        "required": false,
+        "displayName": "Created_At",
+        "defaultMatch": false,
+        "canBeUsedToMatch": true
+       },
+       {
+        "id": "Track_ID",
+        "type": "string",
+        "display": true,
+        "removed": false,
+        "required": false,
+        "displayName": "Track_ID",
+        "defaultMatch": false,
+        "canBeUsedToMatch": true
+       },
+       {
+        "id": "Track_Name",
+        "type": "string",
+        "display": true,
+        "removed": false,
+        "required": false,
+        "displayName": "Track_Name",
+        "defaultMatch": false,
+        "canBeUsedToMatch": true
+       },
+       {
+        "id": "Source_ID",
+        "type": "string",
+        "display": true,
+        "removed": false,
+        "required": false,
+        "displayName": "Source_ID",
+        "defaultMatch": false,
+        "canBeUsedToMatch": true
+       },
+       {
+        "id": "Source_Name",
+        "type": "string",
+        "display": true,
+        "removed": false,
+        "required": false,
+        "displayName": "Source_Name",
+        "defaultMatch": false,
+        "canBeUsedToMatch": true
+       },
+       {
+        "id": "Platform",
+        "type": "string",
+        "display": true,
+        "removed": false,
+        "required": false,
+        "displayName": "Platform",
+        "defaultMatch": false,
+        "canBeUsedToMatch": true
+       },
+       {
+        "id": "Action_Class",
+        "type": "string",
+        "display": true,
+        "removed": false,
+        "required": false,
+        "displayName": "Action_Class",
+        "defaultMatch": false,
+        "canBeUsedToMatch": true
+       },
+       {
+        "id": "Submission_URL",
+        "type": "string",
+        "display": true,
+        "removed": false,
+        "required": false,
+        "displayName": "Submission_URL",
+        "defaultMatch": false,
+        "canBeUsedToMatch": true
+       },
+       {
+        "id": "Contact_Email",
+        "type": "string",
+        "display": true,
+        "removed": false,
+        "required": false,
+        "displayName": "Contact_Email",
+        "defaultMatch": false,
+        "canBeUsedToMatch": true
+       },
+       {
+        "id": "Fit_Score",
+        "type": "string",
+        "display": true,
+        "removed": false,
+        "required": false,
+        "displayName": "Fit_Score",
+        "defaultMatch": false,
+        "canBeUsedToMatch": true
+       },
+       {
+        "id": "Priority",
+        "type": "string",
+        "display": true,
+        "removed": false,
+        "required": false,
+        "displayName": "Priority",
+        "defaultMatch": false,
+        "canBeUsedToMatch": true
+       },
+       {
+        "id": "Fit_Reasons",
+        "type": "string",
+        "display": true,
+        "removed": false,
+        "required": false,
+        "displayName": "Fit_Reasons",
+        "defaultMatch": false,
+        "canBeUsedToMatch": true
+       },
+       {
+        "id": "Risks",
+        "type": "string",
+        "display": true,
+        "removed": false,
+        "required": false,
+        "displayName": "Risks",
+        "defaultMatch": false,
+        "canBeUsedToMatch": true
+       },
+       {
+        "id": "Status",
+        "type": "string",
+        "display": true,
+        "removed": false,
+        "required": false,
+        "displayName": "Status",
+        "defaultMatch": false,
+        "canBeUsedToMatch": true
+       },
+       {
+        "id": "Approval_Status",
+        "type": "string",
+        "display": true,
+        "removed": false,
+        "required": false,
+        "displayName": "Approval_Status",
+        "defaultMatch": false,
+        "canBeUsedToMatch": true
+       },
+       {
+        "id": "Auto_Send_Allowed",
+        "type": "string",
+        "display": true,
+        "removed": false,
+        "required": false,
+        "displayName": "Auto_Send_Allowed",
+        "defaultMatch": false,
+        "canBeUsedToMatch": true
+       },
+       {
+        "id": "Pitch_Subject",
+        "type": "string",
+        "display": true,
+        "removed": false,
+        "required": false,
+        "displayName": "Pitch_Subject",
+        "defaultMatch": false,
+        "canBeUsedToMatch": true
+       },
+       {
+        "id": "Pitch_Body",
+        "type": "string",
+        "display": true,
+        "removed": false,
+        "required": false,
+        "displayName": "Pitch_Body",
+        "defaultMatch": false,
+        "canBeUsedToMatch": true
+       },
+       {
+        "id": "Submitted_At",
+        "type": "string",
+        "display": true,
+        "removed": false,
+        "required": false,
+        "displayName": "Submitted_At",
+        "defaultMatch": false,
+        "canBeUsedToMatch": true
+       },
+       {
+        "id": "Gmail_Message_ID",
+        "type": "string",
+        "display": true,
+        "removed": false,
+        "required": false,
+        "displayName": "Gmail_Message_ID",
+        "defaultMatch": false,
+        "canBeUsedToMatch": true
+       },
+       {
+        "id": "Gmail_Thread_ID",
+        "type": "string",
+        "display": true,
+        "removed": false,
+        "required": false,
+        "displayName": "Gmail_Thread_ID",
+        "defaultMatch": false,
+        "canBeUsedToMatch": true
+       },
+       {
+        "id": "Follow_Up_At",
+        "type": "string",
+        "display": true,
+        "removed": false,
+        "required": false,
+        "displayName": "Follow_Up_At",
+        "defaultMatch": false,
+        "canBeUsedToMatch": true
+       },
+       {
+        "id": "Response_Status",
+        "type": "string",
+        "display": true,
+        "removed": false,
+        "required": false,
+        "displayName": "Response_Status",
+        "defaultMatch": false,
+        "canBeUsedToMatch": true
+       },
+       {
+        "id": "Response_Summary",
+        "type": "string",
+        "display": true,
+        "removed": false,
+        "required": false,
+        "displayName": "Response_Summary",
+        "defaultMatch": false,
+        "canBeUsedToMatch": true
+       },
+       {
+        "id": "Placement_URL",
+        "type": "string",
+        "display": true,
+        "removed": false,
+        "required": false,
+        "displayName": "Placement_URL",
+        "defaultMatch": false,
+        "canBeUsedToMatch": true
+       },
+       {
+        "id": "Estimated_Reach",
+        "type": "string",
+        "display": true,
+        "removed": false,
+        "required": false,
+        "displayName": "Estimated_Reach",
+        "defaultMatch": false,
+        "canBeUsedToMatch": true
+       },
+       {
+        "id": "Dedupe_Key",
+        "type": "string",
+        "display": true,
+        "removed": false,
+        "required": false,
+        "displayName": "Dedupe_Key",
+        "defaultMatch": false,
+        "canBeUsedToMatch": true
+       },
+       {
+        "id": "Owner",
+        "type": "string",
+        "display": true,
+        "removed": false,
+        "required": false,
+        "displayName": "Owner",
+        "defaultMatch": false,
+        "canBeUsedToMatch": true
+       },
+       {
+        "id": "Notes",
+        "type": "string",
+        "display": true,
+        "removed": false,
+        "required": false,
+        "displayName": "Notes",
+        "defaultMatch": false,
+        "canBeUsedToMatch": true
+       },
+       {
+        "id": "skipAll",
+        "type": "string",
+        "display": true,
+        "removed": false,
+        "required": false,
+        "displayName": "skipAll",
+        "defaultMatch": false,
+        "canBeUsedToMatch": true
+       }
+      ],
+      "mappingMode": "autoMapInputData",
+      "matchingColumns": [],
+      "attemptToConvertTypes": false,
+      "convertFieldsToString": false
+     },
+     "options": {
+      "locationDefine": {
+       "values": {}
+      }
+     },
+     "operation": "append",
+     "sheetName": {
+      "__rl": true,
+      "mode": "name",
+      "value": "PITCH_QUEUE"
+     },
+     "documentId": {
+      "__rl": true,
+      "mode": "id",
+      "value": "1ksa6VePLgLQESHvJL-_zBZ2KzVNHYPndzwhXvVj4Vxw"
+     }
+    },
+    "credentials": {
+     "googleSheetsOAuth2Api": {
+      "id": "bc2Y1XmIdyu5ySTa",
+      "name": "Google Sheets account"
+     }
+    },
+    "typeVersion": 4.7
+   },
+   {
+    "id": "12d58bdb-1d46-455f-9f8c-6c53e51c40e4",
+    "name": "Code \u2014 Auto-send gate",
+    "type": "n8n-nodes-base.code",
+    "position": [
+     4176,
+     1472
+    ],
+    "parameters": {
+     "jsCode": "const rows = $input.all().filter((item) => {\n  const row = item.json ?? {};\n\n  return (\n    !row.skipAll &&\n    row.Status === 'READY_TO_SEND' &&\n    row.Auto_Send_Allowed === 'TRUE' &&\n    String(row.Contact_Email ?? '').includes('@')\n  );\n});\n\nreturn rows;"
+    },
+    "typeVersion": 2
+   },
+   {
+    "id": "14d5bacf-ca1a-4734-bfa2-0169fc631a1b",
+    "name": "Gmail \u2014 Send playlist pitch",
+    "type": "n8n-nodes-base.gmail",
+    "disabled": true,
+    "position": [
+     4416,
+     1472
+    ],
+    "webhookId": "f85fc35f-92df-4cf7-bce3-8a9dc46cac54",
+    "parameters": {
+     "sendTo": "={{ $json.Contact_Email }}",
+     "message": "={{ $json.Pitch_Body }}",
+     "options": {
+      "appendAttribution": false
+     },
+     "subject": "={{ $json.Pitch_Subject }}",
+     "emailType": "text"
+    },
+    "credentials": {
+     "gmailOAuth2": {
+      "id": "BJg5tKEWMNRw0GA1",
+      "name": "Gmail account"
+     }
+    },
+    "typeVersion": 2.1,
+    "continueOnFail": true,
+    "alwaysOutputData": true
+   },
+   {
+    "id": "a13a2c66-2379-48fd-8adf-6946f7f6d520",
+    "name": "Code \u2014 Build send log",
+    "type": "n8n-nodes-base.code",
+    "position": [
+     4656,
+     1472
+    ],
+    "parameters": {
+     "jsCode": "function clean(value){return String(value===undefined||value===null?'':value).trim()}\nfunction warsawStamp(date){return new Intl.DateTimeFormat('sv-SE',{timeZone:'Europe/Warsaw',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false}).format(date)}\nconst results=$input.all();\nlet originals=[];\ntry{originals=$('Code \u2014 Auto-send gate').all().map(item=>item.json||{})}catch(error){originals=[]}\nlet followDays=10;\ntry{\n  const settings=$('GS \u2014 SETTINGS').all().map(item=>item.json||{});\n  const row=settings.find(item=>clean(item.Setting)==='FOLLOW_UP_DAYS');\n  if(row&&Number.isFinite(Number(row.Value)))followDays=Number(row.Value);\n}catch(error){}\nconst now=new Date();\nconst stamp=warsawStamp(now);\nconst dateKey=stamp.slice(0,10).split('-').join('');\nconst timeKey=stamp.slice(11,19).split(':').join('');\nreturn results.map((item,index)=>{\n  const result=item.json||{};\n  const source=originals[index]||{};\n  const messageId=clean(result.id||result.messageId);\n  const threadId=clean(result.threadId);\n  const explicitError=clean(result.error?.message||result.error||result.message);\n  const deliveryConfirmed=Boolean(messageId) && !result.error;\n  const failed=!deliveryConfirmed;\n  const error=failed\n    ? (explicitError || 'gmail_delivery_not_confirmed: Gmail node is disabled, misconfigured, or returned no message id')\n    : '';\n  const follow=new Date(now.getTime()+followDays*86400000);\n  return{json:{\n    Log_ID:'LOG-'+dateKey+'-'+timeKey+'-'+String(index+1).padStart(2,'0'),\n    Pitch_ID:clean(source.Pitch_ID),Sent_At:failed?'':stamp,\n    Track_ID:clean(source.Track_ID),Track_Name:clean(source.Track_Name),\n    Source_ID:clean(source.Source_ID),Source_Name:clean(source.Source_Name),\n    Submission_Method:'AUTO_EMAIL',Recipient:clean(source.Contact_Email),\n    Subject:clean(source.Pitch_Subject),Message_ID:messageId,Thread_ID:threadId,\n    Status:failed?'ERROR':'SENT',Follow_Up_At:failed?'':warsawStamp(follow).slice(0,10),\n    Follow_Up_Count:0,Reply_At:'',Reply_Class:'',Reply_Summary:'',Placement_At:'',\n    Placement_URL:'',Playlist_Name:clean(source.Source_Name),Estimated_Reach:clean(source.Estimated_Reach),\n    Streams_Attributed:'',Monthly_Listeners_Before:'',Monthly_Listeners_After:'',\n    Dedupe_Key:clean(source.Dedupe_Key),Error:error,Discord_Reported_At:'',\n    Send_Attempt_ID:clean(source._viryaSendAttemptId)\n  }};\n});"
+    },
+    "typeVersion": 2
+   },
+   {
+    "id": "26c1d6aa-ff99-420c-9c77-11892c02c637",
+    "name": "GS \u2014 Append SUBMISSION_LOG",
+    "type": "n8n-nodes-base.googleSheets",
+    "position": [
+     4896,
+     1472
+    ],
+    "parameters": {
+     "columns": {
+      "value": {},
+      "schema": [],
+      "mappingMode": "autoMapInputData",
+      "matchingColumns": [],
+      "attemptToConvertTypes": false,
+      "convertFieldsToString": false
+     },
+     "options": {
+      "locationDefine": {
+       "values": {}
+      }
+     },
+     "operation": "append",
+     "sheetName": {
+      "__rl": true,
+      "mode": "name",
+      "value": "SUBMISSION_LOG"
+     },
+     "documentId": {
+      "__rl": true,
+      "mode": "id",
+      "value": "1ksa6VePLgLQESHvJL-_zBZ2KzVNHYPndzwhXvVj4Vxw"
+     }
+    },
+    "credentials": {
+     "googleSheetsOAuth2Api": {
+      "id": "bc2Y1XmIdyu5ySTa",
+      "name": "Google Sheets account"
+     }
+    },
+    "typeVersion": 4.7
+   },
+   {
+    "id": "6794ff28-3298-4d2a-b6c7-38506148bf5b",
+    "name": "Code \u2014 Sent pitches Discord",
+    "type": "n8n-nodes-base.code",
+    "position": [
+     5136,
+     1472
+    ],
+    "parameters": {
+     "jsCode": "const NL=String.fromCharCode(10);const DOUBLE=NL+NL;var rows=[];try{rows=$('Code \u2014 Build send log').all().map(function(item){return item.json||{}})}catch(error){}if(!rows.length)return[];var parts=['\ud83d\udce8 **VIRYA \u2014 wynik automatycznych pitchy**'];rows.forEach(function(row){parts.push((row.Status==='SENT'?'\u2705':'\u26a0\ufe0f')+' **'+row.Track_Name+'** \u2192 '+row.Source_Name+NL+(row.Status==='SENT'?'Wys\u0142ano: '+row.Sent_At+' | follow-up: '+row.Follow_Up_At:'B\u0142\u0105d: '+String(row.Error||'nieznany').slice(0,300)))});var messages=[];var current='';parts.forEach(function(part){var next=current?current+DOUBLE+part:part;if(next.length>1850&&current){messages.push(current);current=part}else{current=next}});if(current)messages.push(current);return messages.map(function(content){return{json:{content:content,allowed_mentions:{parse:[]}}}});"
+    },
+    "typeVersion": 2
+   },
+   {
+    "id": "f9e16260-1b72-464b-b021-d41b1b95c857",
+    "name": "Discord \u2014 Sent pitches",
+    "type": "n8n-nodes-base.httpRequest",
+    "maxTries": 5,
+    "position": [
+     5376,
+     1472
+    ],
+    "parameters": {
+     "url": "https://discord.com/api/v10/channels/1529796008144404500/messages",
+     "method": "POST",
+     "options": {
+      "timeout": 30000
+     },
+     "jsonBody": "={{ ({ content: String((($json.content)) ?? '').slice(0, 2000), allowed_mentions: ($json.allowed_mentions && typeof $json.allowed_mentions === 'object') ? $json.allowed_mentions : { parse: [] } }) }}",
+     "sendBody": true,
+     "sendHeaders": true,
+     "specifyBody": "json",
+     "authentication": "genericCredentialType",
+     "genericAuthType": "httpHeaderAuth",
+     "headerParameters": {
+      "parameters": [
+       {
+        "name": "User-Agent",
+        "value": "Virya-n8n/1.0 (https://virya.music)"
+       }
+      ]
+     }
+    },
+    "credentials": {
+     "httpHeaderAuth": {
+      "id": "FB7ONYMUsZFfObWB",
+      "name": "Discord Bot HTTP"
+     }
+    },
+    "retryOnFail": true,
+    "typeVersion": 4.4,
+    "waitBetweenTries": 5000
+   },
+   {
+    "id": "a0296ae7-321c-4c6f-ac93-5d3d827c59d3",
+    "name": "Code \u2014 Manual and dry-run Discord",
+    "type": "n8n-nodes-base.code",
+    "position": [
+     4176,
+     1664
+    ],
+    "parameters": {
+     "jsCode": "const NL=String.fromCharCode(10);var rows=$input.all().map(i=>i.json||{}).filter(row=>!row.skipAll&&row.Pitch_ID&&row.Status!=='READY_TO_SEND').sort((a,b)=>Number(b.Fit_Score||0)-Number(a.Fit_Score||0)).slice(0,5);if(!rows.length)return[];const lines=rows.map((row,index)=>{const email=String(row.Contact_Email||'').trim()||'brak \u2014 formularz/link';return[(index+1)+'. ['+String(row.Priority||'?')+' \u2022 '+String(row.Fit_Score||0)+'] **'+String(row.Track_Name||'utw\u00f3r')+'** \u2192 **'+String(row.Source_Name||'\u017ar\u00f3d\u0142o')+'**','   Status: '+String(row.Status||'')+' | tryb: '+String(row.Action_Class||''),'   Email: '+email,'   Akcja: '+String(row.Submission_URL||'brak linku'),'   Utw\u00f3r: '+String(row.Spotify_Track_URL||'')].join(NL)});const content=['\ud83c\udfaf **[DECYZJA] VIRYA \u2014 playlist pitching ('+rows.length+')**',lines.join(NL+NL),'Pe\u0142ny pitch i statusy: https://docs.google.com/spreadsheets/d/1ksa6VePLgLQESHvJL-_zBZ2KzVNHYPndzwhXvVj4Vxw/edit'].join(NL+NL);return[{json:{content:content.slice(0,1950),allowed_mentions:{parse:[]}}}];"
+    },
+    "typeVersion": 2
+   },
+   {
+    "id": "8c248041-78b8-43e9-bd0f-ca7bb1ab5c12",
+    "name": "Discord \u2014 Manual queue",
+    "type": "n8n-nodes-base.httpRequest",
+    "maxTries": 5,
+    "position": [
+     4416,
+     1664
+    ],
+    "parameters": {
+     "url": "https://discord.com/api/v10/channels/1529796008144404500/messages",
+     "method": "POST",
+     "options": {
+      "timeout": 30000
+     },
+     "jsonBody": "={{ ({ content: String((($json.content)) ?? '').slice(0, 2000), allowed_mentions: ($json.allowed_mentions && typeof $json.allowed_mentions === 'object') ? $json.allowed_mentions : { parse: [] } }) }}",
+     "sendBody": true,
+     "sendHeaders": true,
+     "specifyBody": "json",
+     "authentication": "genericCredentialType",
+     "genericAuthType": "httpHeaderAuth",
+     "headerParameters": {
+      "parameters": [
+       {
+        "name": "User-Agent",
+        "value": "Virya-n8n/1.0 (https://virya.music)"
+       }
+      ]
+     }
+    },
+    "credentials": {
+     "httpHeaderAuth": {
+      "id": "FB7ONYMUsZFfObWB",
+      "name": "Discord Bot HTTP"
+     }
+    },
+    "retryOnFail": true,
+    "typeVersion": 4.4,
+    "waitBetweenTries": 5000
+   },
+   {
+    "id": "1c0cbc4c-8230-4901-aee8-bed6f3016981",
+    "name": "SETUP",
+    "type": "n8n-nodes-base.stickyNote",
+    "position": [
+     2496,
+     864
+    ],
+    "parameters": {
+     "width": 720,
+     "height": 340,
+     "content": "## PLAYLIST PITCHING \u2014 WDRO\u017bENIE\n1. W arkuszu TRACKS wklej Spotify_Track_URL i ustaw Ready_For_Pitch=TRUE.\n2. W trzech node'ach Discord wybierz thread Playlisty.\n3. Zostaw DRY_RUN=TRUE i AUTO_EMAIL_ENABLED=FALSE.\n4. Uruchom Manual \u2014 build weekly pitch queue.\n5. Sprawd\u017a arkusz oraz Discord. Dopiero potem w SETTINGS ustaw DRY_RUN=FALSE i AUTO_EMAIL_ENABLED=TRUE.\n\nWorkflow nie klika formularzy, nie obchodzi login\u00f3w/CAPTCHA i nie p\u0142aci za placementy."
+    },
+    "typeVersion": 1
+   }
+  ],
+  "connections": {
+   "Manual \u2014 build weekly pitch queue": {
+    "main": [
+     [
+      {
+       "node": "GS \u2014 SETTINGS",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "Schedule \u2014 Monday 08:30": {
+    "main": [
+     [
+      {
+       "node": "GS \u2014 SETTINGS",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "GS \u2014 SETTINGS": {
+    "main": [
+     [
+      {
+       "node": "GS \u2014 TRACKS",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "GS \u2014 TRACKS": {
+    "main": [
+     [
+      {
+       "node": "GS \u2014 SOURCES",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "GS \u2014 SOURCES": {
+    "main": [
+     [
+      {
+       "node": "GS \u2014 Existing PITCH_QUEUE",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "GS \u2014 Existing PITCH_QUEUE": {
+    "main": [
+     [
+      {
+       "node": "GS \u2014 SUBMISSION_LOG",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "GS \u2014 SUBMISSION_LOG": {
+    "main": [
+     [
+      {
+       "node": "Code \u2014 Score and build pitch queue",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "Code \u2014 Score and build pitch queue": {
+    "main": [
+     [
+      {
+       "node": "Code \u2014 Route no work",
+       "type": "main",
+       "index": 0
+      },
+      {
+       "node": "Code \u2014 Rows to append",
+       "type": "main",
+       "index": 0
+      },
+      {
+       "node": "Code \u2014 Auto-send gate",
+       "type": "main",
+       "index": 0
+      },
+      {
+       "node": "Code \u2014 Manual and dry-run Discord",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "Code \u2014 Route no work": {
+    "main": [
+     [
+      {
+       "node": "Discord \u2014 No work",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "Code \u2014 Rows to append": {
+    "main": [
+     [
+      {
+       "node": "GS \u2014 Append PITCH_QUEUE",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "Code \u2014 Auto-send gate": {
+    "main": [
+     [
+      {
+       "node": "Gmail \u2014 Send playlist pitch",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "Gmail \u2014 Send playlist pitch": {
+    "main": [
+     [
+      {
+       "node": "Code \u2014 Build send log",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "Code \u2014 Build send log": {
+    "main": [
+     [
+      {
+       "node": "GS \u2014 Append SUBMISSION_LOG",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "GS \u2014 Append SUBMISSION_LOG": {
+    "main": [
+     [
+      {
+       "node": "Code \u2014 Sent pitches Discord",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "Code \u2014 Sent pitches Discord": {
+    "main": [
+     [
+      {
+       "node": "Discord \u2014 Sent pitches",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "Code \u2014 Manual and dry-run Discord": {
+    "main": [
+     [
+      {
+       "node": "Discord \u2014 Manual queue",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   }
+  },
+  "nodeGroups": [],
+  "authors": "import",
+  "name": "Version 0fa4f2f1",
+  "description": "",
+  "autosaved": false,
+  "workflowPublishHistory": []
+ }
+}

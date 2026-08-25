@@ -1,0 +1,558 @@
+{
+ "updatedAt": "2026-08-15T20:52:55.695Z",
+ "createdAt": "2026-08-03T11:22:02.988Z",
+ "id": "a4d01240-d313-5d1c-9f02-33e6c2a558db",
+ "name": "CrowdRelay \u2014 business operations Discord branch",
+ "description": null,
+ "active": true,
+ "isArchived": false,
+ "nodes": [
+  {
+   "id": "a7874b42-21d7-4b2c-bbd1-cf34dbf993f3",
+   "name": "Called by verified ingress",
+   "type": "n8n-nodes-base.executeWorkflowTrigger",
+   "position": [
+    0,
+    0
+   ],
+   "parameters": {
+    "inputSource": "passthrough"
+   },
+   "typeVersion": 1.1
+  },
+  {
+   "id": "161d1706-0d1d-45ff-aaee-35911741164e",
+   "name": "Validate and build business operations alert",
+   "type": "n8n-nodes-base.code",
+   "position": [
+    240,
+    0
+   ],
+   "parameters": {
+    "jsCode": "const envelope = $json;\nconst supported = new Set([\"fan.city_requested\", \"physical_reward.granted\", \"ticket.order.refund_recorded\", \"reward_draw.completed\", \"reward_draw.winner\", \"admission.pass.revoked\", \"proof.anchor.confirmed\", \"proof.anchor.dead\"]);\nif (!envelope || !supported.has(String(envelope.type)) || envelope.version !== 1) {\n  throw new Error('Unsupported CrowdRelay business operations event');\n}\nconst data = envelope.data ?? {};\nconst clean = (value, fallback = '-') => {\n  const text = String(value ?? fallback)\n    .replace(/[\\r\\n\\t]+/g, ' ')\n    .replace(/(?:token|secret|password|authorization|cookie|email)\\s*[:=]\\s*\\S+/gi, '[REDACTED]')\n    .trim();\n  return (text || fallback).slice(0, 300);\n};\nconst titles = {\n  'fan.city_requested': 'NOWE MIASTO DO MODERACJI',\n  'physical_reward.granted': 'NAGRODA FIZYCZNA DO REALIZACJI',\n  'ticket.order.refund_recorded': 'ZWROT BILETU ZAREJESTROWANY',\n  'reward_draw.completed': 'LOSOWANIE ZAKO\u0143CZONE',\n  'reward_draw.winner': 'ZWYCI\u0118ZCA LOSOWANIA',\n  'admission.pass.revoked': 'WEJ\u015aCI\u00d3WKA UNIEWA\u017bNIONA',\n  'proof.anchor.confirmed': 'PROOF ZAKOTWICZONY',\n  'proof.anchor.dead': 'PROOF ANCHOR DEAD',\n};\nconst severity = envelope.type === 'proof.anchor.dead' ? 'CRITICAL'\n  : envelope.type === 'ticket.order.refund_recorded' ? 'WARNING'\n  : 'INFO';\nconst labels = [\n  data.display_name, data.city_slug, data.item_name, data.public_reference,\n  data.draw_name, data.draw_slug, data.batch_id, data.event_id,\n].filter(Boolean).map(value => clean(value));\nconst summaryMap = {\n  'fan.city_requested': `Miasto: ${clean(data.display_name)} (${clean(data.country_code)}), zg\u0142oszenia: ${clean(data.request_count)}.`,\n  'physical_reward.granted': `Nagroda: ${clean(data.item_name ?? data.sku)} \u00b7 fan ${clean(data.fan_id)}.`,\n  'ticket.order.refund_recorded': `Zwrot: ${clean(data.amount_refunded_minor ?? data.refund_gross_minor)} ${clean(data.currency)} \u00b7 zam\u00f3wienie ${clean(data.public_reference ?? data.order_id)}.`,\n  'reward_draw.completed': `Losowanie ${clean(data.draw_name ?? data.draw_slug)}: ${clean(data.selected_winners)} zwyci\u0119zc\u00f3w z ${clean(data.eligible_count)} kandydat\u00f3w.`,\n  'reward_draw.winner': `Losowanie ${clean(data.draw_name ?? data.draw_slug)} \u00b7 zwyci\u0119zca fan ${clean(data.fan_id)}.`,\n  'admission.pass.revoked': `Wej\u015bci\u00f3wka ${clean(data.public_reference ?? data.pass_id)} zosta\u0142a uniewa\u017cniona.`,\n  'proof.anchor.confirmed': `Batch ${clean(data.batch_id)} zosta\u0142 potwierdzony.`,\n  'proof.anchor.dead': `Batch ${clean(data.batch_id)} nie zosta\u0142 zakotwiczony: ${clean(data.error_kind)}.`,\n};\nconst marker = `CR_EVENT_ID:${envelope.id}`;\nconst content = [\n  `## ${titles[envelope.type]}`,\n  `**${severity}** \u00b7 ${envelope.type}`,\n  labels.length ? `Obiekt: ${labels.join(' \u00b7 ')}` : null,\n  summaryMap[envelope.type],\n  marker,\n].filter(Boolean).join('\\n\\n').slice(0, 1950);\nreturn [{ json: { marker, content, eventType: envelope.type } }];"
+   },
+   "typeVersion": 2
+  },
+  {
+   "id": "5978c494-3a3a-48e7-b597-20593fcdd71c",
+   "name": "Read recent business operations messages",
+   "type": "n8n-nodes-base.httpRequest",
+   "maxTries": 3,
+   "position": [
+    500,
+    0
+   ],
+   "parameters": {
+    "url": "https://discord.com/api/v10/channels/1529482376458276964/messages",
+    "method": "GET",
+    "options": {
+     "timeout": 30000,
+     "response": {
+      "response": {
+       "responseFormat": "json"
+      }
+     }
+    },
+    "sendQuery": true,
+    "sendHeaders": true,
+    "authentication": "genericCredentialType",
+    "genericAuthType": "httpHeaderAuth",
+    "queryParameters": {
+     "parameters": [
+      {
+       "name": "limit",
+       "value": "100"
+      }
+     ]
+    },
+    "headerParameters": {
+     "parameters": [
+      {
+       "name": "User-Agent",
+       "value": "Virya-n8n/1.0 (https://virya.music)"
+      }
+     ]
+    }
+   },
+   "credentials": {
+    "httpHeaderAuth": {
+     "id": "FB7ONYMUsZFfObWB",
+     "name": "Discord Bot HTTP"
+    }
+   },
+   "retryOnFail": true,
+   "typeVersion": 4.2,
+   "waitBetweenTries": 2000
+  },
+  {
+   "id": "314e42f6-7fd4-4c9e-a5a5-7ff5207900fd",
+   "name": "Check business operations idempotency",
+   "type": "n8n-nodes-base.code",
+   "position": [
+    760,
+    0
+   ],
+   "parameters": {
+    "jsCode": "const source = $('Validate and build business operations alert').first().json;\nconst values = $input.all().map(item => item.json);\nconst messages = values.flatMap(value => Array.isArray(value) ? value : [value]);\nconst alreadySent = messages.some(message => typeof message?.content === 'string' && message.content.includes(source.marker));\nreturn [{ json: { ...source, alreadySent } }];"
+   },
+   "typeVersion": 2
+  },
+  {
+   "id": "a9cc5861-bfac-4f85-ae36-5e8ade4d3f54",
+   "name": "Business alert already sent?",
+   "type": "n8n-nodes-base.if",
+   "position": [
+    1020,
+    0
+   ],
+   "parameters": {
+    "options": {},
+    "conditions": {
+     "options": {
+      "version": 2,
+      "leftValue": "",
+      "caseSensitive": true,
+      "typeValidation": "strict"
+     },
+     "combinator": "and",
+     "conditions": [
+      {
+       "id": "40946c19-4083-45aa-8c76-2566743b2b21",
+       "operator": {
+        "type": "boolean",
+        "operation": "true",
+        "singleValue": true
+       },
+       "leftValue": "={{ $json.alreadySent }}",
+       "rightValue": true
+      }
+     ]
+    }
+   },
+   "typeVersion": 2.2
+  },
+  {
+   "id": "4c2eb8fd-dada-4943-a888-707a9651d3e1",
+   "name": "Post business operations alert",
+   "type": "n8n-nodes-base.httpRequest",
+   "position": [
+    1280,
+    100
+   ],
+   "parameters": {
+    "url": "https://discord.com/api/v10/channels/1529482376458276964/messages",
+    "method": "POST",
+    "options": {
+     "timeout": 30000
+    },
+    "jsonBody": "={{ ({ content: $json.content, allowed_mentions:{parse:[]} }) }}",
+    "sendBody": true,
+    "sendHeaders": true,
+    "specifyBody": "json",
+    "authentication": "genericCredentialType",
+    "genericAuthType": "httpHeaderAuth",
+    "headerParameters": {
+     "parameters": [
+      {
+       "name": "User-Agent",
+       "value": "Virya-n8n/1.0 (https://virya.music)"
+      }
+     ]
+    }
+   },
+   "credentials": {
+    "httpHeaderAuth": {
+     "id": "FB7ONYMUsZFfObWB",
+     "name": "Discord Bot HTTP"
+    }
+   },
+   "typeVersion": 4.2
+  },
+  {
+   "id": "c115d666-2628-4c00-b9d9-e7537da6ddae",
+   "name": "Business alert complete",
+   "type": "n8n-nodes-base.noOp",
+   "position": [
+    1520,
+    0
+   ],
+   "parameters": {},
+   "typeVersion": 1
+  }
+ ],
+ "connections": {
+  "Called by verified ingress": {
+   "main": [
+    [
+     {
+      "node": "Validate and build business operations alert",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Validate and build business operations alert": {
+   "main": [
+    [
+     {
+      "node": "Read recent business operations messages",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Read recent business operations messages": {
+   "main": [
+    [
+     {
+      "node": "Check business operations idempotency",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Check business operations idempotency": {
+   "main": [
+    [
+     {
+      "node": "Business alert already sent?",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Business alert already sent?": {
+   "main": [
+    [
+     {
+      "node": "Business alert complete",
+      "type": "main",
+      "index": 0
+     }
+    ],
+    [
+     {
+      "node": "Post business operations alert",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Post business operations alert": {
+   "main": [
+    [
+     {
+      "node": "Business alert complete",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  }
+ },
+ "settings": {
+  "executionOrder": "v1",
+  "saveDataErrorExecution": "none",
+  "saveDataSuccessExecution": "none",
+  "saveManualExecutions": false,
+  "errorWorkflow": "98d5e1a4-2dba-5e5a-9be1-2e5d9220859d"
+ },
+ "staticData": null,
+ "meta": {
+  "templateCredsSetupCompleted": true
+ },
+ "nodeGroups": [],
+ "pinData": null,
+ "versionId": "d91be1c8-f245-4811-aae8-b4ff2a3d2177",
+ "activeVersionId": "d91be1c8-f245-4811-aae8-b4ff2a3d2177",
+ "versionCounter": 5,
+ "triggerCount": 0,
+ "sourceWorkflowId": null,
+ "shared": [
+  {
+   "updatedAt": "2026-08-03T11:22:02.988Z",
+   "createdAt": "2026-08-03T11:22:02.988Z",
+   "role": "workflow:owner",
+   "workflowId": "a4d01240-d313-5d1c-9f02-33e6c2a558db",
+   "projectId": "e2rPVcUBR4DTE3mO",
+   "project": {
+    "updatedAt": "2026-07-24T09:45:30.763Z",
+    "createdAt": "2026-07-24T09:45:07.113Z",
+    "id": "e2rPVcUBR4DTE3mO",
+    "name": "Virya Crew <virya.crew@gmail.com>",
+    "type": "personal",
+    "icon": null,
+    "description": null,
+    "customTelemetryTags": [],
+    "creatorId": "89259ec0-46eb-41d3-a04e-eb12f52f6342"
+   }
+  }
+ ],
+ "tags": [],
+ "activeVersion": {
+  "updatedAt": "2026-08-25T12:20:51.980Z",
+  "createdAt": "2026-08-12T17:01:41.269Z",
+  "versionId": "d91be1c8-f245-4811-aae8-b4ff2a3d2177",
+  "workflowId": "a4d01240-d313-5d1c-9f02-33e6c2a558db",
+  "nodes": [
+   {
+    "id": "a7874b42-21d7-4b2c-bbd1-cf34dbf993f3",
+    "name": "Called by verified ingress",
+    "type": "n8n-nodes-base.executeWorkflowTrigger",
+    "position": [
+     0,
+     0
+    ],
+    "parameters": {
+     "inputSource": "passthrough"
+    },
+    "typeVersion": 1.1
+   },
+   {
+    "id": "161d1706-0d1d-45ff-aaee-35911741164e",
+    "name": "Validate and build business operations alert",
+    "type": "n8n-nodes-base.code",
+    "position": [
+     240,
+     0
+    ],
+    "parameters": {
+     "jsCode": "const envelope = $json;\nconst supported = new Set([\"fan.city_requested\", \"physical_reward.granted\", \"ticket.order.refund_recorded\", \"reward_draw.completed\", \"reward_draw.winner\", \"admission.pass.revoked\", \"proof.anchor.confirmed\", \"proof.anchor.dead\"]);\nif (!envelope || !supported.has(String(envelope.type)) || envelope.version !== 1) {\n  throw new Error('Unsupported CrowdRelay business operations event');\n}\nconst data = envelope.data ?? {};\nconst clean = (value, fallback = '-') => {\n  const text = String(value ?? fallback)\n    .replace(/[\\r\\n\\t]+/g, ' ')\n    .replace(/(?:token|secret|password|authorization|cookie|email)\\s*[:=]\\s*\\S+/gi, '[REDACTED]')\n    .trim();\n  return (text || fallback).slice(0, 300);\n};\nconst titles = {\n  'fan.city_requested': 'NOWE MIASTO DO MODERACJI',\n  'physical_reward.granted': 'NAGRODA FIZYCZNA DO REALIZACJI',\n  'ticket.order.refund_recorded': 'ZWROT BILETU ZAREJESTROWANY',\n  'reward_draw.completed': 'LOSOWANIE ZAKO\u0143CZONE',\n  'reward_draw.winner': 'ZWYCI\u0118ZCA LOSOWANIA',\n  'admission.pass.revoked': 'WEJ\u015aCI\u00d3WKA UNIEWA\u017bNIONA',\n  'proof.anchor.confirmed': 'PROOF ZAKOTWICZONY',\n  'proof.anchor.dead': 'PROOF ANCHOR DEAD',\n};\nconst severity = envelope.type === 'proof.anchor.dead' ? 'CRITICAL'\n  : envelope.type === 'ticket.order.refund_recorded' ? 'WARNING'\n  : 'INFO';\nconst labels = [\n  data.display_name, data.city_slug, data.item_name, data.public_reference,\n  data.draw_name, data.draw_slug, data.batch_id, data.event_id,\n].filter(Boolean).map(value => clean(value));\nconst summaryMap = {\n  'fan.city_requested': `Miasto: ${clean(data.display_name)} (${clean(data.country_code)}), zg\u0142oszenia: ${clean(data.request_count)}.`,\n  'physical_reward.granted': `Nagroda: ${clean(data.item_name ?? data.sku)} \u00b7 fan ${clean(data.fan_id)}.`,\n  'ticket.order.refund_recorded': `Zwrot: ${clean(data.amount_refunded_minor ?? data.refund_gross_minor)} ${clean(data.currency)} \u00b7 zam\u00f3wienie ${clean(data.public_reference ?? data.order_id)}.`,\n  'reward_draw.completed': `Losowanie ${clean(data.draw_name ?? data.draw_slug)}: ${clean(data.selected_winners)} zwyci\u0119zc\u00f3w z ${clean(data.eligible_count)} kandydat\u00f3w.`,\n  'reward_draw.winner': `Losowanie ${clean(data.draw_name ?? data.draw_slug)} \u00b7 zwyci\u0119zca fan ${clean(data.fan_id)}.`,\n  'admission.pass.revoked': `Wej\u015bci\u00f3wka ${clean(data.public_reference ?? data.pass_id)} zosta\u0142a uniewa\u017cniona.`,\n  'proof.anchor.confirmed': `Batch ${clean(data.batch_id)} zosta\u0142 potwierdzony.`,\n  'proof.anchor.dead': `Batch ${clean(data.batch_id)} nie zosta\u0142 zakotwiczony: ${clean(data.error_kind)}.`,\n};\nconst marker = `CR_EVENT_ID:${envelope.id}`;\nconst content = [\n  `## ${titles[envelope.type]}`,\n  `**${severity}** \u00b7 ${envelope.type}`,\n  labels.length ? `Obiekt: ${labels.join(' \u00b7 ')}` : null,\n  summaryMap[envelope.type],\n  marker,\n].filter(Boolean).join('\\n\\n').slice(0, 1950);\nreturn [{ json: { marker, content, eventType: envelope.type } }];"
+    },
+    "typeVersion": 2
+   },
+   {
+    "id": "5978c494-3a3a-48e7-b597-20593fcdd71c",
+    "name": "Read recent business operations messages",
+    "type": "n8n-nodes-base.httpRequest",
+    "maxTries": 3,
+    "position": [
+     500,
+     0
+    ],
+    "parameters": {
+     "url": "https://discord.com/api/v10/channels/1529482376458276964/messages",
+     "method": "GET",
+     "options": {
+      "timeout": 30000,
+      "response": {
+       "response": {
+        "responseFormat": "json"
+       }
+      }
+     },
+     "sendQuery": true,
+     "sendHeaders": true,
+     "authentication": "genericCredentialType",
+     "genericAuthType": "httpHeaderAuth",
+     "queryParameters": {
+      "parameters": [
+       {
+        "name": "limit",
+        "value": "100"
+       }
+      ]
+     },
+     "headerParameters": {
+      "parameters": [
+       {
+        "name": "User-Agent",
+        "value": "Virya-n8n/1.0 (https://virya.music)"
+       }
+      ]
+     }
+    },
+    "credentials": {
+     "httpHeaderAuth": {
+      "id": "FB7ONYMUsZFfObWB",
+      "name": "Discord Bot HTTP"
+     }
+    },
+    "retryOnFail": true,
+    "typeVersion": 4.2,
+    "waitBetweenTries": 2000
+   },
+   {
+    "id": "314e42f6-7fd4-4c9e-a5a5-7ff5207900fd",
+    "name": "Check business operations idempotency",
+    "type": "n8n-nodes-base.code",
+    "position": [
+     760,
+     0
+    ],
+    "parameters": {
+     "jsCode": "const source = $('Validate and build business operations alert').first().json;\nconst values = $input.all().map(item => item.json);\nconst messages = values.flatMap(value => Array.isArray(value) ? value : [value]);\nconst alreadySent = messages.some(message => typeof message?.content === 'string' && message.content.includes(source.marker));\nreturn [{ json: { ...source, alreadySent } }];"
+    },
+    "typeVersion": 2
+   },
+   {
+    "id": "a9cc5861-bfac-4f85-ae36-5e8ade4d3f54",
+    "name": "Business alert already sent?",
+    "type": "n8n-nodes-base.if",
+    "position": [
+     1020,
+     0
+    ],
+    "parameters": {
+     "options": {},
+     "conditions": {
+      "options": {
+       "version": 2,
+       "leftValue": "",
+       "caseSensitive": true,
+       "typeValidation": "strict"
+      },
+      "combinator": "and",
+      "conditions": [
+       {
+        "id": "40946c19-4083-45aa-8c76-2566743b2b21",
+        "operator": {
+         "type": "boolean",
+         "operation": "true",
+         "singleValue": true
+        },
+        "leftValue": "={{ $json.alreadySent }}",
+        "rightValue": true
+       }
+      ]
+     }
+    },
+    "typeVersion": 2.2
+   },
+   {
+    "id": "4c2eb8fd-dada-4943-a888-707a9651d3e1",
+    "name": "Post business operations alert",
+    "type": "n8n-nodes-base.httpRequest",
+    "position": [
+     1280,
+     100
+    ],
+    "parameters": {
+     "url": "https://discord.com/api/v10/channels/1529482376458276964/messages",
+     "method": "POST",
+     "options": {
+      "timeout": 30000
+     },
+     "jsonBody": "={{ ({ content: $json.content, allowed_mentions:{parse:[]} }) }}",
+     "sendBody": true,
+     "sendHeaders": true,
+     "specifyBody": "json",
+     "authentication": "genericCredentialType",
+     "genericAuthType": "httpHeaderAuth",
+     "headerParameters": {
+      "parameters": [
+       {
+        "name": "User-Agent",
+        "value": "Virya-n8n/1.0 (https://virya.music)"
+       }
+      ]
+     }
+    },
+    "credentials": {
+     "httpHeaderAuth": {
+      "id": "FB7ONYMUsZFfObWB",
+      "name": "Discord Bot HTTP"
+     }
+    },
+    "typeVersion": 4.2
+   },
+   {
+    "id": "c115d666-2628-4c00-b9d9-e7537da6ddae",
+    "name": "Business alert complete",
+    "type": "n8n-nodes-base.noOp",
+    "position": [
+     1520,
+     0
+    ],
+    "parameters": {},
+    "typeVersion": 1
+   }
+  ],
+  "connections": {
+   "Called by verified ingress": {
+    "main": [
+     [
+      {
+       "node": "Validate and build business operations alert",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "Validate and build business operations alert": {
+    "main": [
+     [
+      {
+       "node": "Read recent business operations messages",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "Read recent business operations messages": {
+    "main": [
+     [
+      {
+       "node": "Check business operations idempotency",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "Check business operations idempotency": {
+    "main": [
+     [
+      {
+       "node": "Business alert already sent?",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "Business alert already sent?": {
+    "main": [
+     [
+      {
+       "node": "Business alert complete",
+       "type": "main",
+       "index": 0
+      }
+     ],
+     [
+      {
+       "node": "Post business operations alert",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "Post business operations alert": {
+    "main": [
+     [
+      {
+       "node": "Business alert complete",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   }
+  },
+  "nodeGroups": [],
+  "authors": "import",
+  "name": null,
+  "description": null,
+  "autosaved": false,
+  "workflowPublishHistory": []
+ }
+}

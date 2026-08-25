@@ -1,0 +1,234 @@
+{
+ "updatedAt": "2026-08-15T20:51:21.166Z",
+ "createdAt": "2026-08-02T20:03:33.974Z",
+ "id": "98d5e1a4-2dba-5e5a-9be1-2e5d9220859d",
+ "name": "VIRYA 99 \u2014 Central Automation Error Handler",
+ "description": null,
+ "active": true,
+ "isArchived": false,
+ "nodes": [
+  {
+   "id": "df1f39d5-8a5b-4adf-8195-0708f4cfcf86",
+   "name": "Workflow failed",
+   "type": "n8n-nodes-base.errorTrigger",
+   "position": [
+    0,
+    0
+   ],
+   "parameters": {},
+   "typeVersion": 1
+  },
+  {
+   "id": "2dab0269-570e-44ae-ba3f-5f5fb6934781",
+   "name": "Redact and deduplicate alert",
+   "type": "n8n-nodes-base.code",
+   "position": [
+    272,
+    0
+   ],
+   "parameters": {
+    "jsCode": "const payload = $input.first().json ?? {};\nconst workflow = payload.workflow ?? payload.data?.workflow ?? {};\nconst execution = payload.execution ?? payload.data?.execution ?? payload.executionData ?? {};\nconst error = execution.error ?? payload.error ?? payload.data?.error ?? {};\n\nconst redact = (value) => String(value ?? '')\n  .replace(/(authorization\\s*[:=]\\s*bearer\\s+)[^\\s,;]+/gi, '$1[REDACTED]')\n  .replace(/([?&](?:access_token|api_key|key|token)=)[^&\\s]+/gi, '$1[REDACTED]')\n  .replace(/(x-goog-api-key\\s*[:=]\\s*)[^\\s,;]+/gi, '$1[REDACTED]')\n  .replace(/([A-Za-z0-9_-]{32,})/g, '[REDACTED]');\n\nconst firstText = (...values) => {\n  for (const value of values) {\n    if (typeof value === 'string' && value.trim()) return value.trim();\n    if (typeof value === 'number' && Number.isFinite(value)) return String(value);\n  }\n  return '';\n};\n\nconst workflowName = redact(firstText(workflow.name, payload.workflowName) || 'nieznany workflow').slice(0, 180);\nconst workflowId = firstText(workflow.id, payload.workflowId) || 'unknown';\nlet executionId = firstText(execution.id, payload.executionId, payload.id);\nconst rawUrl = firstText(execution.url, payload.executionUrl, payload.url);\nif (!executionId && rawUrl) {\n  const match = /\\/(?:executions?|workflow\\/[^/]+)\\/(\\d+)(?:[/?#]|$)/.exec(rawUrl);\n  if (match) executionId = match[1];\n}\nexecutionId = (executionId || 'unknown').slice(0, 100);\n\nconst nodeNameRaw = firstText(\n  execution.lastNodeExecuted,\n  execution.lastNode,\n  error.node?.name,\n  error.nodeName,\n  payload.lastNodeExecuted,\n  payload.node?.name,\n  payload.nodeName,\n);\nconst nodeName = redact(nodeNameRaw || 'brak danych wykonania od n8n').slice(0, 180);\n\nconst messageRaw = firstText(\n  error.message,\n  error.description,\n  error.cause?.message,\n  execution.message,\n  payload.message,\n  payload.errorMessage,\n);\nconst payloadKeys = Object.keys(payload).sort().slice(0, 20).join(', ') || 'brak';\nconst executionKeys = execution && typeof execution === 'object'\n  ? (Object.keys(execution).sort().slice(0, 20).join(', ') || 'brak')\n  : 'brak';\nconst fallbackMessage = `n8n nie przekaza\u0142 komunikatu b\u0142\u0119du (payload: ${payloadKeys}; execution: ${executionKeys})`;\nconst message = redact(messageRaw || fallbackMessage).replace(/\\s+/g, ' ').slice(0, 900);\nconst mode = redact(firstText(execution.mode, payload.mode) || 'production').slice(0, 50);\nconst url = /^https:\\/\\//.test(rawUrl) ? rawUrl.slice(0, 500) : '';\n\nconst state = $getWorkflowStaticData('global');\nstate.recent = state.recent && typeof state.recent === 'object' ? state.recent : {};\nconst now = Date.now();\nconst ttlMs = 10 * 60 * 1000;\nfor (const [key, storedAt] of Object.entries(state.recent)) {\n  if (!Number.isFinite(Number(storedAt)) || now - Number(storedAt) > ttlMs) delete state.recent[key];\n}\nconst fingerprint = `${workflowId}:${nodeName}:${message}`;\nif (state.recent[fingerprint]) return [];\nstate.recent[fingerprint] = now;\n\n// Hard memory bound: keep only the newest 256 fingerprints even during an alert storm.\nconst recentEntries = Object.entries(state.recent);\nif (recentEntries.length > 256) {\n  recentEntries\n    .sort((a, b) => Number(a[1] || 0) - Number(b[1] || 0))\n    .slice(0, recentEntries.length - 256)\n    .forEach(([key]) => delete state.recent[key]);\n}\n\nconst lines = [\n  '\ud83d\udea8 **Virya automation failed**',\n  `**Workflow:** ${workflowName}`,\n  `**Node:** ${nodeName}`,\n  `**Execution:** ${executionId} (${mode})`,\n  `**Error:** ${message}`,\n];\nif (url) lines.push(`**Open:** ${url}`);\nlines.push('Retry automatyczny pozostaje po stronie noda albo CrowdRelay outbox.');\n\nreturn [{ json: {\n  content: lines.join('\\n').slice(0, 1900),\n  workflow_id: workflowId.slice(0, 100),\n  execution_id: executionId,\n  fingerprint\n} }];"
+   },
+   "typeVersion": 2
+  },
+  {
+   "id": "fafeaf47-5947-4d80-8dba-9b8641d699a9",
+   "name": "Alert automation channel",
+   "type": "n8n-nodes-base.httpRequest",
+   "position": [
+    544,
+    0
+   ],
+   "parameters": {
+    "url": "https://discord.com/api/v10/channels/1529482376458276964/messages",
+    "method": "POST",
+    "options": {
+     "timeout": 30000
+    },
+    "jsonBody": "={{ ({ content: $json.content, allowed_mentions: { parse: [] } }) }}",
+    "sendBody": true,
+    "sendHeaders": true,
+    "specifyBody": "json",
+    "authentication": "genericCredentialType",
+    "genericAuthType": "httpHeaderAuth",
+    "headerParameters": {
+     "parameters": [
+      {
+       "name": "User-Agent",
+       "value": "Virya-n8n/1.0 (https://virya.music)"
+      }
+     ]
+    }
+   },
+   "credentials": {
+    "httpHeaderAuth": {
+     "id": "FB7ONYMUsZFfObWB",
+     "name": "Discord Bot HTTP"
+    }
+   },
+   "typeVersion": 4.2
+  }
+ ],
+ "connections": {
+  "Workflow failed": {
+   "main": [
+    [
+     {
+      "node": "Redact and deduplicate alert",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Redact and deduplicate alert": {
+   "main": [
+    [
+     {
+      "node": "Alert automation channel",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  }
+ },
+ "settings": {
+  "executionOrder": "v1",
+  "saveDataErrorExecution": "none",
+  "saveDataSuccessExecution": "none",
+  "saveManualExecutions": false,
+  "binaryMode": "separate"
+ },
+ "staticData": null,
+ "meta": {
+  "templateCredsSetupCompleted": true
+ },
+ "nodeGroups": [],
+ "pinData": {},
+ "versionId": "2ed0d7c7-a0c9-418f-b697-c9db5352712e",
+ "activeVersionId": "2ed0d7c7-a0c9-418f-b697-c9db5352712e",
+ "versionCounter": 8,
+ "triggerCount": 0,
+ "sourceWorkflowId": null,
+ "shared": [
+  {
+   "updatedAt": "2026-08-02T20:03:33.974Z",
+   "createdAt": "2026-08-02T20:03:33.974Z",
+   "role": "workflow:owner",
+   "workflowId": "98d5e1a4-2dba-5e5a-9be1-2e5d9220859d",
+   "projectId": "e2rPVcUBR4DTE3mO",
+   "project": {
+    "updatedAt": "2026-07-24T09:45:30.763Z",
+    "createdAt": "2026-07-24T09:45:07.113Z",
+    "id": "e2rPVcUBR4DTE3mO",
+    "name": "Virya Crew <virya.crew@gmail.com>",
+    "type": "personal",
+    "icon": null,
+    "description": null,
+    "customTelemetryTags": [],
+    "creatorId": "89259ec0-46eb-41d3-a04e-eb12f52f6342"
+   }
+  }
+ ],
+ "tags": [],
+ "activeVersion": {
+  "updatedAt": "2026-08-25T12:20:51.980Z",
+  "createdAt": "2026-08-12T17:01:41.269Z",
+  "versionId": "2ed0d7c7-a0c9-418f-b697-c9db5352712e",
+  "workflowId": "98d5e1a4-2dba-5e5a-9be1-2e5d9220859d",
+  "nodes": [
+   {
+    "id": "df1f39d5-8a5b-4adf-8195-0708f4cfcf86",
+    "name": "Workflow failed",
+    "type": "n8n-nodes-base.errorTrigger",
+    "position": [
+     0,
+     0
+    ],
+    "parameters": {},
+    "typeVersion": 1
+   },
+   {
+    "id": "2dab0269-570e-44ae-ba3f-5f5fb6934781",
+    "name": "Redact and deduplicate alert",
+    "type": "n8n-nodes-base.code",
+    "position": [
+     272,
+     0
+    ],
+    "parameters": {
+     "jsCode": "const payload = $input.first().json ?? {};\nconst workflow = payload.workflow ?? payload.data?.workflow ?? {};\nconst execution = payload.execution ?? payload.data?.execution ?? payload.executionData ?? {};\nconst error = execution.error ?? payload.error ?? payload.data?.error ?? {};\n\nconst redact = (value) => String(value ?? '')\n  .replace(/(authorization\\s*[:=]\\s*bearer\\s+)[^\\s,;]+/gi, '$1[REDACTED]')\n  .replace(/([?&](?:access_token|api_key|key|token)=)[^&\\s]+/gi, '$1[REDACTED]')\n  .replace(/(x-goog-api-key\\s*[:=]\\s*)[^\\s,;]+/gi, '$1[REDACTED]')\n  .replace(/([A-Za-z0-9_-]{32,})/g, '[REDACTED]');\n\nconst firstText = (...values) => {\n  for (const value of values) {\n    if (typeof value === 'string' && value.trim()) return value.trim();\n    if (typeof value === 'number' && Number.isFinite(value)) return String(value);\n  }\n  return '';\n};\n\nconst workflowName = redact(firstText(workflow.name, payload.workflowName) || 'nieznany workflow').slice(0, 180);\nconst workflowId = firstText(workflow.id, payload.workflowId) || 'unknown';\nlet executionId = firstText(execution.id, payload.executionId, payload.id);\nconst rawUrl = firstText(execution.url, payload.executionUrl, payload.url);\nif (!executionId && rawUrl) {\n  const match = /\\/(?:executions?|workflow\\/[^/]+)\\/(\\d+)(?:[/?#]|$)/.exec(rawUrl);\n  if (match) executionId = match[1];\n}\nexecutionId = (executionId || 'unknown').slice(0, 100);\n\nconst nodeNameRaw = firstText(\n  execution.lastNodeExecuted,\n  execution.lastNode,\n  error.node?.name,\n  error.nodeName,\n  payload.lastNodeExecuted,\n  payload.node?.name,\n  payload.nodeName,\n);\nconst nodeName = redact(nodeNameRaw || 'brak danych wykonania od n8n').slice(0, 180);\n\nconst messageRaw = firstText(\n  error.message,\n  error.description,\n  error.cause?.message,\n  execution.message,\n  payload.message,\n  payload.errorMessage,\n);\nconst payloadKeys = Object.keys(payload).sort().slice(0, 20).join(', ') || 'brak';\nconst executionKeys = execution && typeof execution === 'object'\n  ? (Object.keys(execution).sort().slice(0, 20).join(', ') || 'brak')\n  : 'brak';\nconst fallbackMessage = `n8n nie przekaza\u0142 komunikatu b\u0142\u0119du (payload: ${payloadKeys}; execution: ${executionKeys})`;\nconst message = redact(messageRaw || fallbackMessage).replace(/\\s+/g, ' ').slice(0, 900);\nconst mode = redact(firstText(execution.mode, payload.mode) || 'production').slice(0, 50);\nconst url = /^https:\\/\\//.test(rawUrl) ? rawUrl.slice(0, 500) : '';\n\nconst state = $getWorkflowStaticData('global');\nstate.recent = state.recent && typeof state.recent === 'object' ? state.recent : {};\nconst now = Date.now();\nconst ttlMs = 10 * 60 * 1000;\nfor (const [key, storedAt] of Object.entries(state.recent)) {\n  if (!Number.isFinite(Number(storedAt)) || now - Number(storedAt) > ttlMs) delete state.recent[key];\n}\nconst fingerprint = `${workflowId}:${nodeName}:${message}`;\nif (state.recent[fingerprint]) return [];\nstate.recent[fingerprint] = now;\n\n// Hard memory bound: keep only the newest 256 fingerprints even during an alert storm.\nconst recentEntries = Object.entries(state.recent);\nif (recentEntries.length > 256) {\n  recentEntries\n    .sort((a, b) => Number(a[1] || 0) - Number(b[1] || 0))\n    .slice(0, recentEntries.length - 256)\n    .forEach(([key]) => delete state.recent[key]);\n}\n\nconst lines = [\n  '\ud83d\udea8 **Virya automation failed**',\n  `**Workflow:** ${workflowName}`,\n  `**Node:** ${nodeName}`,\n  `**Execution:** ${executionId} (${mode})`,\n  `**Error:** ${message}`,\n];\nif (url) lines.push(`**Open:** ${url}`);\nlines.push('Retry automatyczny pozostaje po stronie noda albo CrowdRelay outbox.');\n\nreturn [{ json: {\n  content: lines.join('\\n').slice(0, 1900),\n  workflow_id: workflowId.slice(0, 100),\n  execution_id: executionId,\n  fingerprint\n} }];"
+    },
+    "typeVersion": 2
+   },
+   {
+    "id": "fafeaf47-5947-4d80-8dba-9b8641d699a9",
+    "name": "Alert automation channel",
+    "type": "n8n-nodes-base.httpRequest",
+    "position": [
+     544,
+     0
+    ],
+    "parameters": {
+     "url": "https://discord.com/api/v10/channels/1529482376458276964/messages",
+     "method": "POST",
+     "options": {
+      "timeout": 30000
+     },
+     "jsonBody": "={{ ({ content: $json.content, allowed_mentions: { parse: [] } }) }}",
+     "sendBody": true,
+     "sendHeaders": true,
+     "specifyBody": "json",
+     "authentication": "genericCredentialType",
+     "genericAuthType": "httpHeaderAuth",
+     "headerParameters": {
+      "parameters": [
+       {
+        "name": "User-Agent",
+        "value": "Virya-n8n/1.0 (https://virya.music)"
+       }
+      ]
+     }
+    },
+    "credentials": {
+     "httpHeaderAuth": {
+      "id": "FB7ONYMUsZFfObWB",
+      "name": "Discord Bot HTTP"
+     }
+    },
+    "typeVersion": 4.2
+   }
+  ],
+  "connections": {
+   "Workflow failed": {
+    "main": [
+     [
+      {
+       "node": "Redact and deduplicate alert",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "Redact and deduplicate alert": {
+    "main": [
+     [
+      {
+       "node": "Alert automation channel",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   }
+  },
+  "nodeGroups": [],
+  "authors": "import",
+  "name": "Version 159c5af5",
+  "description": "",
+  "autosaved": false,
+  "workflowPublishHistory": []
+ }
+}

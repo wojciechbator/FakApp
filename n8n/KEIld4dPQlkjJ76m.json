@@ -1,0 +1,360 @@
+{
+ "updatedAt": "2026-08-23T15:52:25.174Z",
+ "createdAt": "2026-08-23T15:09:55.684Z",
+ "id": "KEIld4dPQlkjJ76m",
+ "name": "CrowdRelay \u2014 CrowdRelayOS contact import from the pitching sheet",
+ "description": null,
+ "active": false,
+ "isArchived": false,
+ "nodes": [
+  {
+   "id": "2b080fc0-9f10-48fd-bfa6-0a513b90b39c",
+   "name": "Run by an operator",
+   "type": "n8n-nodes-base.manualTrigger",
+   "position": [
+    -1200,
+    -240
+   ],
+   "parameters": {},
+   "typeVersion": 1
+  },
+  {
+   "id": "54fc7f31-c29a-4d19-822d-dcb1b52aa0c3",
+   "name": "GS \u2014 SOURCES",
+   "type": "n8n-nodes-base.googleSheets",
+   "position": [
+    -976,
+    -336
+   ],
+   "parameters": {
+    "options": {},
+    "sheetName": {
+     "__rl": true,
+     "mode": "name",
+     "value": "SOURCES"
+    },
+    "documentId": {
+     "__rl": true,
+     "mode": "id",
+     "value": "1ksa6VePLgLQESHvJL-_zBZ2KzVNHYPndzwhXvVj4Vxw"
+    }
+   },
+   "credentials": {
+    "googleSheetsOAuth2Api": {
+     "id": "bc2Y1XmIdyu5ySTa",
+     "name": "Google Sheets account"
+    }
+   },
+   "typeVersion": 4.5
+  },
+  {
+   "id": "1b747adb-bab8-4b02-897d-1ccbbeaa3890",
+   "name": "GS \u2014 SUBMISSION_LOG",
+   "type": "n8n-nodes-base.googleSheets",
+   "position": [
+    -976,
+    -112
+   ],
+   "parameters": {
+    "options": {},
+    "sheetName": {
+     "__rl": true,
+     "mode": "name",
+     "value": "SUBMISSION_LOG"
+    },
+    "documentId": {
+     "__rl": true,
+     "mode": "id",
+     "value": "1ksa6VePLgLQESHvJL-_zBZ2KzVNHYPndzwhXvVj4Vxw"
+    }
+   },
+   "credentials": {
+    "googleSheetsOAuth2Api": {
+     "id": "bc2Y1XmIdyu5ySTa",
+     "name": "Google Sheets account"
+    }
+   },
+   "typeVersion": 4.5
+  },
+  {
+   "id": "750e502e-9aa0-4f04-b126-d096aaa7c765",
+   "name": "Map sheet rows to candidates",
+   "type": "n8n-nodes-base.code",
+   "position": [
+    -736,
+    -240
+   ],
+   "parameters": {
+    "jsCode": "// Turns the SOURCES tab the pitching engine already maintains into CrowdRelay\n// candidates. It imports what the band worked out by hand; it does not decide\n// who may be contacted. Screening still judges every row on the CrowdRelay\n// side, and an operator still confirms each route before it becomes a target.\n//\n// Three rules keep this honest:\n//\n//  - `route_is_published` is true only where the row records a route. A blank\n//    cell is skipped, never turned into an address by guessing at a domain.\n//  - `PROFILE_TASK` rows are not outreach. They are jobs on our own artist\n//    profiles, and importing them as contacts would put housekeeping into a\n//    queue meant for people.\n//  - Prior contact is read from SUBMISSION_LOG, not from the SOURCES row.\n//    `Last_Pitched_At` on SOURCES is never backfilled \u2014 it is empty on every\n//    row while the log holds thirteen sends to eight curators. Trusting the\n//    column would hand those eight over as untouched first approaches, and the\n//    band only gets one of those per curator.\n\nfunction clean(v) { return String(v === undefined || v === null ? '' : v).trim(); }\nfunction truth(v) { return ['TRUE','YES','TAK','1'].includes(clean(v).toUpperCase()); }\nfunction isEmail(v) { return /^[^\\s@,;]+@[^\\s@,;]+\\.[^\\s@,;]+$/.test(clean(v).toLowerCase()); }\n\n// Where a submission actually lands. Everything here is a playlist route today;\n// the column is kept so a future radio or press row maps without a code change.\nconst KIND = { spotify: 'playlist', deezer: 'playlist', tidal: 'playlist',\n               'apple music': 'playlist', 'amazon music': 'playlist',\n               multi: 'playlist', radio: 'radio', press: 'press', creator: 'creator' };\n\nfunction rowsOf(node) { try { return $(node).all().map(i => i.json || {}); } catch (e) { return []; } }\nconst rows = rowsOf('GS \u2014 SOURCES');\n\n// Everyone already contacted, by address and by source. The log is the only\n// honest record of this: SOURCES.Last_Pitched_At was never written back.\nconst contactedEmail = new Set();\nconst contactedSource = new Set();\nfor (const log of rowsOf('GS \u2014 SUBMISSION_LOG')) {\n  const recipient = clean(log.Recipient).toLowerCase();\n  const sourceId = clean(log.Source_ID).toUpperCase();\n  if (recipient) contactedEmail.add(recipient);\n  if (sourceId) contactedSource.add(sourceId);\n}\nconst candidates = [];\nconst skipped = { inactive: 0, profile_task: 0, no_route: 0 };\nlet already = 0;\n\nfor (const row of rows) {\n  const id = clean(row.Source_ID);\n  if (!id) continue;\n  if (!truth(row.Active)) { skipped.inactive += 1; continue; }\n\n  const actionClass = clean(row.Action_Class).toUpperCase();\n  // A task on our own profile is not a contact.\n  if (actionClass === 'PROFILE_TASK') { skipped.profile_task += 1; continue; }\n\n  const email = clean(row.Contact_Email);\n  const form = clean(row.Submission_URL);\n  let route_kind = null, route_value = null;\n  if (isEmail(email)) { route_kind = 'email'; route_value = email.toLowerCase(); }\n  else if (/^https?:\\/\\//i.test(form)) { route_kind = 'submission_form'; route_value = form; }\n  if (!route_value) { skipped.no_route += 1; continue; }\n\n  const priorSend = contactedEmail.has(route_value.toLowerCase())\n    || contactedSource.has(id.toUpperCase());\n  if (priorSend) already += 1;\n\n  const platform = clean(row.Platform).toLowerCase().split('/')[0].trim();\n  const evidenceUrl = clean(row.Source_Evidence_URL);\n\n  candidates.push({\n    target_kind: KIND[platform] || 'playlist',\n    display_name: (clean(row.Source_Name) || id).slice(0, 200),\n    source: 'operator_import',\n    source_reference: (evidenceUrl || ('sheet:' + clean($env.VIRYA_PITCHING_SHEET_ID) + '#SOURCES:' + id)).slice(0, 2048),\n    // The row itself is the evidence for an import: what was recorded, when it\n    // was last verified, and whether the one first approach is already spent.\n    evidence: ('Operator import from PLAYLIST_PITCHING SOURCES, row ' + id + '. '\n      + 'Platform: ' + (clean(row.Platform) || 'unknown') + '. '\n      + 'Recorded action class: ' + (actionClass || 'unset') + '. '\n      + 'Free channel: ' + (truth(row.Free) ? 'yes' : 'no') + '. '\n      + 'Last verified: ' + (clean(row.Last_Verified) || 'never') + '. '\n      + (priorSend\n          ? 'ALREADY PITCHED by the sheet-driven engine (see SUBMISSION_LOG); the first approach is spent.'\n          : 'No prior pitch recorded in SUBMISSION_LOG.')\n      + (clean(row.Notes) ? ' Notes: ' + clean(row.Notes) : '')).slice(0, 4000),\n    route_kind,\n    route_value: route_value.slice(0, 2048),\n    route_is_published: true,\n    // The sheet's own scores are the band's judgement of fit, not a measurement.\n    // Where it has one, use it; otherwise fall back rather than invent a number.\n    fit_basis_points: (function () {\n      const trust = Number(clean(row.Trust_Score));\n      return Number.isFinite(trust) && trust > 0\n        ? Math.max(0, Math.min(10000, Math.round(trust * 100)))\n        : Number($env.VIRYA_IMPORT_FIT_BASIS_POINTS || 7000);\n    })(),\n    follower_count: null,\n    engagement_count: null,\n    // Both stay false: a spreadsheet cannot support either claim, and guessing\n    // one would refuse a real contact on evidence we do not have.\n    sells_placement: false,\n    churns_indiscriminately: false\n  });\n}\n\nconst seen = new Set();\nconst unique = candidates.filter(c => {\n  const key = c.route_kind + ':' + c.route_value.toLowerCase();\n  if (seen.has(key)) return false;\n  seen.add(key); return true;\n});\n\nconst batches = [];\nfor (let i = 0; i < unique.length; i += 100) batches.push(unique.slice(i, i + 100));\n\nreturn [{ json: {\n  commit: truth($env.VIRYA_IMPORT_COMMIT),\n  total: unique.length,\n  already,\n  emails: unique.filter(c => c.route_kind === 'email').length,\n  forms: unique.filter(c => c.route_kind === 'submission_form').length,\n  skipped,\n  batches,\n  preview: unique.slice(0, 5).map(c => c.display_name)\n}}];"
+   },
+   "typeVersion": 2
+  },
+  {
+   "id": "faea5eb8-6af2-413b-a49e-11f1dbc88a69",
+   "name": "Commit or dry run?",
+   "type": "n8n-nodes-base.if",
+   "position": [
+    -496,
+    -240
+   ],
+   "parameters": {
+    "options": {},
+    "conditions": {
+     "options": {
+      "version": 2,
+      "leftValue": "",
+      "caseSensitive": true,
+      "typeValidation": "strict"
+     },
+     "combinator": "and",
+     "conditions": [
+      {
+       "operator": {
+        "type": "boolean",
+        "operation": "true",
+        "singleValue": true
+       },
+       "leftValue": "={{ $json.commit }}",
+       "rightValue": true
+      }
+     ]
+    }
+   },
+   "typeVersion": 2.2
+  },
+  {
+   "id": "3d636e93-0105-46fc-a073-040ca4bd55f7",
+   "name": "One request per batch",
+   "type": "n8n-nodes-base.splitOut",
+   "position": [
+    -256,
+    -352
+   ],
+   "parameters": {
+    "options": {},
+    "fieldToSplitOut": "batches"
+   },
+   "typeVersion": 1
+  },
+  {
+   "id": "ae082cf0-0184-4b50-9747-a67fdc35c63a",
+   "name": "Send batch for screening",
+   "type": "n8n-nodes-base.httpRequest",
+   "position": [
+    -16,
+    -352
+   ],
+   "parameters": {
+    "url": "={{ ($env.CROWDRELAY_API_URL || 'https://signal-api.virya.music/v1').replace(/\\/$/, '') + '/internal/autopilot/outreach/candidates' }}",
+    "body": "={{ JSON.stringify({candidates: $json.batches}) }}",
+    "method": "POST",
+    "options": {
+     "timeout": 30000
+    },
+    "sendBody": true,
+    "contentType": "raw",
+    "sendHeaders": true,
+    "authentication": "genericCredentialType",
+    "rawContentType": "application/json",
+    "genericAuthType": "httpHeaderAuth",
+    "headerParameters": {
+     "parameters": [
+      {
+       "name": "User-Agent",
+       "value": "Virya-n8n/1.0 (https://virya.music)"
+      },
+      {
+       "name": "Idempotency-Key",
+       "value": "={{ 'sheet-import:' + $env.VIRYA_PITCHING_SHEET_ID + ':' + $itemIndex }}"
+      }
+     ]
+    }
+   },
+   "credentials": {
+    "httpHeaderAuth": {
+     "id": "viryaCrowdRelayCommerceAuthV1",
+     "name": "Virya CrowdRelay commerce API"
+    }
+   },
+   "typeVersion": 4.2
+  },
+  {
+   "id": "f510ea05-21d3-4894-ac9b-82002d73655e",
+   "name": "Build the import report",
+   "type": "n8n-nodes-base.code",
+   "position": [
+    -256,
+    -96
+   ],
+   "parameters": {
+    "jsCode": "// Dry run by default. An import that writes on its first execution gives nobody\n// a chance to read what it matched, and a wrong mapping is far cheaper to find\n// in a report than in a queue of contacts nobody recognises.\nconst r = $json;\nconst lines = [\n  '**VIRYA \u2014 import kontaktow z PLAYLIST_PITCHING**',\n  '',\n  r.commit ? 'Tryb: ZAPIS do CrowdRelay' : 'Tryb: PROBNY (nic nie zapisano)',\n  'Do zaimportowania: ' + r.total + ' (' + r.emails + ' e-mail, ' + r.forms + ' formularz)',\n  'Juz pitchowane wczesniej: ' + r.already + ' \u2014 pierwsze podejscie zuzyte',\n  'Pominiete \u2014 nieaktywne: ' + r.skipped.inactive,\n  'Pominiete \u2014 zadanie na wlasnym profilu: ' + r.skipped.profile_task,\n  'Pominiete \u2014 brak zapisanej sciezki kontaktu: ' + r.skipped.no_route,\n  '',\n  'Przyklady: ' + r.preview.join(', ')\n];\nif (!r.commit) lines.push('', 'Ustaw VIRYA_IMPORT_COMMIT=TRUE i uruchom ponownie, aby zapisac.');\nconst content = lines.join('\\n').slice(0, 1900);\n// Pre-serialised: an n8n expression cannot carry a nested object literal,\n// because its parser stops at the first `}}`.\nconst discordBody = JSON.stringify({ content, allowed_mentions: { parse: [] } });\nreturn [{ json: { content, discordBody } }];"
+   },
+   "typeVersion": 2
+  },
+  {
+   "id": "fcd02e22-5310-48b0-ac06-75a0bdbe630a",
+   "name": "Report what was matched",
+   "type": "n8n-nodes-base.httpRequest",
+   "position": [
+    -16,
+    -96
+   ],
+   "parameters": {
+    "url": "={{ 'https://discord.com/api/v10/channels/' + ($env.DISCORD_OPS_CHANNEL_ID || '1529482376458276964') + '/messages' }}",
+    "body": "={{ $json.discordBody }}",
+    "method": "POST",
+    "options": {
+     "timeout": 10000
+    },
+    "sendBody": true,
+    "contentType": "raw",
+    "sendHeaders": true,
+    "authentication": "genericCredentialType",
+    "rawContentType": "application/json",
+    "genericAuthType": "httpHeaderAuth",
+    "headerParameters": {
+     "parameters": [
+      {
+       "name": "User-Agent",
+       "value": "Virya-n8n/1.0 (https://virya.music)"
+      }
+     ]
+    }
+   },
+   "credentials": {
+    "httpHeaderAuth": {
+     "id": "FB7ONYMUsZFfObWB",
+     "name": "Discord Bot HTTP"
+    }
+   },
+   "typeVersion": 4.2
+  }
+ ],
+ "connections": {
+  "Run by an operator": {
+   "main": [
+    [
+     {
+      "node": "GS \u2014 SOURCES",
+      "type": "main",
+      "index": 0
+     },
+     {
+      "node": "GS \u2014 SUBMISSION_LOG",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "GS \u2014 SOURCES": {
+   "main": [
+    [
+     {
+      "node": "Map sheet rows to candidates",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Map sheet rows to candidates": {
+   "main": [
+    [
+     {
+      "node": "Commit or dry run?",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Commit or dry run?": {
+   "main": [
+    [
+     {
+      "node": "One request per batch",
+      "type": "main",
+      "index": 0
+     }
+    ],
+    [
+     {
+      "node": "Build the import report",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "One request per batch": {
+   "main": [
+    [
+     {
+      "node": "Send batch for screening",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Build the import report": {
+   "main": [
+    [
+     {
+      "node": "Report what was matched",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "GS \u2014 SUBMISSION_LOG": {
+   "main": [
+    [
+     {
+      "node": "Map sheet rows to candidates",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  }
+ },
+ "settings": {
+  "executionOrder": "v1",
+  "binaryMode": "separate",
+  "availableInMCP": false
+ },
+ "staticData": null,
+ "meta": null,
+ "nodeGroups": [],
+ "pinData": {},
+ "versionId": "c6443306-38f4-42dc-b90b-e5acd9157433",
+ "activeVersionId": null,
+ "versionCounter": 6,
+ "triggerCount": 0,
+ "sourceWorkflowId": null,
+ "shared": [
+  {
+   "updatedAt": "2026-08-23T15:09:55.684Z",
+   "createdAt": "2026-08-23T15:09:55.684Z",
+   "role": "workflow:owner",
+   "workflowId": "KEIld4dPQlkjJ76m",
+   "projectId": "e2rPVcUBR4DTE3mO",
+   "project": {
+    "updatedAt": "2026-07-24T09:45:30.763Z",
+    "createdAt": "2026-07-24T09:45:07.113Z",
+    "id": "e2rPVcUBR4DTE3mO",
+    "name": "Virya Crew <virya.crew@gmail.com>",
+    "type": "personal",
+    "icon": null,
+    "description": null,
+    "customTelemetryTags": [],
+    "creatorId": "89259ec0-46eb-41d3-a04e-eb12f52f6342"
+   }
+  }
+ ],
+ "tags": [],
+ "activeVersion": null
+}

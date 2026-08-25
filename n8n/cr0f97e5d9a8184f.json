@@ -1,0 +1,250 @@
+{
+ "updatedAt": "2026-08-15T20:53:18.241Z",
+ "createdAt": "2026-07-31T12:10:02.985Z",
+ "id": "cr0f97e5d9a8184f",
+ "name": "CrowdRelay \u2014 admission.pass.redeemed branch",
+ "description": null,
+ "active": true,
+ "isArchived": false,
+ "nodes": [
+  {
+   "parameters": {
+    "inputSource": "passthrough"
+   },
+   "id": "a1ddf285-728d-4d1f-ad9d-2c83c412dc60",
+   "name": "Called by verified ingress",
+   "type": "n8n-nodes-base.executeWorkflowTrigger",
+   "typeVersion": 1.1,
+   "position": [
+    0,
+    0
+   ]
+  },
+  {
+   "parameters": {
+    "jsCode": "const envelope = $json;\nif (!envelope || envelope.type !== 'admission.pass.redeemed' || envelope.version !== 1) throw new Error('Unsupported CrowdRelay event');\nconst data = envelope.data ?? {};\nfor (const key of ['public_reference', 'redeemed_at']) {\n  if (data[key] === undefined || data[key] === null || data[key] === '') throw new Error(`Missing redemption field: ${key}`);\n}\nreturn [{ json: { event_id: envelope.id, mail: {\n  operation: 'event', template: 'crowdrelay-admission-redeemed', variables: data, idempotency_key: envelope.id\n} } }];"
+   },
+   "id": "79186b28-3843-428b-9ec9-f0ea0ab55d06",
+   "name": "Validate and build action",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    260,
+    0
+   ]
+  },
+  {
+   "parameters": {
+    "method": "POST",
+    "url": "http://virya-crowdrelay-n8n-bridge:8080/mailer",
+    "sendHeaders": true,
+    "headerParameters": {
+     "parameters": [
+      {
+       "name": "Idempotency-Key",
+       "value": "={{ $json.event_id }}"
+      }
+     ]
+    },
+    "sendBody": true,
+    "contentType": "raw",
+    "rawContentType": "application/json",
+    "body": "={{ JSON.stringify($json.mail) }}",
+    "options": {
+     "timeout": 40000
+    },
+    "authentication": "genericCredentialType",
+    "genericAuthType": "httpHeaderAuth"
+   },
+   "id": "df55f5bf-94ba-46d9-ac3f-4a98a8a8bbb3",
+   "name": "Send through Virya mailer",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.2,
+   "position": [
+    540,
+    0
+   ],
+   "retryOnFail": true,
+   "maxTries": 3,
+   "waitBetweenTries": 10000,
+   "credentials": {
+    "httpHeaderAuth": {
+     "id": "viryaBridgeHeaderAuthV10",
+     "name": "Virya CrowdRelay control-plane bridge"
+    }
+   },
+   "notesInFlow": true,
+   "notes": "Sekrety mailera s\u0105 wy\u0142\u0105cznie w prywatnym bridge; workflow przekazuje tylko payload i idempotency key."
+  }
+ ],
+ "connections": {
+  "Called by verified ingress": {
+   "main": [
+    [
+     {
+      "node": "Validate and build action",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Validate and build action": {
+   "main": [
+    [
+     {
+      "node": "Send through Virya mailer",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  }
+ },
+ "settings": {
+  "executionOrder": "v1",
+  "saveDataErrorExecution": "none",
+  "saveDataSuccessExecution": "none",
+  "saveManualExecutions": false,
+  "errorWorkflow": "98d5e1a4-2dba-5e5a-9be1-2e5d9220859d"
+ },
+ "staticData": null,
+ "meta": {
+  "templateCredsSetupCompleted": false
+ },
+ "nodeGroups": [],
+ "pinData": {},
+ "versionId": "0dbddee5-c912-47c2-b439-c61721cb064e",
+ "activeVersionId": "0dbddee5-c912-47c2-b439-c61721cb064e",
+ "versionCounter": 11,
+ "triggerCount": 0,
+ "sourceWorkflowId": null,
+ "shared": [
+  {
+   "updatedAt": "2026-07-31T12:10:02.985Z",
+   "createdAt": "2026-07-31T12:10:02.985Z",
+   "role": "workflow:owner",
+   "workflowId": "cr0f97e5d9a8184f",
+   "projectId": "e2rPVcUBR4DTE3mO",
+   "project": {
+    "updatedAt": "2026-07-24T09:45:30.763Z",
+    "createdAt": "2026-07-24T09:45:07.113Z",
+    "id": "e2rPVcUBR4DTE3mO",
+    "name": "Virya Crew <virya.crew@gmail.com>",
+    "type": "personal",
+    "icon": null,
+    "description": null,
+    "customTelemetryTags": [],
+    "creatorId": "89259ec0-46eb-41d3-a04e-eb12f52f6342"
+   }
+  }
+ ],
+ "tags": [],
+ "activeVersion": {
+  "updatedAt": "2026-08-12T17:01:41.269Z",
+  "createdAt": "2026-08-12T17:01:41.269Z",
+  "versionId": "0dbddee5-c912-47c2-b439-c61721cb064e",
+  "workflowId": "cr0f97e5d9a8184f",
+  "nodes": [
+   {
+    "parameters": {
+     "inputSource": "passthrough"
+    },
+    "id": "a1ddf285-728d-4d1f-ad9d-2c83c412dc60",
+    "name": "Called by verified ingress",
+    "type": "n8n-nodes-base.executeWorkflowTrigger",
+    "typeVersion": 1.1,
+    "position": [
+     0,
+     0
+    ]
+   },
+   {
+    "parameters": {
+     "jsCode": "const envelope = $json;\nif (!envelope || envelope.type !== 'admission.pass.redeemed' || envelope.version !== 1) throw new Error('Unsupported CrowdRelay event');\nconst data = envelope.data ?? {};\nfor (const key of ['public_reference', 'redeemed_at']) {\n  if (data[key] === undefined || data[key] === null || data[key] === '') throw new Error(`Missing redemption field: ${key}`);\n}\nreturn [{ json: { event_id: envelope.id, mail: {\n  operation: 'event', template: 'crowdrelay-admission-redeemed', variables: data, idempotency_key: envelope.id\n} } }];"
+    },
+    "id": "79186b28-3843-428b-9ec9-f0ea0ab55d06",
+    "name": "Validate and build action",
+    "type": "n8n-nodes-base.code",
+    "typeVersion": 2,
+    "position": [
+     260,
+     0
+    ]
+   },
+   {
+    "parameters": {
+     "method": "POST",
+     "url": "http://virya-crowdrelay-n8n-bridge:8080/mailer",
+     "sendHeaders": true,
+     "headerParameters": {
+      "parameters": [
+       {
+        "name": "Idempotency-Key",
+        "value": "={{ $json.event_id }}"
+       }
+      ]
+     },
+     "sendBody": true,
+     "contentType": "raw",
+     "rawContentType": "application/json",
+     "body": "={{ JSON.stringify($json.mail) }}",
+     "options": {
+      "timeout": 40000
+     },
+     "authentication": "genericCredentialType",
+     "genericAuthType": "httpHeaderAuth"
+    },
+    "id": "df55f5bf-94ba-46d9-ac3f-4a98a8a8bbb3",
+    "name": "Send through Virya mailer",
+    "type": "n8n-nodes-base.httpRequest",
+    "typeVersion": 4.2,
+    "position": [
+     540,
+     0
+    ],
+    "retryOnFail": true,
+    "maxTries": 3,
+    "waitBetweenTries": 10000,
+    "credentials": {
+     "httpHeaderAuth": {
+      "id": "viryaBridgeHeaderAuthV10",
+      "name": "Virya CrowdRelay control-plane bridge"
+     }
+    },
+    "notesInFlow": true,
+    "notes": "Sekrety mailera s\u0105 wy\u0142\u0105cznie w prywatnym bridge; workflow przekazuje tylko payload i idempotency key."
+   }
+  ],
+  "connections": {
+   "Called by verified ingress": {
+    "main": [
+     [
+      {
+       "node": "Validate and build action",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "Validate and build action": {
+    "main": [
+     [
+      {
+       "node": "Send through Virya mailer",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   }
+  },
+  "nodeGroups": [],
+  "authors": "import",
+  "name": null,
+  "description": null,
+  "autosaved": false,
+  "workflowPublishHistory": []
+ }
+}

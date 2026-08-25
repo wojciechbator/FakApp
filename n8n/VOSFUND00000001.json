@@ -1,0 +1,520 @@
+{
+ "updatedAt": "2026-08-15T20:52:25.516Z",
+ "createdAt": "2026-08-11T09:00:00.000Z",
+ "id": "VOSFUND00000001",
+ "name": "CrowdRelay \u2014 CrowdRelayOS funding package executor",
+ "description": "Builds a deterministic Markdown funding package on Drive. Does not submit legal declarations.",
+ "active": true,
+ "isArchived": false,
+ "nodes": [
+  {
+   "id": "9a287e8a-c9dc-4f59-a29f-6daac70d6d7f",
+   "name": "Called by verified ingress",
+   "type": "n8n-nodes-base.executeWorkflowTrigger",
+   "position": [
+    16,
+    -112
+   ],
+   "parameters": {
+    "inputSource": "passthrough"
+   },
+   "typeVersion": 1.1
+  },
+  {
+   "id": "4ffa8160-da31-45dd-8385-725d1f08075e",
+   "name": "Build deterministic funding package",
+   "type": "n8n-nodes-base.code",
+   "position": [
+    272,
+    -112
+   ],
+   "parameters": {
+    "jsCode": "const e=$json;if(!e||e.type!=='crowdrelay.funding.package_requested'||e.version!==1) throw new Error('Unsupported funding package event');const d=e.data??{};if(!d.opportunity_id||!d.title||!d.deadline) throw new Error('Invalid funding package payload');const f=d.facts&&typeof d.facts==='object'?d.facts:{};const money=n=>`${(Number(n||0)/100).toFixed(2)} ${d.currency||'PLN'}`;const lines=[`# VIRYA \u2014 pakiet wniosku: ${d.title}`,'',`**Organizacja:** ${d.organization||'-'}`,`**Deadline:** ${d.deadline}`,`**Wnioskowana kwota:** ${money(d.funding_amount_minor)}`,`**Wk\u0142ad w\u0142asny:** ${money(d.own_contribution_minor)}`,`**\u0179r\u00f3d\u0142o:** ${d.destination_url||'-'}`,'','## Dane kanoniczne','',...Object.entries(f).sort(([a],[b])=>a.localeCompare(b)).map(([k,v])=>`- **${k}:** ${typeof v==='object'?JSON.stringify(v):String(v)}`),'','## Checklist','- [ ] opis projektu zweryfikowany','- [ ] harmonogram zweryfikowany','- [ ] bud\u017cet zweryfikowany','- [ ] za\u0142\u0105czniki kompletne','- [ ] o\u015bwiadczenia prawne zatwierdzone przez cz\u0142owieka','','_Pakiet wygenerowany deterministycznie przez VIRYA OS. Finalne z\u0142o\u017cenie wymaga APPROVAL._'];const md=lines.join('\\n');const safe=String(d.title).replace(/[^a-zA-Z0-9\u0105\u0107\u0119\u0142\u0144\u00f3\u015b\u017a\u017c\u0104\u0106\u0118\u0141\u0143\u00d3\u015a\u0179\u017b _.-]/g,'').trim().slice(0,90)||'funding';const fileName=`VIRYA-funding-${safe}-${d.opportunity_id}.md`;return [{json:{event_id:e.id,action_id:d.action_id,opportunity_id:d.opportunity_id,fileName},binary:{data:{data:Buffer.from(md,'utf8').toString('base64'),mimeType:'text/markdown',fileName}}}];"
+   },
+   "typeVersion": 2
+  },
+  {
+   "id": "b75626ee-620c-465e-b768-bc92bf38bc70",
+   "name": "Drive \u2014 upload funding package",
+   "type": "n8n-nodes-base.googleDrive",
+   "onError": "continueErrorOutput",
+   "position": [
+    768,
+    -112
+   ],
+   "parameters": {
+    "name": "={{ $json.fileName }}",
+    "driveId": {
+     "__rl": true,
+     "mode": "list",
+     "value": "My Drive",
+     "cachedResultName": "My Drive"
+    },
+    "options": {
+     "simplifyOutput": true
+    },
+    "folderId": {
+     "__rl": true,
+     "mode": "id",
+     "value": "={{ $env.VIRYA_FUNDING_DRIVE_FOLDER_ID }}"
+    }
+   },
+   "credentials": {
+    "googleDriveOAuth2Api": {
+     "id": "cacSOsrP0NNmk6nu",
+     "name": "Google Drive account"
+    }
+   },
+   "typeVersion": 3
+  },
+  {
+   "id": "4918fc3b-ba7f-4445-840b-2039f3eb8c76",
+   "name": "Prepare funding package success receipt",
+   "type": "n8n-nodes-base.code",
+   "position": [
+    832,
+    -208
+   ],
+   "parameters": {
+    "jsCode": "const src=$('Build deterministic funding package').item.json||{};const out=$json||{};return [{json:{action_id:src.action_id,claim_token:$('Resolve provider execution claim').item.json.claim_token,status:'succeeded',provider_reference:String(out.id||out.webViewLink||out.name||src.fileName||'drive').slice(0,240),metadata:{event_id:src.event_id,provider:'google_drive',domain_transition:'package_ready'},occurred_at:new Date().toISOString()}}];"
+   },
+   "typeVersion": 2
+  },
+  {
+   "id": "77d9b652-5ef7-4f01-a6b7-7ecab879c9f8",
+   "name": "Fail closed on ambiguous provider error",
+   "type": "n8n-nodes-base.code",
+   "position": [
+    832,
+    -16
+   ],
+   "parameters": {
+    "jsCode": "const src=$('Resolve provider execution claim').item.json||{}; throw new Error(`Provider outcome ambiguous for action ${src.action_id||'unknown'}; claim retained to prevent automatic duplicate`);"
+   },
+   "typeVersion": 2
+  },
+  {
+   "id": "83fe4a1e-024a-4fff-9316-99c18ebe34bd",
+   "name": "Queue funding package success receipt",
+   "type": "n8n-nodes-base.executeWorkflow",
+   "position": [
+    1104,
+    -208
+   ],
+   "parameters": {
+    "options": {},
+    "workflowId": {
+     "__rl": true,
+     "mode": "id",
+     "value": "VOSRECEIPT00001"
+    }
+   },
+   "typeVersion": 1.3,
+   "alwaysOutputData": true
+  },
+  {
+   "id": "3bca5ff4-4792-4ab3-976a-10c72312cccb",
+   "name": "Provider execution claim",
+   "type": "n8n-nodes-base.httpRequest",
+   "position": [
+    432,
+    -112
+   ],
+   "parameters": {
+    "url": "={{ 'https://signal-api.virya.music/v1/internal/autopilot/actions/' + $json.action_id + '/execution-claim' }}",
+    "method": "POST",
+    "options": {
+     "timeout": 30000
+    },
+    "jsonBody": "={{ ({executor_id:String($env.VIRYAOS_EXECUTOR_ID||'virya-n8n-primary').trim(),occurred_at:new Date().toISOString()}) }}",
+    "sendBody": true,
+    "sendHeaders": true,
+    "specifyBody": "json",
+    "headerParameters": {
+     "parameters": [
+      {
+       "name": "Authorization",
+       "value": "={{ 'Bearer ' + $env.CROWDRELAY_COMMERCE_API_KEY }}"
+      }
+     ]
+    }
+   },
+   "typeVersion": 4.4
+  },
+  {
+   "id": "8f802552-f10c-49a3-ac43-cbc93999cb89",
+   "name": "Resolve provider execution claim",
+   "type": "n8n-nodes-base.code",
+   "position": [
+    592,
+    -112
+   ],
+   "parameters": {
+    "jsCode": "const src=$('Build deterministic funding package').item.json||{}; const r=$json||{}; const disposition=String(r.disposition||'');\nif(disposition==='already_succeeded') return [];\nif(disposition!=='claimed'||!r.claim_token) throw new Error(`Provider execution ${disposition||'unclaimed'}; fail closed to prevent duplicate external side effects`);\nreturn [{json:{...src,claim_token:String(r.claim_token),attempt_number:Number(r.attempt_number||1)}}];"
+   },
+   "typeVersion": 2
+  }
+ ],
+ "connections": {
+  "Called by verified ingress": {
+   "main": [
+    [
+     {
+      "node": "Build deterministic funding package",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Build deterministic funding package": {
+   "main": [
+    [
+     {
+      "node": "Provider execution claim",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Drive \u2014 upload funding package": {
+   "main": [
+    [
+     {
+      "node": "Prepare funding package success receipt",
+      "type": "main",
+      "index": 0
+     }
+    ],
+    [
+     {
+      "node": "Fail closed on ambiguous provider error",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Prepare funding package success receipt": {
+   "main": [
+    [
+     {
+      "node": "Queue funding package success receipt",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Provider execution claim": {
+   "main": [
+    [
+     {
+      "node": "Resolve provider execution claim",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Resolve provider execution claim": {
+   "main": [
+    [
+     {
+      "node": "Drive \u2014 upload funding package",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  }
+ },
+ "settings": {
+  "executionOrder": "v1",
+  "saveDataErrorExecution": "none",
+  "saveDataSuccessExecution": "none",
+  "saveManualExecutions": false,
+  "errorWorkflow": "98d5e1a4-2dba-5e5a-9be1-2e5d9220859d",
+  "saveExecutionProgress": false,
+  "executionTimeout": 90,
+  "binaryMode": "separate"
+ },
+ "staticData": null,
+ "meta": {
+  "templateCredsSetupCompleted": true
+ },
+ "nodeGroups": [],
+ "pinData": {},
+ "versionId": "d3dc10a8-4c69-4f32-893e-e139faab1047",
+ "activeVersionId": "d3dc10a8-4c69-4f32-893e-e139faab1047",
+ "versionCounter": 12,
+ "triggerCount": 0,
+ "sourceWorkflowId": null,
+ "shared": [
+  {
+   "updatedAt": "2026-08-11T12:54:06.460Z",
+   "createdAt": "2026-08-11T12:54:06.460Z",
+   "role": "workflow:owner",
+   "workflowId": "VOSFUND00000001",
+   "projectId": "e2rPVcUBR4DTE3mO",
+   "project": {
+    "updatedAt": "2026-07-24T09:45:30.763Z",
+    "createdAt": "2026-07-24T09:45:07.113Z",
+    "id": "e2rPVcUBR4DTE3mO",
+    "name": "Virya Crew <virya.crew@gmail.com>",
+    "type": "personal",
+    "icon": null,
+    "description": null,
+    "customTelemetryTags": [],
+    "creatorId": "89259ec0-46eb-41d3-a04e-eb12f52f6342"
+   }
+  }
+ ],
+ "tags": [],
+ "activeVersion": {
+  "updatedAt": "2026-08-25T12:20:51.980Z",
+  "createdAt": "2026-08-13T20:34:42.666Z",
+  "versionId": "d3dc10a8-4c69-4f32-893e-e139faab1047",
+  "workflowId": "VOSFUND00000001",
+  "nodes": [
+   {
+    "id": "9a287e8a-c9dc-4f59-a29f-6daac70d6d7f",
+    "name": "Called by verified ingress",
+    "type": "n8n-nodes-base.executeWorkflowTrigger",
+    "position": [
+     16,
+     -112
+    ],
+    "parameters": {
+     "inputSource": "passthrough"
+    },
+    "typeVersion": 1.1
+   },
+   {
+    "id": "4ffa8160-da31-45dd-8385-725d1f08075e",
+    "name": "Build deterministic funding package",
+    "type": "n8n-nodes-base.code",
+    "position": [
+     272,
+     -112
+    ],
+    "parameters": {
+     "jsCode": "const e=$json;if(!e||e.type!=='crowdrelay.funding.package_requested'||e.version!==1) throw new Error('Unsupported funding package event');const d=e.data??{};if(!d.opportunity_id||!d.title||!d.deadline) throw new Error('Invalid funding package payload');const f=d.facts&&typeof d.facts==='object'?d.facts:{};const money=n=>`${(Number(n||0)/100).toFixed(2)} ${d.currency||'PLN'}`;const lines=[`# VIRYA \u2014 pakiet wniosku: ${d.title}`,'',`**Organizacja:** ${d.organization||'-'}`,`**Deadline:** ${d.deadline}`,`**Wnioskowana kwota:** ${money(d.funding_amount_minor)}`,`**Wk\u0142ad w\u0142asny:** ${money(d.own_contribution_minor)}`,`**\u0179r\u00f3d\u0142o:** ${d.destination_url||'-'}`,'','## Dane kanoniczne','',...Object.entries(f).sort(([a],[b])=>a.localeCompare(b)).map(([k,v])=>`- **${k}:** ${typeof v==='object'?JSON.stringify(v):String(v)}`),'','## Checklist','- [ ] opis projektu zweryfikowany','- [ ] harmonogram zweryfikowany','- [ ] bud\u017cet zweryfikowany','- [ ] za\u0142\u0105czniki kompletne','- [ ] o\u015bwiadczenia prawne zatwierdzone przez cz\u0142owieka','','_Pakiet wygenerowany deterministycznie przez VIRYA OS. Finalne z\u0142o\u017cenie wymaga APPROVAL._'];const md=lines.join('\\n');const safe=String(d.title).replace(/[^a-zA-Z0-9\u0105\u0107\u0119\u0142\u0144\u00f3\u015b\u017a\u017c\u0104\u0106\u0118\u0141\u0143\u00d3\u015a\u0179\u017b _.-]/g,'').trim().slice(0,90)||'funding';const fileName=`VIRYA-funding-${safe}-${d.opportunity_id}.md`;return [{json:{event_id:e.id,action_id:d.action_id,opportunity_id:d.opportunity_id,fileName},binary:{data:{data:Buffer.from(md,'utf8').toString('base64'),mimeType:'text/markdown',fileName}}}];"
+    },
+    "typeVersion": 2
+   },
+   {
+    "id": "b75626ee-620c-465e-b768-bc92bf38bc70",
+    "name": "Drive \u2014 upload funding package",
+    "type": "n8n-nodes-base.googleDrive",
+    "onError": "continueErrorOutput",
+    "position": [
+     768,
+     -112
+    ],
+    "parameters": {
+     "name": "={{ $json.fileName }}",
+     "driveId": {
+      "__rl": true,
+      "mode": "list",
+      "value": "My Drive",
+      "cachedResultName": "My Drive"
+     },
+     "options": {
+      "simplifyOutput": true
+     },
+     "folderId": {
+      "__rl": true,
+      "mode": "id",
+      "value": "={{ $env.VIRYA_FUNDING_DRIVE_FOLDER_ID }}"
+     }
+    },
+    "credentials": {
+     "googleDriveOAuth2Api": {
+      "id": "cacSOsrP0NNmk6nu",
+      "name": "Google Drive account"
+     }
+    },
+    "typeVersion": 3
+   },
+   {
+    "id": "4918fc3b-ba7f-4445-840b-2039f3eb8c76",
+    "name": "Prepare funding package success receipt",
+    "type": "n8n-nodes-base.code",
+    "position": [
+     832,
+     -208
+    ],
+    "parameters": {
+     "jsCode": "const src=$('Build deterministic funding package').item.json||{};const out=$json||{};return [{json:{action_id:src.action_id,claim_token:$('Resolve provider execution claim').item.json.claim_token,status:'succeeded',provider_reference:String(out.id||out.webViewLink||out.name||src.fileName||'drive').slice(0,240),metadata:{event_id:src.event_id,provider:'google_drive',domain_transition:'package_ready'},occurred_at:new Date().toISOString()}}];"
+    },
+    "typeVersion": 2
+   },
+   {
+    "id": "77d9b652-5ef7-4f01-a6b7-7ecab879c9f8",
+    "name": "Fail closed on ambiguous provider error",
+    "type": "n8n-nodes-base.code",
+    "position": [
+     832,
+     -16
+    ],
+    "parameters": {
+     "jsCode": "const src=$('Resolve provider execution claim').item.json||{}; throw new Error(`Provider outcome ambiguous for action ${src.action_id||'unknown'}; claim retained to prevent automatic duplicate`);"
+    },
+    "typeVersion": 2
+   },
+   {
+    "id": "83fe4a1e-024a-4fff-9316-99c18ebe34bd",
+    "name": "Queue funding package success receipt",
+    "type": "n8n-nodes-base.executeWorkflow",
+    "position": [
+     1104,
+     -208
+    ],
+    "parameters": {
+     "options": {},
+     "workflowId": {
+      "__rl": true,
+      "mode": "id",
+      "value": "VOSRECEIPT00001"
+     }
+    },
+    "typeVersion": 1.3,
+    "alwaysOutputData": true
+   },
+   {
+    "id": "3bca5ff4-4792-4ab3-976a-10c72312cccb",
+    "name": "Provider execution claim",
+    "type": "n8n-nodes-base.httpRequest",
+    "position": [
+     432,
+     -112
+    ],
+    "parameters": {
+     "url": "={{ 'https://signal-api.virya.music/v1/internal/autopilot/actions/' + $json.action_id + '/execution-claim' }}",
+     "method": "POST",
+     "options": {
+      "timeout": 30000
+     },
+     "jsonBody": "={{ ({executor_id:String($env.VIRYAOS_EXECUTOR_ID||'virya-n8n-primary').trim(),occurred_at:new Date().toISOString()}) }}",
+     "sendBody": true,
+     "sendHeaders": true,
+     "specifyBody": "json",
+     "headerParameters": {
+      "parameters": [
+       {
+        "name": "Authorization",
+        "value": "={{ 'Bearer ' + $env.CROWDRELAY_COMMERCE_API_KEY }}"
+       }
+      ]
+     }
+    },
+    "typeVersion": 4.4
+   },
+   {
+    "id": "8f802552-f10c-49a3-ac43-cbc93999cb89",
+    "name": "Resolve provider execution claim",
+    "type": "n8n-nodes-base.code",
+    "position": [
+     592,
+     -112
+    ],
+    "parameters": {
+     "jsCode": "const src=$('Build deterministic funding package').item.json||{}; const r=$json||{}; const disposition=String(r.disposition||'');\nif(disposition==='already_succeeded') return [];\nif(disposition!=='claimed'||!r.claim_token) throw new Error(`Provider execution ${disposition||'unclaimed'}; fail closed to prevent duplicate external side effects`);\nreturn [{json:{...src,claim_token:String(r.claim_token),attempt_number:Number(r.attempt_number||1)}}];"
+    },
+    "typeVersion": 2
+   }
+  ],
+  "connections": {
+   "Called by verified ingress": {
+    "main": [
+     [
+      {
+       "node": "Build deterministic funding package",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "Build deterministic funding package": {
+    "main": [
+     [
+      {
+       "node": "Provider execution claim",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "Drive \u2014 upload funding package": {
+    "main": [
+     [
+      {
+       "node": "Prepare funding package success receipt",
+       "type": "main",
+       "index": 0
+      }
+     ],
+     [
+      {
+       "node": "Fail closed on ambiguous provider error",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "Prepare funding package success receipt": {
+    "main": [
+     [
+      {
+       "node": "Queue funding package success receipt",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "Provider execution claim": {
+    "main": [
+     [
+      {
+       "node": "Resolve provider execution claim",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "Resolve provider execution claim": {
+    "main": [
+     [
+      {
+       "node": "Drive \u2014 upload funding package",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   }
+  },
+  "nodeGroups": [],
+  "authors": "Virya Crew",
+  "name": "Version d3dc10a8",
+  "description": "",
+  "autosaved": true,
+  "workflowPublishHistory": [
+   {
+    "createdAt": "2026-08-13T20:34:45.275Z",
+    "id": 596,
+    "workflowId": "VOSFUND00000001",
+    "versionId": "d3dc10a8-4c69-4f32-893e-e139faab1047",
+    "event": "activated",
+    "userId": "89259ec0-46eb-41d3-a04e-eb12f52f6342"
+   }
+  ]
+ }
+}

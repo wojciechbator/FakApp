@@ -1,0 +1,215 @@
+{
+ "updatedAt": "2026-08-25T09:26:39.054Z",
+ "createdAt": "2026-08-25T09:26:39.054Z",
+ "id": "kern-ab7ebc7d41db50be",
+ "name": "CrowdRelay \u2014 CrowdRelayOS outreach discovery executor",
+ "description": null,
+ "active": true,
+ "isArchived": false,
+ "nodes": [
+  {
+   "parameters": {},
+   "id": "trigger",
+   "name": "Called by verified ingress",
+   "type": "n8n-nodes-base.executeWorkflowTrigger",
+   "typeVersion": 1.1,
+   "position": [
+    -400,
+    0
+   ]
+  },
+  {
+   "parameters": {
+    "jsCode": "// CrowdRelay decides WHEN to sweep and WHAT is admissible. This reads\n// published text and reports what it read. It never judges a candidate and\n// never invents a contact.\nconst e = $json;\nif (!e || e.type !== 'crowdrelay.outreach.discovery_requested' || e.version !== 1) return [];\nconst d = e.data ?? {};\nconst requested = Number(d.requested_candidates ?? 0);\nif (!Number.isInteger(requested) || requested < 1 || requested > 100) {\n  throw new Error('Invalid discovery request');\n}\nconst queries = String($env.VIRYA_DISCOVERY_PLAYLIST_QUERIES || '')\n  .split('|').map(q => q.trim()).filter(Boolean);\nif (queries.length === 0) throw new Error('Set VIRYA_DISCOVERY_PLAYLIST_QUERIES');\nconst screening = d.screening_contract ?? {};\n// One item per search: the credential is attached by n8n, so nothing here\n// carries a token.\nreturn queries.map(query => ({ json: {\n  event_id: e.id,\n  action_id: String(d.action_id || ''),\n  requested,\n  query,\n  min_followers: Number(screening.minimum_follower_count ?? 250)\n}}));"
+   },
+   "id": "validate",
+   "name": "Validate sweep request",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    -180,
+    0
+   ]
+  },
+  {
+   "parameters": {
+    "url": "=https://api.spotify.com/v1/search?type=playlist&limit=50&q={{ encodeURIComponent($json.query) }}",
+    "sendHeaders": true,
+    "headerParameters": {
+     "parameters": [
+      {
+       "name": "User-Agent",
+       "value": "Virya-n8n/1.0 (https://virya.music)"
+      }
+     ]
+    },
+    "options": {
+     "timeout": 15000
+    }
+   },
+   "id": "search",
+   "name": "Search playlists",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.2,
+   "position": [
+    60,
+    0
+   ]
+  },
+  {
+   "parameters": {
+    "jsCode": "// Read a submission route ONLY where a curator published one for that\n// purpose. Never infer an address and never pattern-guess one from a name or\n// domain: CrowdRelay refuses those as `route_inferred`, and a burned curator\n// does not come back. The description snippet travels with every candidate,\n// because a route no human can check later is refused as `evidence_missing`.\nconst plan = $('Validate sweep request').first().json;\nconst EMAIL = /[a-z0-9._%+-]+@[a-z0-9.-]+\\.[a-z]{2,}/i;\nconst URL_RE = /https?:\\/\\/[^\\s\"'<>]+/i;\n// An address is a submission route only when the surrounding text says so.\nconst INTENT = /(submi|send|pitch|demo|promo|contact|wy[s\\u015b]lij|zg[l\\u0142]o[s\\u015b]|kontakt)/i;\nconst SELLS = /(paid\\s*(placement|promo)|guaranteed\\s*placement|buy\\s*a?\\s*spot|p[l\\u0142]atn[ae]\\s*promocj)/i;\nconst out = [];\nfor (const item of $input.all()) {\n  for (const p of (item.json?.playlists?.items ?? [])) {\n    if (!p || p.public === false) continue;\n    const description = String(p.description || '').replace(/<[^>]*>/g, ' ').trim();\n    if (!description || !INTENT.test(description)) continue;\n    const email = description.match(EMAIL)?.[0] ?? null;\n    const url = description.match(URL_RE)?.[0] ?? null;\n    let route_kind = null, route_value = null;\n    if (email) { route_kind = 'email'; route_value = email; }\n    else if (url) { route_kind = 'submission_form'; route_value = url; }\n    if (!route_value) continue;\n    out.push({\n      target_kind: 'playlist',\n      display_name: String(p.name || '').slice(0, 200),\n      source: 'playlist_description',\n      source_reference: String(p.external_urls?.spotify || ('spotify:playlist:' + p.id)).slice(0, 2048),\n      // Verbatim and bounded: this is what a human re-reads to check us.\n      evidence: description.slice(0, 4000),\n      route_kind,\n      route_value: String(route_value).slice(0, 2048),\n      // True only because it was read out of text published for submissions.\n      route_is_published: true,\n      fit_basis_points: Number($env.VIRYA_DISCOVERY_FIT_BASIS_POINTS || 7000),\n      follower_count: Number(p.followers?.total ?? 0) || null,\n      engagement_count: null,\n      // Raw signals, not verdicts. CrowdRelay screens on these.\n      sells_placement: SELLS.test(description),\n      churns_indiscriminately: false\n    });\n  }\n}\nconst seen = new Set();\nconst unique = out.filter(c => {\n  const key = c.route_kind + ':' + c.route_value.toLowerCase();\n  if (seen.has(key)) return false;\n  seen.add(key); return true;\n});\n// Always one item, even with nothing found: an empty batch is a real answer\n// and the only way CrowdRelay can tell a dry source from a crashed adapter.\n//\n// `sweep` says what was read, which is the difference between \"we looked at two\n// hundred playlists and none published a submission route\" and \"the search\n// returned nothing because the credential is dead\". Both post zero candidates,\n// and only the first is a source worth calling exhausted. Counted from the raw\n// responses, before any of the filtering above.\nconst sources_read = $input.all().length;\nlet items_seen = 0;\nfor (const item of $input.all()) {\n  items_seen += (item.json?.playlists?.items ?? []).length;\n}\nconst candidates = unique.slice(0, Math.min(plan.requested, 100));\nreturn [{ json: {\n  event_id: plan.event_id,\n  action_id: plan.action_id,\n  candidates,\n  // CrowdRelay refuses an incoherent pair, so never report fewer items read\n  // than candidates reported.\n  sweep: { sources_read, items_seen: Math.max(items_seen, candidates.length) }\n}}];"
+   },
+   "id": "extract",
+   "name": "Read published routes only",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    300,
+    0
+   ]
+  },
+  {
+   "parameters": {
+    "method": "POST",
+    "url": "={{ ($env.CROWDRELAY_API_URL || 'https://signal-api.virya.music/v1').replace(/\\/$/, '') + '/internal/autopilot/outreach/candidates' }}",
+    "genericAuthType": "httpHeaderAuth",
+    "sendHeaders": true,
+    "headerParameters": {
+     "parameters": [
+      {
+       "name": "User-Agent",
+       "value": "Virya-n8n/1.0 (https://virya.music)"
+      },
+      {
+       "name": "Idempotency-Key",
+       "value": "={{ 'outreach-discovery:' + $json.event_id }}"
+      }
+     ]
+    },
+    "sendBody": true,
+    "contentType": "raw",
+    "rawContentType": "application/json",
+    "body": "={{ JSON.stringify({candidates: $json.candidates, sweep: $json.sweep}) }}",
+    "options": {
+     "timeout": 20000
+    }
+   },
+   "id": "ingest",
+   "name": "Report the sweep for screening",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.2,
+   "position": [
+    540,
+    0
+   ]
+  },
+  {
+   "parameters": {},
+   "id": "done",
+   "name": "Sweep reported",
+   "type": "n8n-nodes-base.noOp",
+   "typeVersion": 1,
+   "position": [
+    780,
+    0
+   ]
+  }
+ ],
+ "connections": {
+  "Called by verified ingress": {
+   "main": [
+    [
+     {
+      "node": "Validate sweep request",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Validate sweep request": {
+   "main": [
+    [
+     {
+      "node": "Search playlists",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Search playlists": {
+   "main": [
+    [
+     {
+      "node": "Read published routes only",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Read published routes only": {
+   "main": [
+    [
+     {
+      "node": "Report the sweep for screening",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Report the sweep for screening": {
+   "main": [
+    [
+     {
+      "node": "Sweep reported",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  }
+ },
+ "settings": {
+  "executionOrder": "v1",
+  "saveDataErrorExecution": "none",
+  "saveDataSuccessExecution": "none",
+  "saveManualExecutions": false,
+  "errorWorkflow": "98d5e1a4-2dba-5e5a-9be1-2e5d9220859d",
+  "binaryMode": "separate"
+ },
+ "staticData": null,
+ "meta": null,
+ "nodeGroups": [],
+ "pinData": null,
+ "versionId": "ff88b40a-23e1-4f47-bbad-31ff0c0aa29d",
+ "activeVersionId": null,
+ "versionCounter": 1,
+ "triggerCount": 0,
+ "sourceWorkflowId": null,
+ "shared": [
+  {
+   "updatedAt": "2026-08-25T09:26:39.054Z",
+   "createdAt": "2026-08-25T09:26:39.054Z",
+   "role": "workflow:owner",
+   "workflowId": "kern-ab7ebc7d41db50be",
+   "projectId": "e2rPVcUBR4DTE3mO",
+   "project": {
+    "updatedAt": "2026-07-24T09:45:30.763Z",
+    "createdAt": "2026-07-24T09:45:07.113Z",
+    "id": "e2rPVcUBR4DTE3mO",
+    "name": "Virya Crew <virya.crew@gmail.com>",
+    "type": "personal",
+    "icon": null,
+    "description": null,
+    "customTelemetryTags": [],
+    "creatorId": "89259ec0-46eb-41d3-a04e-eb12f52f6342"
+   }
+  }
+ ],
+ "tags": [],
+ "activeVersion": null
+}

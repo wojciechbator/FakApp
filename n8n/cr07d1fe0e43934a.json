@@ -1,0 +1,552 @@
+{
+ "updatedAt": "2026-08-15T20:53:10.830Z",
+ "createdAt": "2026-07-31T12:29:22.394Z",
+ "id": "cr07d1fe0e43934a",
+ "name": "CrowdRelay \u2014 event.discord_report_due Discord branch",
+ "description": null,
+ "active": true,
+ "isArchived": false,
+ "nodes": [
+  {
+   "id": "de522d98-2e7c-4e35-bcae-e0ff3f8e3335",
+   "name": "Called by verified ingress",
+   "type": "n8n-nodes-base.executeWorkflowTrigger",
+   "position": [
+    -860,
+    0
+   ],
+   "parameters": {
+    "inputSource": "passthrough"
+   },
+   "typeVersion": 1.1
+  },
+  {
+   "id": "17e4a917-6b4b-4163-bbfa-a3166b001413",
+   "name": "Validate and build Discord report",
+   "type": "n8n-nodes-base.code",
+   "position": [
+    -600,
+    0
+   ],
+   "parameters": {
+    "jsCode": "const envelope = $json;\nif (!envelope || envelope.type !== 'event.discord_report_due' || envelope.version !== 1) throw new Error('Unsupported CrowdRelay event');\nconst event = envelope.data?.event ?? {};\nif (!event.slug || !event.title || !event.starts_at) throw new Error('Missing event fields');\nconst base = ($env.CROWDRELAY_PUBLIC_SITE_URL || 'https://virya.music').replace(/\\/$/, '');\nconst eventUrl = `${base}/pl/live/${encodeURIComponent(event.slug)}/`;\nconst date = new Intl.DateTimeFormat('pl-PL', { dateStyle: 'full', timeStyle: 'short', timeZone: event.timezone || 'Europe/Warsaw' }).format(new Date(event.starts_at));\nconst place = [event.venue, event.city].filter(Boolean).join(' \u00b7 ');\nconst marker = `CR_EVENT_ID:${envelope.id}`;\nconst content = [`## NOWY KONCERT`, `**${event.title}**`, date, place || null, `Bilety i szczeg\u00f3\u0142y: ${eventUrl}`, marker].filter(Boolean).join('\\n\\n').slice(0, 2000);\nreturn [{ json: { envelope, eventUrl, marker, content } }];"
+   },
+   "typeVersion": 2
+  },
+  {
+   "id": "2db3b1c6-c430-45c1-9c2d-df5a57776590",
+   "name": "Read recent Discord messages",
+   "type": "n8n-nodes-base.httpRequest",
+   "position": [
+    -340,
+    0
+   ],
+   "parameters": {
+    "url": "https://discord.com/api/v10/channels/1529482376458276964/messages",
+    "method": "GET",
+    "options": {
+     "timeout": 30000,
+     "response": {
+      "response": {
+       "responseFormat": "json"
+      }
+     }
+    },
+    "sendQuery": true,
+    "sendHeaders": true,
+    "authentication": "genericCredentialType",
+    "genericAuthType": "httpHeaderAuth",
+    "queryParameters": {
+     "parameters": [
+      {
+       "name": "limit",
+       "value": "100"
+      }
+     ]
+    },
+    "headerParameters": {
+     "parameters": [
+      {
+       "name": "User-Agent",
+       "value": "Virya-n8n/1.0 (https://virya.music)"
+      }
+     ]
+    }
+   },
+   "credentials": {
+    "httpHeaderAuth": {
+     "id": "FB7ONYMUsZFfObWB",
+     "name": "Discord Bot HTTP"
+    }
+   },
+   "typeVersion": 4.2
+  },
+  {
+   "id": "7876ab54-9f14-4a2d-991c-a8d8bc06318e",
+   "name": "Check Discord external idempotency",
+   "type": "n8n-nodes-base.code",
+   "position": [
+    -80,
+    0
+   ],
+   "parameters": {
+    "jsCode": "const source = $('Validate and build Discord report').first().json;\nconst values = $input.all().map(item => item.json);\nconst messages = values.flatMap(value => Array.isArray(value) ? value : [value]);\nconst found = messages.some(message => typeof message?.content === 'string' && message.content.includes(source.marker));\nreturn [{ json: { ...source, discordDone: found } }];"
+   },
+   "typeVersion": 2
+  },
+  {
+   "id": "a12c0644-dccc-4720-bf1b-46d5886e9c55",
+   "name": "Discord already published?",
+   "type": "n8n-nodes-base.if",
+   "position": [
+    180,
+    0
+   ],
+   "parameters": {
+    "options": {},
+    "conditions": {
+     "options": {
+      "version": 2,
+      "leftValue": "",
+      "caseSensitive": true,
+      "typeValidation": "strict"
+     },
+     "combinator": "and",
+     "conditions": [
+      {
+       "id": "ce1c0bb5-a2a8-4e66-92ea-6c032fcf1692",
+       "operator": {
+        "type": "boolean",
+        "operation": "true",
+        "singleValue": true
+       },
+       "leftValue": "={{ $json.discordDone }}",
+       "rightValue": true
+      }
+     ]
+    }
+   },
+   "typeVersion": 2.2
+  },
+  {
+   "id": "bf403d89-31e8-474b-be71-f49d527beec8",
+   "name": "Post gig report to Discord",
+   "type": "n8n-nodes-base.httpRequest",
+   "position": [
+    440,
+    120
+   ],
+   "parameters": {
+    "url": "https://discord.com/api/v10/channels/1529482376458276964/messages",
+    "method": "POST",
+    "options": {
+     "timeout": 30000
+    },
+    "jsonBody": "={{ ({ content: $json.content, allowed_mentions:{parse:[]} }) }}",
+    "sendBody": true,
+    "sendHeaders": true,
+    "specifyBody": "json",
+    "authentication": "genericCredentialType",
+    "genericAuthType": "httpHeaderAuth",
+    "headerParameters": {
+     "parameters": [
+      {
+       "name": "User-Agent",
+       "value": "Virya-n8n/1.0 (https://virya.music)"
+      }
+     ]
+    }
+   },
+   "credentials": {
+    "httpHeaderAuth": {
+     "id": "FB7ONYMUsZFfObWB",
+     "name": "Discord Bot HTTP"
+    }
+   },
+   "typeVersion": 4.2
+  },
+  {
+   "id": "81f3423c-2f55-4b51-b030-d3fa86a7cd92",
+   "name": "Discord report complete",
+   "type": "n8n-nodes-base.noOp",
+   "position": [
+    680,
+    0
+   ],
+   "parameters": {},
+   "typeVersion": 1
+  }
+ ],
+ "connections": {
+  "Called by verified ingress": {
+   "main": [
+    [
+     {
+      "node": "Validate and build Discord report",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Validate and build Discord report": {
+   "main": [
+    [
+     {
+      "node": "Read recent Discord messages",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Read recent Discord messages": {
+   "main": [
+    [
+     {
+      "node": "Check Discord external idempotency",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Check Discord external idempotency": {
+   "main": [
+    [
+     {
+      "node": "Discord already published?",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Discord already published?": {
+   "main": [
+    [
+     {
+      "node": "Discord report complete",
+      "type": "main",
+      "index": 0
+     }
+    ],
+    [
+     {
+      "node": "Post gig report to Discord",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Post gig report to Discord": {
+   "main": [
+    [
+     {
+      "node": "Discord report complete",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  }
+ },
+ "settings": {
+  "executionOrder": "v1",
+  "saveDataErrorExecution": "none",
+  "saveDataSuccessExecution": "none",
+  "saveManualExecutions": false,
+  "errorWorkflow": "98d5e1a4-2dba-5e5a-9be1-2e5d9220859d"
+ },
+ "staticData": null,
+ "meta": {
+  "templateCredsSetupCompleted": true
+ },
+ "nodeGroups": [],
+ "pinData": null,
+ "versionId": "64fb8d15-46f5-4916-9f69-37f559d34ab9",
+ "activeVersionId": "64fb8d15-46f5-4916-9f69-37f559d34ab9",
+ "versionCounter": 4,
+ "triggerCount": 0,
+ "sourceWorkflowId": null,
+ "shared": [
+  {
+   "updatedAt": "2026-07-31T12:29:22.394Z",
+   "createdAt": "2026-07-31T12:29:22.394Z",
+   "role": "workflow:owner",
+   "workflowId": "cr07d1fe0e43934a",
+   "projectId": "e2rPVcUBR4DTE3mO",
+   "project": {
+    "updatedAt": "2026-07-24T09:45:30.763Z",
+    "createdAt": "2026-07-24T09:45:07.113Z",
+    "id": "e2rPVcUBR4DTE3mO",
+    "name": "Virya Crew <virya.crew@gmail.com>",
+    "type": "personal",
+    "icon": null,
+    "description": null,
+    "customTelemetryTags": [],
+    "creatorId": "89259ec0-46eb-41d3-a04e-eb12f52f6342"
+   }
+  }
+ ],
+ "tags": [],
+ "activeVersion": {
+  "updatedAt": "2026-08-25T12:20:51.980Z",
+  "createdAt": "2026-08-12T17:01:41.269Z",
+  "versionId": "64fb8d15-46f5-4916-9f69-37f559d34ab9",
+  "workflowId": "cr07d1fe0e43934a",
+  "nodes": [
+   {
+    "id": "de522d98-2e7c-4e35-bcae-e0ff3f8e3335",
+    "name": "Called by verified ingress",
+    "type": "n8n-nodes-base.executeWorkflowTrigger",
+    "position": [
+     -860,
+     0
+    ],
+    "parameters": {
+     "inputSource": "passthrough"
+    },
+    "typeVersion": 1.1
+   },
+   {
+    "id": "17e4a917-6b4b-4163-bbfa-a3166b001413",
+    "name": "Validate and build Discord report",
+    "type": "n8n-nodes-base.code",
+    "position": [
+     -600,
+     0
+    ],
+    "parameters": {
+     "jsCode": "const envelope = $json;\nif (!envelope || envelope.type !== 'event.discord_report_due' || envelope.version !== 1) throw new Error('Unsupported CrowdRelay event');\nconst event = envelope.data?.event ?? {};\nif (!event.slug || !event.title || !event.starts_at) throw new Error('Missing event fields');\nconst base = ($env.CROWDRELAY_PUBLIC_SITE_URL || 'https://virya.music').replace(/\\/$/, '');\nconst eventUrl = `${base}/pl/live/${encodeURIComponent(event.slug)}/`;\nconst date = new Intl.DateTimeFormat('pl-PL', { dateStyle: 'full', timeStyle: 'short', timeZone: event.timezone || 'Europe/Warsaw' }).format(new Date(event.starts_at));\nconst place = [event.venue, event.city].filter(Boolean).join(' \u00b7 ');\nconst marker = `CR_EVENT_ID:${envelope.id}`;\nconst content = [`## NOWY KONCERT`, `**${event.title}**`, date, place || null, `Bilety i szczeg\u00f3\u0142y: ${eventUrl}`, marker].filter(Boolean).join('\\n\\n').slice(0, 2000);\nreturn [{ json: { envelope, eventUrl, marker, content } }];"
+    },
+    "typeVersion": 2
+   },
+   {
+    "id": "2db3b1c6-c430-45c1-9c2d-df5a57776590",
+    "name": "Read recent Discord messages",
+    "type": "n8n-nodes-base.httpRequest",
+    "position": [
+     -340,
+     0
+    ],
+    "parameters": {
+     "url": "https://discord.com/api/v10/channels/1529482376458276964/messages",
+     "method": "GET",
+     "options": {
+      "timeout": 30000,
+      "response": {
+       "response": {
+        "responseFormat": "json"
+       }
+      }
+     },
+     "sendQuery": true,
+     "sendHeaders": true,
+     "authentication": "genericCredentialType",
+     "genericAuthType": "httpHeaderAuth",
+     "queryParameters": {
+      "parameters": [
+       {
+        "name": "limit",
+        "value": "100"
+       }
+      ]
+     },
+     "headerParameters": {
+      "parameters": [
+       {
+        "name": "User-Agent",
+        "value": "Virya-n8n/1.0 (https://virya.music)"
+       }
+      ]
+     }
+    },
+    "credentials": {
+     "httpHeaderAuth": {
+      "id": "FB7ONYMUsZFfObWB",
+      "name": "Discord Bot HTTP"
+     }
+    },
+    "typeVersion": 4.2
+   },
+   {
+    "id": "7876ab54-9f14-4a2d-991c-a8d8bc06318e",
+    "name": "Check Discord external idempotency",
+    "type": "n8n-nodes-base.code",
+    "position": [
+     -80,
+     0
+    ],
+    "parameters": {
+     "jsCode": "const source = $('Validate and build Discord report').first().json;\nconst values = $input.all().map(item => item.json);\nconst messages = values.flatMap(value => Array.isArray(value) ? value : [value]);\nconst found = messages.some(message => typeof message?.content === 'string' && message.content.includes(source.marker));\nreturn [{ json: { ...source, discordDone: found } }];"
+    },
+    "typeVersion": 2
+   },
+   {
+    "id": "a12c0644-dccc-4720-bf1b-46d5886e9c55",
+    "name": "Discord already published?",
+    "type": "n8n-nodes-base.if",
+    "position": [
+     180,
+     0
+    ],
+    "parameters": {
+     "options": {},
+     "conditions": {
+      "options": {
+       "version": 2,
+       "leftValue": "",
+       "caseSensitive": true,
+       "typeValidation": "strict"
+      },
+      "combinator": "and",
+      "conditions": [
+       {
+        "id": "ce1c0bb5-a2a8-4e66-92ea-6c032fcf1692",
+        "operator": {
+         "type": "boolean",
+         "operation": "true",
+         "singleValue": true
+        },
+        "leftValue": "={{ $json.discordDone }}",
+        "rightValue": true
+       }
+      ]
+     }
+    },
+    "typeVersion": 2.2
+   },
+   {
+    "id": "bf403d89-31e8-474b-be71-f49d527beec8",
+    "name": "Post gig report to Discord",
+    "type": "n8n-nodes-base.httpRequest",
+    "position": [
+     440,
+     120
+    ],
+    "parameters": {
+     "url": "https://discord.com/api/v10/channels/1529482376458276964/messages",
+     "method": "POST",
+     "options": {
+      "timeout": 30000
+     },
+     "jsonBody": "={{ ({ content: $json.content, allowed_mentions:{parse:[]} }) }}",
+     "sendBody": true,
+     "sendHeaders": true,
+     "specifyBody": "json",
+     "authentication": "genericCredentialType",
+     "genericAuthType": "httpHeaderAuth",
+     "headerParameters": {
+      "parameters": [
+       {
+        "name": "User-Agent",
+        "value": "Virya-n8n/1.0 (https://virya.music)"
+       }
+      ]
+     }
+    },
+    "credentials": {
+     "httpHeaderAuth": {
+      "id": "FB7ONYMUsZFfObWB",
+      "name": "Discord Bot HTTP"
+     }
+    },
+    "typeVersion": 4.2
+   },
+   {
+    "id": "81f3423c-2f55-4b51-b030-d3fa86a7cd92",
+    "name": "Discord report complete",
+    "type": "n8n-nodes-base.noOp",
+    "position": [
+     680,
+     0
+    ],
+    "parameters": {},
+    "typeVersion": 1
+   }
+  ],
+  "connections": {
+   "Called by verified ingress": {
+    "main": [
+     [
+      {
+       "node": "Validate and build Discord report",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "Validate and build Discord report": {
+    "main": [
+     [
+      {
+       "node": "Read recent Discord messages",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "Read recent Discord messages": {
+    "main": [
+     [
+      {
+       "node": "Check Discord external idempotency",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "Check Discord external idempotency": {
+    "main": [
+     [
+      {
+       "node": "Discord already published?",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "Discord already published?": {
+    "main": [
+     [
+      {
+       "node": "Discord report complete",
+       "type": "main",
+       "index": 0
+      }
+     ],
+     [
+      {
+       "node": "Post gig report to Discord",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "Post gig report to Discord": {
+    "main": [
+     [
+      {
+       "node": "Discord report complete",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   }
+  },
+  "nodeGroups": [],
+  "authors": "import",
+  "name": null,
+  "description": null,
+  "autosaved": false,
+  "workflowPublishHistory": []
+ }
+}

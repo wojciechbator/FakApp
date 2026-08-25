@@ -1,0 +1,423 @@
+{
+  "updatedAt": "2026-08-06T14:28:20.784Z",
+  "createdAt": "2026-07-24T09:45:08.790Z",
+  "id": "KUlmtYcXDIbfBYEm",
+  "name": "VIRYA 11 — Entity Visibility (lean SEO)",
+  "description": null,
+  "active": true,
+  "isArchived": false,
+  "nodes": [
+    {
+      "id": "877e165d-6854-40d8-b99b-f1a471276677",
+      "name": "Manual — entity visibility check",
+      "type": "n8n-nodes-base.manualTrigger",
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {},
+      "typeVersion": 1
+    },
+    {
+      "id": "f6f79f54-3728-4866-ae55-3a164a8cea10",
+      "name": "Schedule — Monday 06:30",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "position": [
+        0,
+        180
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 30 6 * * 1"
+            }
+          ]
+        }
+      },
+      "typeVersion": 1.3,
+      "notesInFlow": true,
+      "notes": "Weekly identity/discoverability check only; no synthetic SEO score."
+    },
+    {
+      "id": "5f996e9b-e8b8-47df-849f-ac03c2a878ca",
+      "name": "HTTP — virya.music homepage",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        260,
+        80
+      ],
+      "parameters": {
+        "url": "https://www.virya.music/",
+        "options": {
+          "timeout": 30000,
+          "response": {
+            "response": {
+              "neverError": true,
+              "fullResponse": true,
+              "responseFormat": "text"
+            }
+          }
+        }
+      },
+      "executeOnce": true,
+      "typeVersion": 4.4,
+      "continueOnFail": true,
+      "alwaysOutputData": true,
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
+    },
+    {
+      "id": "802c0e90-2ce1-47b3-808b-c2516f92fcb3",
+      "name": "HTTP — robots.txt",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        490,
+        80
+      ],
+      "parameters": {
+        "url": "https://www.virya.music/robots.txt",
+        "options": {
+          "timeout": 30000,
+          "response": {
+            "response": {
+              "neverError": true,
+              "fullResponse": true,
+              "responseFormat": "text"
+            }
+          }
+        }
+      },
+      "executeOnce": true,
+      "typeVersion": 4.4,
+      "continueOnFail": true,
+      "alwaysOutputData": true,
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
+    },
+    {
+      "id": "01378ec9-09c4-4d94-a59c-e89ad9bf8900",
+      "name": "HTTP — sitemap index",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        720,
+        80
+      ],
+      "parameters": {
+        "url": "https://www.virya.music/sitemap-index.xml",
+        "options": {
+          "timeout": 30000,
+          "response": {
+            "response": {
+              "neverError": true,
+              "fullResponse": true,
+              "responseFormat": "text"
+            }
+          }
+        }
+      },
+      "executeOnce": true,
+      "typeVersion": 4.4,
+      "continueOnFail": true,
+      "alwaysOutputData": true,
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
+    },
+    {
+      "id": "ffeb31ff-4cf1-49bb-94ab-5c3dd3b1daef",
+      "name": "HTTP — llms.txt",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        950,
+        80
+      ],
+      "parameters": {
+        "url": "https://www.virya.music/llms.txt",
+        "options": {
+          "timeout": 30000,
+          "response": {
+            "response": {
+              "neverError": true,
+              "fullResponse": true,
+              "responseFormat": "text"
+            }
+          }
+        }
+      },
+      "executeOnce": true,
+      "typeVersion": 4.4,
+      "continueOnFail": true,
+      "alwaysOutputData": true,
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
+    },
+    {
+      "id": "b7ceea6d-9fa0-4a36-9825-d1586bce9e33",
+      "name": "Build entity visibility check",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        1220,
+        80
+      ],
+      "parameters": {
+        "jsCode": "function text(name){try{const j=$(name).first().json||{};const v=j.body??j.data??j.response??j;return typeof v==='string'?v:JSON.stringify(v)}catch{return ''}}\nfunction status(name){try{const j=$(name).first().json||{};return Number(j.statusCode||j.status||200)}catch{return 0}}\nconst home=text('HTTP — virya.music homepage'); const robots=text('HTTP — robots.txt'); const sitemap=text('HTTP — sitemap index'); const llms=text('HTTP — llms.txt');\nconst identity={\n homepage_ok:status('HTTP — virya.music homepage')>=200&&status('HTTP — virya.music homepage')<400,\n musicgroup_schema:/\\\"@type\\\"\\s*:\\s*\\\"MusicGroup\\\"/i.test(home),\n stable_entity_id:/https:\\/\\/www\\.virya\\.music\\/#band/i.test(home),\n official_spotify:/6bbW0jOKAWJWm3h6CTWaAS/.test(home),\n official_instagram:/virya\\.official/i.test(home),\n robots_sitemap:/Sitemap:\\s*https:\\/\\/www\\.virya\\.music\\/sitemap-index\\.xml/i.test(robots),\n sitemap_ok:status('HTTP — sitemap index')>=200&&status('HTTP — sitemap index')<400&&/<urlset|<sitemapindex/i.test(sitemap),\n llms_ok:status('HTTP — llms.txt')>=200&&status('HTTP — llms.txt')<400&&/modern metal/i.test(llms)&&/Wrocław|Wroclaw/i.test(llms)&&/6bbW0jOKAWJWm3h6CTWaAS/.test(llms)\n};\nconst queries=['VIRYA band','VIRYA metal Poland','VIRYA Wrocław','Echoes Of The Modern Mind VIRYA'];\nconst prompt=`Use Google Search grounding. Evaluate entity recognition for the music group VIRYA from Wrocław, Poland. Official source is https://www.virya.music/ and official Spotify artist id is 6bbW0jOKAWJWm3h6CTWaAS. For each query decide only: correct_band_mentioned boolean, official_domain_cited boolean, confusion string (empty if none), strongest_source string. Do not invent rankings or scores. Return JSON {checks:[...]}. Queries: ${JSON.stringify(queries)}`;\nconst gemini_body=JSON.stringify({contents:[{role:'user',parts:[{text:prompt}]}],tools:[{google_search:{}}],generationConfig:{temperature:0.1,maxOutputTokens:1800,responseMimeType:'application/json'}});\nreturn [{json:{identity,queries,gemini_body}}];"
+      },
+      "typeVersion": 2
+    },
+    {
+      "id": "52ec68d6-7c9d-41b8-8a48-0da129125ce5",
+      "name": "Gemini — grounded VIRYA entity check",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        1450,
+        80
+      ],
+      "parameters": {
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent",
+        "body": "={{ $json.gemini_body }}",
+        "method": "POST",
+        "options": {
+          "timeout": 120000
+        },
+        "sendBody": true,
+        "contentType": "raw",
+        "authentication": "genericCredentialType",
+        "rawContentType": "application/json",
+        "genericAuthType": "httpHeaderAuth"
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "8LSEwbWubxhnFYYB",
+          "name": "Header Auth account"
+        }
+      },
+      "typeVersion": 4.4,
+      "continueOnFail": true,
+      "alwaysOutputData": true
+    },
+    {
+      "id": "23b9da7b-c308-4cad-94cd-c85a82b5bf63",
+      "name": "Build concise entity digest",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        1680,
+        80
+      ],
+      "parameters": {
+        "jsCode": "const base=$('Build entity visibility check').first().json||{}; const identity=base.identity||{}; const response=$json||{};\nlet text='';try{text=(response.candidates?.[0]?.content?.parts||[]).map(p=>String(p.text||'')).join('').trim()}catch{};if(!text&&response.body){const b=response.body;text=typeof b==='string'?b:(b.candidates?.[0]?.content?.parts||[]).map(p=>String(p.text||'')).join('').trim()}\nlet parsed={};try{parsed=JSON.parse(String(text).replace(/```json|```/gi,'').trim())}catch{};const checks=Array.isArray(parsed.checks)?parsed.checks:[];\nconst recognized=checks.filter(x=>x?.correct_band_mentioned===true).length; const cited=checks.filter(x=>x?.official_domain_cited===true).length; const confusions=[...new Set(checks.map(x=>String(x?.confusion||'').trim()).filter(Boolean))];\nconst technical=[];if(!identity.musicgroup_schema||!identity.stable_entity_id)technical.push('schema MusicGroup/@id');if(!identity.robots_sitemap||!identity.sitemap_ok)technical.push('robots/sitemap');if(!identity.llms_ok)technical.push('llms.txt');\nconst actions=[];if(technical.length)actions.push(`Napraw first-party identity: ${technical.join(', ')}`);if(checks.length&&cited<Math.ceil(checks.length*0.75))actions.push('Wzmocnij zewnętrzne cytowania kierujące do virya.music/EPK zamiast produkować kolejne strony SEO');if(confusions.length)actions.push(`Doprecyzuj encję VIRYA w nowych publikacjach: ${confusions.slice(0,2).join(' / ')}`);\nif(!actions.length)actions.push('Brak pilnej pracy SEO — publikuj realne newsy/koncerty i zdobywaj jakościowe wzmianki z linkiem do EPK.');\nconst content=`🔎 **VIRYA — entity visibility**\\n\\nFirst-party identity: **${technical.length?'WYMAGA UWAGI':'OK'}**\\nGrounded search: poprawna VIRYA **${recognized}/${checks.length||'?'}**, virya.music cytowane **${cited}/${checks.length||'?'}**${confusions.length?`\\nPomyłki: ${confusions.slice(0,2).join(' / ')}`:''}\\n\\n**Co ma sens zrobić:**\\n${actions.slice(0,2).map((x,i)=>`${i+1}. ${x}`).join('\\n')}`;\nreturn [{json:{content,allowed_mentions:{parse:[]}}}];"
+      },
+      "typeVersion": 2
+    },
+    {
+      "id": "671ea469-770d-4277-943b-f8add9298b3c",
+      "name": "Discord — entity visibility digest",
+      "type": "n8n-nodes-base.httpRequest",
+      "maxTries": 3,
+      "position": [
+        1910,
+        80
+      ],
+      "parameters": {
+        "url": "https://discord.com/api/v10/channels/1529901956125036575/messages",
+        "method": "POST",
+        "options": {
+          "timeout": 30000
+        },
+        "jsonBody": "={{ ({ content: String((($json.content)) ?? '').slice(0, 2000), allowed_mentions: ($json.allowed_mentions && typeof $json.allowed_mentions === 'object') ? $json.allowed_mentions : { parse: [] }, flags: 4096 }) }}",
+        "sendBody": true,
+        "sendHeaders": true,
+        "specifyBody": "json",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "User-Agent",
+              "value": "Virya-n8n/1.0 (https://virya.music)"
+            }
+          ]
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "FB7ONYMUsZFfObWB",
+          "name": "Discord Bot HTTP"
+        }
+      },
+      "retryOnFail": true,
+      "typeVersion": 4.4,
+      "waitBetweenTries": 1500
+    }
+  ],
+  "connections": {
+    "Manual — entity visibility check": {
+      "main": [
+        [
+          {
+            "node": "HTTP — virya.music homepage",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Schedule — Monday 06:30": {
+      "main": [
+        [
+          {
+            "node": "HTTP — virya.music homepage",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP — virya.music homepage": {
+      "main": [
+        [
+          {
+            "node": "HTTP — robots.txt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP — robots.txt": {
+      "main": [
+        [
+          {
+            "node": "HTTP — sitemap index",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP — sitemap index": {
+      "main": [
+        [
+          {
+            "node": "HTTP — llms.txt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP — llms.txt": {
+      "main": [
+        [
+          {
+            "node": "Build entity visibility check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build entity visibility check": {
+      "main": [
+        [
+          {
+            "node": "Gemini — grounded VIRYA entity check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gemini — grounded VIRYA entity check": {
+      "main": [
+        [
+          {
+            "node": "Build concise entity digest",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build concise entity digest": {
+      "main": [
+        [
+          {
+            "node": "Discord — entity visibility digest",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false,
+    "timezone": "Europe/Warsaw",
+    "errorWorkflow": "98d5e1a4-2dba-5e5a-9be1-2e5d9220859d",
+    "executionTimeout": 900,
+    "saveExecutionProgress": false
+  },
+  "staticData": {
+    "node:Schedule — Monday 08:30": {
+      "recurrenceRules": [
+        null
+      ],
+      "recurrenceRuleSignatures": [
+        null
+      ]
+    },
+    "global": {
+      "lastSeoAvg": 0
+    },
+    "node:Schedule — Monday 06:30": {
+      "recurrenceRules": [
+        null
+      ],
+      "recurrenceRuleSignatures": [
+        null
+      ]
+    }
+  },
+  "meta": {
+    "viryaLocalPackage": "2026-07-24"
+  },
+  "nodeGroups": [],
+  "pinData": {},
+  "versionId": "28dc0eab-cd27-45f1-9db8-1456e3f1d10d",
+  "activeVersionId": "28dc0eab-cd27-45f1-9db8-1456e3f1d10d",
+  "versionCounter": 12,
+  "triggerCount": 1,
+  "sourceWorkflowId": null,
+  "tags": [],
+  "shared": [
+    {
+      "updatedAt": "2026-07-24T09:45:08.790Z",
+      "createdAt": "2026-07-24T09:45:08.790Z",
+      "role": "workflow:owner",
+      "workflowId": "KUlmtYcXDIbfBYEm",
+      "projectId": "e2rPVcUBR4DTE3mO",
+      "project": {
+        "updatedAt": "2026-07-24T09:45:30.763Z",
+        "createdAt": "2026-07-24T09:45:07.113Z",
+        "id": "e2rPVcUBR4DTE3mO",
+        "name": "Virya Crew <virya.crew@gmail.com>",
+        "type": "personal",
+        "icon": null,
+        "description": null,
+        "customTelemetryTags": [],
+        "creatorId": "89259ec0-46eb-41d3-a04e-eb12f52f6342"
+      }
+    }
+  ],
+  "versionMetadata": {
+    "name": null,
+    "description": null
+  }
+}

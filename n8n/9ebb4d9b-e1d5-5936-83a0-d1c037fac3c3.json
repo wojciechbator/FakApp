@@ -1,0 +1,566 @@
+{
+ "updatedAt": "2026-08-21T13:01:17.408Z",
+ "createdAt": "2026-08-02T20:14:51.769Z",
+ "id": "9ebb4d9b-e1d5-5936-83a0-d1c037fac3c3",
+ "name": "CrowdRelay \u2014 operations Discord branch",
+ "description": null,
+ "active": true,
+ "isArchived": false,
+ "nodes": [
+  {
+   "id": "6220d709-4a9b-4c17-9272-b92324248487",
+   "name": "Called by verified ingress",
+   "type": "n8n-nodes-base.executeWorkflowTrigger",
+   "position": [
+    0,
+    0
+   ],
+   "parameters": {
+    "inputSource": "passthrough"
+   },
+   "typeVersion": 1.1
+  },
+  {
+   "id": "5c641520-ff4f-43b5-95fa-a8ff56364f25",
+   "name": "Validate and build operations alert",
+   "type": "n8n-nodes-base.code",
+   "position": [
+    240,
+    0
+   ],
+   "parameters": {
+    "jsCode": "const envelope = $json;\nconst supported = new Set(['crowdrelay.ops.status_changed','ops.alert_raised','reconciliation.finding_raised','show.checklist_due','show.followup_due','blockchain.proof.confirmed','blockchain.proof.dead']);\nif (!envelope || !supported.has(String(envelope.type)) || envelope.version !== 1) throw new Error('Unsupported CrowdRelay operations event');\nconst data = envelope.data ?? {};\nconst clean = (value, fallback = '-') => {\n  const text = String(value ?? fallback).replace(/[\\r\\n\\t]+/g, ' ').replace(/(?:token|secret|password|authorization|cookie)\\s*[:=]\\s*\\S+/gi, '[REDACTED]').trim();\n  return (text || fallback).slice(0, 300);\n};\nconst titles = {\n  'crowdrelay.ops.status_changed': 'STATUS OPERACYJNY',\n  'ops.alert_raised': 'ALERT SYSTEMOWY',\n  'reconciliation.finding_raised': 'NIESP\u00d3JNO\u015a\u0106 TICKETINGU',\n  'show.checklist_due': 'CHECKLISTA KONCERTOWA',\n  'show.followup_due': 'FOLLOW-UP PO KONCERCIE',\n  'blockchain.proof.confirmed': 'PROOF ZAKOTWICZONY',\n  'blockchain.proof.dead': 'PROOF ANCHOR DEAD',\n};\nconst defaultSeverity = envelope.type === 'blockchain.proof.dead' ? 'critical' : (envelope.type.startsWith('show.') || envelope.type === 'blockchain.proof.confirmed' ? 'info' : 'warning');\nconst severity = clean(data.severity, defaultSeverity).toUpperCase();\nconst entity = clean(data.entity_label ?? data.event_title ?? data.entity_id ?? data.event_id ?? data.batch_id);\nconst kind = clean(data.kind ?? data.alert_key ?? data.checklist ?? data.task ?? data.category ?? data.proof_kind);\nconst generatedSummary = envelope.type === 'blockchain.proof.confirmed'\n  ? `Root ${clean(data.root_sha256).slice(0, 16)}\u2026 potwierdzony w chain ${clean(data.chain_id)} \u00b7 block ${clean(data.block_number)}.`\n  : envelope.type === 'blockchain.proof.dead'\n    ? `Kotwiczenie nie powiod\u0142o si\u0119 po ${clean(data.attempts)} pr\u00f3bach: ${clean(data.error_kind)}.`\n    : null;\nconst summary = clean(data.summary ?? data.message ?? data.description ?? data.reason ?? generatedSummary);\nconst due = data.due_at ? clean(data.due_at) : null;\nconst marker = `CR_EVENT_ID:${envelope.id}`;\nconst content = [\n  `## ${titles[envelope.type]}`,\n  `**${severity}** \u00b7 ${kind}`,\n  entity !== '-' ? `Obiekt: ${entity}` : null,\n  summary !== '-' ? summary : null,\n  data.state ? `Stan: ${clean(data.state)}` : null,\n  due ? `Termin: ${due}` : null,\n  data.transaction_hash ? `Tx: ${clean(data.transaction_hash)}` : null,\n  marker,\n].filter(Boolean).join('\\n\\n').slice(0, 1950);\nreturn [{ json: { marker, content, eventType: envelope.type } }];"
+   },
+   "typeVersion": 2
+  },
+  {
+   "id": "345ff80a-ceb1-45d8-8ea2-e760b8679bbb",
+   "name": "Read recent operations messages",
+   "type": "n8n-nodes-base.httpRequest",
+   "maxTries": 3,
+   "position": [
+    512,
+    0
+   ],
+   "parameters": {
+    "url": "={{ 'https://discord.com/api/v10/channels/' + ($env.DISCORD_OPS_CHANNEL_ID || '1529482376458276964') + '/messages' }}",
+    "options": {
+     "timeout": 30000,
+     "response": {
+      "response": {
+       "responseFormat": "json"
+      }
+     }
+    },
+    "sendQuery": true,
+    "sendHeaders": true,
+    "authentication": "genericCredentialType",
+    "genericAuthType": "httpHeaderAuth",
+    "queryParameters": {
+     "parameters": [
+      {
+       "name": "limit",
+       "value": "100"
+      }
+     ]
+    },
+    "headerParameters": {
+     "parameters": [
+      {
+       "name": "User-Agent",
+       "value": "Virya-n8n/1.0 (https://virya.music)"
+      }
+     ]
+    }
+   },
+   "credentials": {
+    "httpHeaderAuth": {
+     "id": "FB7ONYMUsZFfObWB",
+     "name": "Discord Bot HTTP"
+    }
+   },
+   "retryOnFail": true,
+   "typeVersion": 4.2,
+   "waitBetweenTries": 2000
+  },
+  {
+   "id": "4d3e247e-feaf-43db-840d-ea537d2b5a54",
+   "name": "Check operations idempotency",
+   "type": "n8n-nodes-base.code",
+   "position": [
+    768,
+    0
+   ],
+   "parameters": {
+    "jsCode": "const source = $('Validate and build operations alert').first().json;\nconst values = $input.all().map(item => item.json);\nconst messages = values.flatMap(value => Array.isArray(value) ? value : [value]);\nconst alreadySent = messages.some(message => typeof message?.content === 'string' && message.content.includes(source.marker));\nreturn [{ json: { ...source, alreadySent } }];"
+   },
+   "typeVersion": 2
+  },
+  {
+   "id": "4a0a2e0d-4359-474d-81aa-2d404928c681",
+   "name": "Alert already sent?",
+   "type": "n8n-nodes-base.if",
+   "position": [
+    1024,
+    0
+   ],
+   "parameters": {
+    "options": {},
+    "conditions": {
+     "options": {
+      "version": 2,
+      "leftValue": "",
+      "caseSensitive": true,
+      "typeValidation": "strict"
+     },
+     "combinator": "and",
+     "conditions": [
+      {
+       "id": "40946c19-4083-45aa-8c76-2566743b2b21",
+       "operator": {
+        "type": "boolean",
+        "operation": "true",
+        "singleValue": true
+       },
+       "leftValue": "={{ $json.alreadySent }}",
+       "rightValue": true
+      }
+     ]
+    }
+   },
+   "typeVersion": 2.2
+  },
+  {
+   "id": "838b449d-9aa7-4c29-bed7-1b3c8dce1afe",
+   "name": "Post operations alert",
+   "type": "n8n-nodes-base.httpRequest",
+   "position": [
+    1280,
+    112
+   ],
+   "parameters": {
+    "url": "={{ 'https://discord.com/api/v10/channels/' + ($env.DISCORD_OPS_CHANNEL_ID || '1529482376458276964') + '/messages' }}",
+    "method": "POST",
+    "options": {
+     "timeout": 30000
+    },
+    "jsonBody": "={{ ({ content: $json.content, allowed_mentions:{parse:[]} }) }}",
+    "sendBody": true,
+    "sendHeaders": true,
+    "specifyBody": "json",
+    "authentication": "genericCredentialType",
+    "genericAuthType": "httpHeaderAuth",
+    "headerParameters": {
+     "parameters": [
+      {
+       "name": "User-Agent",
+       "value": "Virya-n8n/1.0 (https://virya.music)"
+      }
+     ]
+    }
+   },
+   "credentials": {
+    "httpHeaderAuth": {
+     "id": "FB7ONYMUsZFfObWB",
+     "name": "Discord Bot HTTP"
+    }
+   },
+   "typeVersion": 4.2
+  },
+  {
+   "id": "51f5f3b4-8102-4670-abca-55c4667ffc4f",
+   "name": "Operations alert complete",
+   "type": "n8n-nodes-base.noOp",
+   "position": [
+    1520,
+    0
+   ],
+   "parameters": {},
+   "typeVersion": 1
+  }
+ ],
+ "connections": {
+  "Called by verified ingress": {
+   "main": [
+    [
+     {
+      "node": "Validate and build operations alert",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Validate and build operations alert": {
+   "main": [
+    [
+     {
+      "node": "Read recent operations messages",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Read recent operations messages": {
+   "main": [
+    [
+     {
+      "node": "Check operations idempotency",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Check operations idempotency": {
+   "main": [
+    [
+     {
+      "node": "Alert already sent?",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Alert already sent?": {
+   "main": [
+    [
+     {
+      "node": "Operations alert complete",
+      "type": "main",
+      "index": 0
+     }
+    ],
+    [
+     {
+      "node": "Post operations alert",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Post operations alert": {
+   "main": [
+    [
+     {
+      "node": "Operations alert complete",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  }
+ },
+ "settings": {
+  "executionOrder": "v1",
+  "saveDataErrorExecution": "none",
+  "saveDataSuccessExecution": "none",
+  "saveManualExecutions": false,
+  "errorWorkflow": "98d5e1a4-2dba-5e5a-9be1-2e5d9220859d",
+  "binaryMode": "separate"
+ },
+ "staticData": null,
+ "meta": {
+  "templateCredsSetupCompleted": true
+ },
+ "nodeGroups": [],
+ "pinData": {},
+ "versionId": "7a0a68f6-d03a-42b7-90db-809621024d70",
+ "activeVersionId": "7a0a68f6-d03a-42b7-90db-809621024d70",
+ "versionCounter": 11,
+ "triggerCount": 0,
+ "sourceWorkflowId": null,
+ "shared": [
+  {
+   "updatedAt": "2026-08-02T20:14:51.769Z",
+   "createdAt": "2026-08-02T20:14:51.769Z",
+   "role": "workflow:owner",
+   "workflowId": "9ebb4d9b-e1d5-5936-83a0-d1c037fac3c3",
+   "projectId": "e2rPVcUBR4DTE3mO",
+   "project": {
+    "updatedAt": "2026-07-24T09:45:30.763Z",
+    "createdAt": "2026-07-24T09:45:07.113Z",
+    "id": "e2rPVcUBR4DTE3mO",
+    "name": "Virya Crew <virya.crew@gmail.com>",
+    "type": "personal",
+    "icon": null,
+    "description": null,
+    "customTelemetryTags": [],
+    "creatorId": "89259ec0-46eb-41d3-a04e-eb12f52f6342"
+   }
+  }
+ ],
+ "tags": [],
+ "activeVersion": {
+  "updatedAt": "2026-08-25T12:20:51.980Z",
+  "createdAt": "2026-08-21T13:01:17.411Z",
+  "versionId": "7a0a68f6-d03a-42b7-90db-809621024d70",
+  "workflowId": "9ebb4d9b-e1d5-5936-83a0-d1c037fac3c3",
+  "nodes": [
+   {
+    "id": "6220d709-4a9b-4c17-9272-b92324248487",
+    "name": "Called by verified ingress",
+    "type": "n8n-nodes-base.executeWorkflowTrigger",
+    "position": [
+     0,
+     0
+    ],
+    "parameters": {
+     "inputSource": "passthrough"
+    },
+    "typeVersion": 1.1
+   },
+   {
+    "id": "5c641520-ff4f-43b5-95fa-a8ff56364f25",
+    "name": "Validate and build operations alert",
+    "type": "n8n-nodes-base.code",
+    "position": [
+     240,
+     0
+    ],
+    "parameters": {
+     "jsCode": "const envelope = $json;\nconst supported = new Set(['crowdrelay.ops.status_changed','ops.alert_raised','reconciliation.finding_raised','show.checklist_due','show.followup_due','blockchain.proof.confirmed','blockchain.proof.dead']);\nif (!envelope || !supported.has(String(envelope.type)) || envelope.version !== 1) throw new Error('Unsupported CrowdRelay operations event');\nconst data = envelope.data ?? {};\nconst clean = (value, fallback = '-') => {\n  const text = String(value ?? fallback).replace(/[\\r\\n\\t]+/g, ' ').replace(/(?:token|secret|password|authorization|cookie)\\s*[:=]\\s*\\S+/gi, '[REDACTED]').trim();\n  return (text || fallback).slice(0, 300);\n};\nconst titles = {\n  'crowdrelay.ops.status_changed': 'STATUS OPERACYJNY',\n  'ops.alert_raised': 'ALERT SYSTEMOWY',\n  'reconciliation.finding_raised': 'NIESP\u00d3JNO\u015a\u0106 TICKETINGU',\n  'show.checklist_due': 'CHECKLISTA KONCERTOWA',\n  'show.followup_due': 'FOLLOW-UP PO KONCERCIE',\n  'blockchain.proof.confirmed': 'PROOF ZAKOTWICZONY',\n  'blockchain.proof.dead': 'PROOF ANCHOR DEAD',\n};\nconst defaultSeverity = envelope.type === 'blockchain.proof.dead' ? 'critical' : (envelope.type.startsWith('show.') || envelope.type === 'blockchain.proof.confirmed' ? 'info' : 'warning');\nconst severity = clean(data.severity, defaultSeverity).toUpperCase();\nconst entity = clean(data.entity_label ?? data.event_title ?? data.entity_id ?? data.event_id ?? data.batch_id);\nconst kind = clean(data.kind ?? data.alert_key ?? data.checklist ?? data.task ?? data.category ?? data.proof_kind);\nconst generatedSummary = envelope.type === 'blockchain.proof.confirmed'\n  ? `Root ${clean(data.root_sha256).slice(0, 16)}\u2026 potwierdzony w chain ${clean(data.chain_id)} \u00b7 block ${clean(data.block_number)}.`\n  : envelope.type === 'blockchain.proof.dead'\n    ? `Kotwiczenie nie powiod\u0142o si\u0119 po ${clean(data.attempts)} pr\u00f3bach: ${clean(data.error_kind)}.`\n    : null;\nconst summary = clean(data.summary ?? data.message ?? data.description ?? data.reason ?? generatedSummary);\nconst due = data.due_at ? clean(data.due_at) : null;\nconst marker = `CR_EVENT_ID:${envelope.id}`;\nconst content = [\n  `## ${titles[envelope.type]}`,\n  `**${severity}** \u00b7 ${kind}`,\n  entity !== '-' ? `Obiekt: ${entity}` : null,\n  summary !== '-' ? summary : null,\n  data.state ? `Stan: ${clean(data.state)}` : null,\n  due ? `Termin: ${due}` : null,\n  data.transaction_hash ? `Tx: ${clean(data.transaction_hash)}` : null,\n  marker,\n].filter(Boolean).join('\\n\\n').slice(0, 1950);\nreturn [{ json: { marker, content, eventType: envelope.type } }];"
+    },
+    "typeVersion": 2
+   },
+   {
+    "id": "345ff80a-ceb1-45d8-8ea2-e760b8679bbb",
+    "name": "Read recent operations messages",
+    "type": "n8n-nodes-base.httpRequest",
+    "maxTries": 3,
+    "position": [
+     512,
+     0
+    ],
+    "parameters": {
+     "url": "={{ 'https://discord.com/api/v10/channels/' + ($env.DISCORD_OPS_CHANNEL_ID || '1529482376458276964') + '/messages' }}",
+     "options": {
+      "timeout": 30000,
+      "response": {
+       "response": {
+        "responseFormat": "json"
+       }
+      }
+     },
+     "sendQuery": true,
+     "sendHeaders": true,
+     "authentication": "genericCredentialType",
+     "genericAuthType": "httpHeaderAuth",
+     "queryParameters": {
+      "parameters": [
+       {
+        "name": "limit",
+        "value": "100"
+       }
+      ]
+     },
+     "headerParameters": {
+      "parameters": [
+       {
+        "name": "User-Agent",
+        "value": "Virya-n8n/1.0 (https://virya.music)"
+       }
+      ]
+     }
+    },
+    "credentials": {
+     "httpHeaderAuth": {
+      "id": "FB7ONYMUsZFfObWB",
+      "name": "Discord Bot HTTP"
+     }
+    },
+    "retryOnFail": true,
+    "typeVersion": 4.2,
+    "waitBetweenTries": 2000
+   },
+   {
+    "id": "4d3e247e-feaf-43db-840d-ea537d2b5a54",
+    "name": "Check operations idempotency",
+    "type": "n8n-nodes-base.code",
+    "position": [
+     768,
+     0
+    ],
+    "parameters": {
+     "jsCode": "const source = $('Validate and build operations alert').first().json;\nconst values = $input.all().map(item => item.json);\nconst messages = values.flatMap(value => Array.isArray(value) ? value : [value]);\nconst alreadySent = messages.some(message => typeof message?.content === 'string' && message.content.includes(source.marker));\nreturn [{ json: { ...source, alreadySent } }];"
+    },
+    "typeVersion": 2
+   },
+   {
+    "id": "4a0a2e0d-4359-474d-81aa-2d404928c681",
+    "name": "Alert already sent?",
+    "type": "n8n-nodes-base.if",
+    "position": [
+     1024,
+     0
+    ],
+    "parameters": {
+     "options": {},
+     "conditions": {
+      "options": {
+       "version": 2,
+       "leftValue": "",
+       "caseSensitive": true,
+       "typeValidation": "strict"
+      },
+      "combinator": "and",
+      "conditions": [
+       {
+        "id": "40946c19-4083-45aa-8c76-2566743b2b21",
+        "operator": {
+         "type": "boolean",
+         "operation": "true",
+         "singleValue": true
+        },
+        "leftValue": "={{ $json.alreadySent }}",
+        "rightValue": true
+       }
+      ]
+     }
+    },
+    "typeVersion": 2.2
+   },
+   {
+    "id": "838b449d-9aa7-4c29-bed7-1b3c8dce1afe",
+    "name": "Post operations alert",
+    "type": "n8n-nodes-base.httpRequest",
+    "position": [
+     1280,
+     112
+    ],
+    "parameters": {
+     "url": "={{ 'https://discord.com/api/v10/channels/' + ($env.DISCORD_OPS_CHANNEL_ID || '1529482376458276964') + '/messages' }}",
+     "method": "POST",
+     "options": {
+      "timeout": 30000
+     },
+     "jsonBody": "={{ ({ content: $json.content, allowed_mentions:{parse:[]} }) }}",
+     "sendBody": true,
+     "sendHeaders": true,
+     "specifyBody": "json",
+     "authentication": "genericCredentialType",
+     "genericAuthType": "httpHeaderAuth",
+     "headerParameters": {
+      "parameters": [
+       {
+        "name": "User-Agent",
+        "value": "Virya-n8n/1.0 (https://virya.music)"
+       }
+      ]
+     }
+    },
+    "credentials": {
+     "httpHeaderAuth": {
+      "id": "FB7ONYMUsZFfObWB",
+      "name": "Discord Bot HTTP"
+     }
+    },
+    "typeVersion": 4.2
+   },
+   {
+    "id": "51f5f3b4-8102-4670-abca-55c4667ffc4f",
+    "name": "Operations alert complete",
+    "type": "n8n-nodes-base.noOp",
+    "position": [
+     1520,
+     0
+    ],
+    "parameters": {},
+    "typeVersion": 1
+   }
+  ],
+  "connections": {
+   "Called by verified ingress": {
+    "main": [
+     [
+      {
+       "node": "Validate and build operations alert",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "Validate and build operations alert": {
+    "main": [
+     [
+      {
+       "node": "Read recent operations messages",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "Read recent operations messages": {
+    "main": [
+     [
+      {
+       "node": "Check operations idempotency",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "Check operations idempotency": {
+    "main": [
+     [
+      {
+       "node": "Alert already sent?",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "Alert already sent?": {
+    "main": [
+     [
+      {
+       "node": "Operations alert complete",
+       "type": "main",
+       "index": 0
+      }
+     ],
+     [
+      {
+       "node": "Post operations alert",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "Post operations alert": {
+    "main": [
+     [
+      {
+       "node": "Operations alert complete",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   }
+  },
+  "nodeGroups": [],
+  "authors": "Virya Crew",
+  "name": "Version 7a0a68f6",
+  "description": "",
+  "autosaved": false,
+  "workflowPublishHistory": [
+   {
+    "createdAt": "2026-08-21T13:01:18.558Z",
+    "id": 639,
+    "workflowId": "9ebb4d9b-e1d5-5936-83a0-d1c037fac3c3",
+    "versionId": "7a0a68f6-d03a-42b7-90db-809621024d70",
+    "event": "activated",
+    "userId": "89259ec0-46eb-41d3-a04e-eb12f52f6342"
+   }
+  ]
+ }
+}

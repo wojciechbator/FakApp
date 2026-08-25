@@ -21,6 +21,7 @@ HEARTBEAT_ID = "VOSHEARTBEAT001"
 TEAM_OPS_ID = "VOSTEAMOPS00001"
 TEAM_EMAIL_ID = "VOSTEAMEMAIL001"
 CALENDAR_ID = "VOSCAL000000001"
+DISCOVERY_ID = "z94prDnSfhC2xV0k"
 SENSITIVE_PREFIX = "CrowdRelay — VIRYA OS"
 INGRESS_ID = "44808b183edf4ac7"
 REQUIRED_RECEIPT_EXECUTORS = {
@@ -31,8 +32,13 @@ REQUIRED_RECEIPT_EXECUTORS = {
     TEAM_OPS_ID,
     TEAM_EMAIL_ID,
     CALENDAR_ID,
+    # Read-only sweep with idempotent ingest: terminal receipt required,
+    # pre-provider execution claim deliberately absent (an ambiguous stale
+    # claim can never be resolved for a crashed attempt, so claiming would
+    # wedge discovery permanently after one crash).
+    DISCOVERY_ID,
 }
-CLAIMED_PROVIDER_EXECUTORS = REQUIRED_RECEIPT_EXECUTORS - {CALENDAR_ID}
+CLAIMED_PROVIDER_EXECUTORS = REQUIRED_RECEIPT_EXECUTORS - {CALENDAR_ID, DISCOVERY_ID}
 OLD_PROGRESS_NODES = {
     "Confirm submitted to CrowdRelay",
     "Confirm package ready",
@@ -135,29 +141,48 @@ def main() -> int:
                 if settings.get(key) != value:
                     fail(errors, f"{workflow_id}: unsafe {key}={settings.get(key)!r}")
 
-    if len(workflows) != 57:
-        fail(errors, f"expected exactly 57 release workflow definitions, found {len(workflows)}")
+    expected_workflow_count = 71
+    if len(workflows) != expected_workflow_count:
+        fail(
+            errors,
+            f"expected exactly {expected_workflow_count} release workflow definitions, "
+            f"found {len(workflows)}",
+        )
 
-    expected_metadata = {"BRIDGE_ROUTE_DELTA.json"}
-    unexpected_metadata = set(metadata) - expected_metadata
-    if unexpected_metadata:
-        fail(errors, f"unexpected root JSON metadata files: {sorted(unexpected_metadata)}")
-    bridge_delta = metadata.get("BRIDGE_ROUTE_DELTA.json")
-    expected_bridge_delta = {"viryaos.team.assignment_email_requested": TEAM_EMAIL_ID}
-    if bridge_delta != expected_bridge_delta:
-        fail(errors, f"BRIDGE_ROUTE_DELTA.json drifted: expected {expected_bridge_delta!r}, got {bridge_delta!r}")
+    for workflow in workflows.values():
+        serialized = json.dumps(workflow, ensure_ascii=False)
+        if '"BRIDGE_ROUTE_DELTA.json"' in serialized:
+            fail(errors, "stale BRIDGE_ROUTE_DELTA metadata resurfaced")
+
+    # Manual tools and the deliberately manual-activation team email executor.
+    allowed_inactive = {
+        "KEIld4dPQlkjJ76m",  # contact import from the pitching sheet
+        "MIG17VIRYA000003",  # Instagram profile radar
+        TEAM_EMAIL_ID,
+        "bYocx63k8eZdsIRA",  # opportunity scout
+        "zrPHybUbm8hi4y96",  # organic engagement queue
+    }
+    inactive = {
+        workflow_id
+        for workflow_id, workflow in workflows.items()
+        if not workflow.get("active")
+    }
+    unactivated_routed = inactive - allowed_inactive
+    if unactivated_routed:
+        fail(errors, f"routed executors must mirror runtime as active: {sorted(unactivated_routed)}")
+    stale_active = allowed_inactive - inactive
+    if stale_active:
+        fail(errors, f"expected-inactive workflows are now active: {sorted(stale_active)}")
+    active_count = sum(bool(workflow.get("active")) for workflow in workflows.values())
+    if len(workflows) != expected_workflow_count or active_count != expected_workflow_count - len(allowed_inactive):
+        fail(errors, f"release workflow count drift total={len(workflows)} active={active_count}")
 
     for required in [RECEIPT_ID, HEARTBEAT_ID, TEAM_OPS_ID, TEAM_EMAIL_ID, CALENDAR_ID, INGRESS_ID]:
         if required not in workflows:
             fail(errors, f"missing required workflow {required}")
 
-    inactive = {workflow_id: str(workflow.get("name", "")) for workflow_id, workflow in workflows.items() if not workflow.get("active")}
-    if set(inactive) != {TEAM_EMAIL_ID}:
-        fail(errors, f"release reference must mirror 56 active runtime workflows plus only the new manual-activation team email executor; inactive={sorted(inactive)}")
-    if len(workflows) != 57 or sum(bool(w.get("active")) for w in workflows.values()) != 56:
-        fail(errors, f"release workflow count drift total={len(workflows)} active={sum(bool(w.get('active')) for w in workflows.values())}")
     team_email = workflows.get(TEAM_EMAIL_ID, {})
-    if team_email.get("name") != "VIRYA — Team Task Email Executor":
+    if team_email.get("name") != "CrowdRelay — CrowdRelayOS team email executor":
         fail(errors, "team email workflow must keep its exact UI-discoverable name")
 
     seo = workflows.get("KUlmtYcXDIbfBYEm", {})
@@ -242,6 +267,21 @@ def main() -> int:
             stale = node_names(workflow) & OLD_PROGRESS_NODES
             if stale:
                 fail(errors, f"{workflow_id}: redundant progress callback remains: {sorted(stale)}")
+
+    discovery = workflows.get(DISCOVERY_ID, {})
+    if discovery:
+        discovery_serialized = json.dumps(discovery, ensure_ascii=False)
+        discovery_code = code_text(discovery)
+        # The 2026-08 rebrand renamed emitters to crowdrelay.*; a validator that
+        # still matches viryaos.* silently drops every event as zero items.
+        if "viryaos.outreach.discovery_requested" in discovery_code:
+            fail(errors, "outreach discovery executor still validates the pre-rebrand viryaos.* event type")
+        if "'crowdrelay.outreach.discovery_requested'" not in discovery_code:
+            fail(errors, "outreach discovery executor does not validate the rebranded event type")
+        if "/internal/autopilot/outreach/candidates" not in discovery_serialized:
+            fail(errors, "outreach discovery executor does not report candidates for screening")
+        if "items_seen" not in discovery_code or "sources_read" not in discovery_code:
+            fail(errors, "outreach discovery executor must report sweep evidence")
 
     calendar = workflows.get(CALENDAR_ID, {})
     if not calendar.get("active"):

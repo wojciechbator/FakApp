@@ -1,0 +1,1172 @@
+{
+ "updatedAt": "2026-08-21T11:29:59.571Z",
+ "createdAt": "2026-08-11T09:00:00.000Z",
+ "id": "VOSCAM000000001",
+ "name": "CrowdRelay \u2014 CrowdRelayOS communication campaign executor",
+ "description": "Executes first-party email campaigns planned by CrowdRelay. No scoring and no copy generation outside deterministic templates.",
+ "active": true,
+ "isArchived": false,
+ "nodes": [
+  {
+   "parameters": {
+    "inputSource": "passthrough"
+   },
+   "id": "92631664-f0e5-4679-b269-db302ddfe022",
+   "name": "Called by verified ingress",
+   "type": "n8n-nodes-base.executeWorkflowTrigger",
+   "typeVersion": 1.1,
+   "position": [
+    -352,
+    64
+   ]
+  },
+  {
+   "parameters": {
+    "jsCode": "const e=$json;if(!e||e.type!=='communication.campaign_due'||e.version!==1) throw new Error('Unsupported campaign event');const d=e.data??{};if(!d.campaign_id||!['email','push'].includes(d.channel)||!d.template_key) throw new Error('Invalid campaign payload');return [{json:{event_id:e.id,campaign_id:d.campaign_id,channel:String(d.channel),template_key:String(d.template_key),campaign_slug:String(d.campaign_slug||'')}}];"
+   },
+   "id": "427296fa-6778-428b-8137-e4cc1768e920",
+   "name": "Validate campaign",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    112,
+    64
+   ]
+  },
+  {
+   "parameters": {
+    "url": "={{ 'https://signal-api.virya.music/v1/internal/communications/campaigns/' + $json.campaign_id + '/delivery-plan?limit=500' }}",
+    "sendHeaders": true,
+    "headerParameters": {
+     "parameters": [
+      {
+       "name": "Authorization",
+       "value": "={{ 'Bearer ' + $env.CROWDRELAY_COMMERCE_API_KEY }}"
+      }
+     ]
+    },
+    "options": {
+     "response": {
+      "response": {
+       "responseFormat": "json"
+      }
+     },
+     "timeout": 30000
+    }
+   },
+   "id": "7baf42e0-4173-4b6b-9525-4ef1806d3eb6",
+   "name": "Load delivery plan",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.4,
+   "position": [
+    592,
+    80
+   ],
+   "retryOnFail": true,
+   "maxTries": 3,
+   "waitBetweenTries": 3000
+  },
+  {
+   "parameters": {
+    "conditions": {
+     "options": {
+      "caseSensitive": true,
+      "leftValue": "",
+      "typeValidation": "strict",
+      "version": 2
+     },
+     "conditions": [
+      {
+       "id": "d5662b66-9ce7-463b-ab1d-95e004e2830c",
+       "leftValue": "={{ Array.isArray($json.recipients) ? $json.recipients.length : 0 }}",
+       "rightValue": 0,
+       "operator": {
+        "type": "number",
+        "operation": "gt"
+       }
+      }
+     ],
+     "combinator": "and"
+    },
+    "options": {}
+   },
+   "id": "c61d74a4-0f4e-4595-8d93-5b2454c566aa",
+   "name": "Any recipients?",
+   "type": "n8n-nodes-base.if",
+   "typeVersion": 2.2,
+   "position": [
+    352,
+    64
+   ]
+  },
+  {
+   "parameters": {
+    "jsCode": "const plan=$json; const src=$('Validate campaign').first().json;if(plan.next_after_fan_id) throw new Error('Campaign >500 recipients: pagination intentionally requires follow-up implementation before auto-send');const rec=Array.isArray(plan.recipients)?plan.recipients:[];const key=src.template_key;const content=(plan.campaign&&plan.campaign.content)||{};const resolveCta=(v)=>{if(!v)return '';const s=String(v);return s.startsWith('env:')?String($env[s.slice(4)]||''):s;};const ctas=content.growth_ctas||{};const ctaLines=[['Spotify',resolveCta(ctas.spotify_artist_url)],['Bandsintown',resolveCta(ctas.bandsintown_follow_url)],['Playlista',resolveCta(ctas.spotify_playlist_url)]].filter(([,u])=>u).map(([l,u])=>l+': '+u);const ticketUrl=content.ticket_url?String(content.ticket_url):'';if(ticketUrl)ctaLines.push('Koncert: '+ticketUrl);const copy=(r)=>{const pl=String(r.locale||'pl').toLowerCase().startsWith('pl');const name=String(r.display_name||'').trim();const hi=pl?(name?`Cze\u015b\u0107 ${name}!`:'Cze\u015b\u0107!'):(name?`Hi ${name}!`:'Hi!');const map={\n'show.growth.free_fan_push.v1':['VIRYA \u2014 obserwuj nas i nie przegap koncertu','VIRYA \u2014 follow us and catch the show'],\n'release.announcement.v1':['Nowa premiera VIRYA nadchodzi','A new VIRYA release is coming'],\n'release.fan_warmup.v1':['VIRYA \u2014 premiera coraz bli\u017cej','VIRYA \u2014 release incoming'],\n'release.countdown.v1':['VIRYA \u2014 ju\u017c za chwil\u0119','VIRYA \u2014 almost there'],\n'release.release_day.v1':['Nowa premiera VIRYA \u2014 dzi\u015b','New VIRYA release \u2014 today'],\n'release.sustain.v1':['S\u0142yszeli\u015bcie ju\u017c now\u0105 VIRYA?','Have you heard the new VIRYA release?'],\n'release.wrap.v1':['Dzi\u0119ki za premier\u0119 z VIRYA','Thanks for joining the VIRYA release'],\n'event.announcement.v1':['VIRYA \u2014 nowy koncert','VIRYA \u2014 new show'],\n'event.interest_reminder.v1':['VIRYA \u2014 przypomnienie o koncercie','VIRYA \u2014 show reminder'],\n'event.last_call.v1':['VIRYA \u2014 ostatni moment przed koncertem','VIRYA \u2014 last call before the show'],\n'event.day_of.v1':['VIRYA \u2014 widzimy si\u0119 dzi\u015b','VIRYA \u2014 see you today'],\n'event.thank_you.v1':['Dzi\u0119ki za koncert z VIRYA','Thanks for the show with VIRYA']};const sub=(map[key]||['VIRYA \u2014 nowy sygna\u0142','VIRYA \u2014 new signal'])[pl?0:1];let body=pl?`${hi}\\n\\nMamy dla Ciebie aktualny sygna\u0142 VIRYA. Szczeg\u00f3\u0142y, muzyka i koncerty:\\nhttps://virya.music/pl/signal/\\n\\nDo zobaczenia,\\nVIRYA`:`${hi}\\n\\nHere is the latest VIRYA signal. Music, releases and shows:\\nhttps://virya.music/signal/\\n\\nSee you,\\nVIRYA`;if(ctaLines.length)body+='\\n\\n'+ctaLines.join('\\n');return {SendTo:r.email,SendSubject:sub,SendBody:body,fan_id:r.fan_id};};return rec.map(r=>({json:{...copy(r),campaign_id:src.campaign_id,event_id:src.event_id,attempt_key:`email:${src.campaign_id}:${r.fan_id}`}}));"
+   },
+   "id": "60642a29-a34e-40bd-b35c-a48e276f62c1",
+   "name": "Build deterministic campaign messages",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    592,
+    -64
+   ]
+  },
+  {
+   "parameters": {
+    "sendTo": "={{ $json.SendTo }}",
+    "subject": "={{ $json.SendSubject }}",
+    "emailType": "text",
+    "message": "={{ $json.SendBody }}",
+    "options": {
+     "appendAttribution": false,
+     "senderName": "Wojciech Bator / Virya"
+    }
+   },
+   "id": "b7783992-02bf-4e75-852d-5125037a630e",
+   "name": "Gmail \u2014 campaign SEND",
+   "type": "n8n-nodes-base.gmail",
+   "typeVersion": 2.1,
+   "position": [
+    1120,
+    -64
+   ],
+   "webhookId": "488bd4c7-c5d9-4636-9166-dd726cd4acf6",
+   "credentials": {
+    "gmailOAuth2": {
+     "id": "BJg5tKEWMNRw0GA1",
+     "name": "Gmail account"
+    }
+   },
+   "onError": "continueErrorOutput"
+  },
+  {
+   "parameters": {
+    "jsCode": "const src=$('Validate campaign').first().json;const d=$json?.delivery??{};const pending=Number(d.pending_count??-1),claimed=Number(d.claimed_count??-1);if(pending!==0||claimed!==0)throw new Error(`Campaign delivery still open pending=${pending} claimed=${claimed}`);const recipient_count=Number(d.eligible_count??-1),delivered_count=Number(d.delivered_count??-1),failed_count=Number(d.failed_count??-1);if([recipient_count,delivered_count,failed_count].some(v=>!Number.isInteger(v)||v<0)||delivered_count+failed_count!==recipient_count)throw new Error('Invalid authoritative campaign delivery progress');return [{json:{campaign_id:src.campaign_id,recipient_count,delivered_count,failed_count}}];"
+   },
+   "id": "c97d1e98-70db-4056-8220-e39e439e1839",
+   "name": "Build authoritative completion",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    1664,
+    0
+   ]
+  },
+  {
+   "parameters": {
+    "jsCode": "return [{json:{campaign_id:$('Validate campaign').first().json.campaign_id}}];"
+   },
+   "id": "bfa4040a-e273-4d6d-bf5f-a22b3dfc4d7f",
+   "name": "Zero delivery",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    1264,
+    240
+   ]
+  },
+  {
+   "parameters": {
+    "method": "POST",
+    "url": "={{ 'https://signal-api.virya.music/v1/internal/communications/campaigns/' + $json.campaign_id + '/complete' }}",
+    "sendHeaders": true,
+    "headerParameters": {
+     "parameters": [
+      {
+       "name": "Authorization",
+       "value": "={{ 'Bearer ' + $env.CROWDRELAY_COMMERCE_API_KEY }}"
+      }
+     ]
+    },
+    "sendBody": true,
+    "contentType": "raw",
+    "rawContentType": "application/json",
+    "body": "={{ JSON.stringify({recipient_count:$json.recipient_count,delivered_count:$json.delivered_count,failed_count:$json.failed_count}) }}",
+    "options": {
+     "timeout": 30000
+    }
+   },
+   "id": "acb62b51-c87b-49e4-bacc-1f3643fc5488",
+   "name": "Complete campaign",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.4,
+   "position": [
+    1872,
+    0
+   ],
+   "retryOnFail": true,
+   "maxTries": 3,
+   "waitBetweenTries": 3000
+  },
+  {
+   "parameters": {
+    "conditions": {
+     "options": {
+      "caseSensitive": true,
+      "leftValue": "",
+      "typeValidation": "strict",
+      "version": 2
+     },
+     "conditions": [
+      {
+       "id": "d3fd1aae-1a57-4b3f-bcb0-d332823e74e2",
+       "leftValue": "={{ $json.channel }}",
+       "rightValue": "push",
+       "operator": {
+        "type": "string",
+        "operation": "equals"
+       }
+      }
+     ],
+     "combinator": "and"
+    },
+    "options": {}
+   },
+   "id": "99234c38-4fd2-4ea9-b08f-9b2eabd3d322",
+   "name": "Push campaign?",
+   "type": "n8n-nodes-base.if",
+   "typeVersion": 2.2,
+   "position": [
+    352,
+    -112
+   ]
+  },
+  {
+   "parameters": {
+    "method": "POST",
+    "url": "={{ 'https://signal-api.virya.music/v1/internal/communications/campaigns/' + $json.campaign_id + '/push/enqueue' }}",
+    "sendHeaders": true,
+    "headerParameters": {
+     "parameters": [
+      {
+       "name": "Authorization",
+       "value": "={{ 'Bearer ' + $env.CROWDRELAY_COMMERCE_API_KEY }}"
+      }
+     ]
+    },
+    "options": {
+     "response": {
+      "response": {
+       "responseFormat": "json"
+      }
+     },
+     "timeout": 30000
+    }
+   },
+   "id": "a68365aa-11d5-4edb-8442-e6481cddab3a",
+   "name": "CrowdRelay \u2014 enqueue push campaign",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.2,
+   "position": [
+    592,
+    -224
+   ]
+  },
+  {
+   "parameters": {
+    "method": "POST",
+    "url": "={{ 'https://signal-api.virya.music/v1/internal/communications/campaigns/' + $json.campaign_id + '/deliveries/' + $json.fan_id + '/claim' }}",
+    "sendHeaders": true,
+    "headerParameters": {
+     "parameters": [
+      {
+       "name": "Authorization",
+       "value": "={{ 'Bearer ' + $env.CROWDRELAY_COMMERCE_API_KEY }}"
+      }
+     ]
+    },
+    "sendBody": true,
+    "contentType": "raw",
+    "rawContentType": "application/json",
+    "body": "={{ JSON.stringify({attempt_key:$json.attempt_key}) }}",
+    "options": {
+     "response": {
+      "response": {
+       "responseFormat": "json"
+      }
+     },
+     "timeout": 30000
+    }
+   },
+   "id": "4abb4905-222b-40c3-83a1-ca10804c3d58",
+   "name": "CrowdRelay \u2014 claim campaign email",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.2,
+   "position": [
+    864,
+    -64
+   ]
+  },
+  {
+   "parameters": {
+    "jsCode": "const src=$('Build deterministic campaign messages').item.json||{};const claim=$json||{};if(claim.send_allowed!==true||!claim.delivery?.attempt_key)return [];return [{json:{...src,attempt_key:String(claim.delivery.attempt_key)}}];"
+   },
+   "id": "1092d448-3735-49bf-a3a2-33d8563f5d0d",
+   "name": "Require send-allowed claim",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    992,
+    -64
+   ]
+  },
+  {
+   "parameters": {
+    "method": "POST",
+    "url": "={{ 'https://signal-api.virya.music/v1/internal/communications/campaigns/' + $('Require send-allowed claim').item.json.campaign_id + '/deliveries/' + $('Require send-allowed claim').item.json.fan_id + '/result' }}",
+    "sendHeaders": true,
+    "headerParameters": {
+     "parameters": [
+      {
+       "name": "Authorization",
+       "value": "={{ 'Bearer ' + $env.CROWDRELAY_COMMERCE_API_KEY }}"
+      }
+     ]
+    },
+    "sendBody": true,
+    "contentType": "raw",
+    "rawContentType": "application/json",
+    "body": "={{ JSON.stringify({attempt_key:$('Require send-allowed claim').item.json.attempt_key,status:'delivered',provider_reference:String($json.id||$json.messageId||$json.threadId||$json.thread_id||'gmail').slice(0,240),error_code:null}) }}",
+    "options": {
+     "response": {
+      "response": {
+       "responseFormat": "json"
+      }
+     },
+     "timeout": 30000
+    }
+   },
+   "id": "14c73faa-6a5a-47e2-8b9c-08c1b19d1961",
+   "name": "CrowdRelay \u2014 report campaign email delivered",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.2,
+   "position": [
+    1264,
+    -96
+   ]
+  },
+  {
+   "parameters": {
+    "jsCode": "const src=$('Require send-allowed claim').item.json||{};throw new Error(`Campaign Gmail provider outcome ambiguous for ${src.campaign_id||'unknown'}/${src.fan_id||'unknown'}; delivery claim retained to prevent automatic duplicate send`);"
+   },
+   "id": "f21b56eb-8bbc-412d-a2ec-4a1940454012",
+   "name": "Fail closed on ambiguous campaign Gmail",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    1264,
+    80
+   ]
+  },
+  {
+   "parameters": {
+    "url": "={{ 'https://signal-api.virya.music/v1/internal/communications/campaigns/' + $('Validate campaign').first().json.campaign_id + '/delivery-plan?limit=1' }}",
+    "sendHeaders": true,
+    "headerParameters": {
+     "parameters": [
+      {
+       "name": "Authorization",
+       "value": "={{ 'Bearer ' + $env.CROWDRELAY_COMMERCE_API_KEY }}"
+      }
+     ]
+    },
+    "options": {
+     "response": {
+      "response": {
+       "responseFormat": "json"
+      }
+     },
+     "timeout": 30000
+    }
+   },
+   "id": "2653eec2-d6c2-45c3-a4e0-b70c8dcc1fec",
+   "name": "Load final campaign progress",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.2,
+   "position": [
+    1472,
+    0
+   ]
+  }
+ ],
+ "connections": {
+  "Called by verified ingress": {
+   "main": [
+    [
+     {
+      "node": "Validate campaign",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Validate campaign": {
+   "main": [
+    [
+     {
+      "node": "Push campaign?",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Load delivery plan": {
+   "main": [
+    [
+     {
+      "node": "Any recipients?",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Any recipients?": {
+   "main": [
+    [
+     {
+      "node": "Build deterministic campaign messages",
+      "type": "main",
+      "index": 0
+     }
+    ],
+    [
+     {
+      "node": "Zero delivery",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Build deterministic campaign messages": {
+   "main": [
+    [
+     {
+      "node": "CrowdRelay \u2014 claim campaign email",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Gmail \u2014 campaign SEND": {
+   "main": [
+    [
+     {
+      "node": "CrowdRelay \u2014 report campaign email delivered",
+      "type": "main",
+      "index": 0
+     }
+    ],
+    [
+     {
+      "node": "Fail closed on ambiguous campaign Gmail",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Zero delivery": {
+   "main": [
+    [
+     {
+      "node": "Load final campaign progress",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Push campaign?": {
+   "main": [
+    [
+     {
+      "node": "CrowdRelay \u2014 enqueue push campaign",
+      "type": "main",
+      "index": 0
+     }
+    ],
+    [
+     {
+      "node": "Load delivery plan",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "CrowdRelay \u2014 claim campaign email": {
+   "main": [
+    [
+     {
+      "node": "Require send-allowed claim",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Require send-allowed claim": {
+   "main": [
+    [
+     {
+      "node": "Gmail \u2014 campaign SEND",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "CrowdRelay \u2014 report campaign email delivered": {
+   "main": [
+    [
+     {
+      "node": "Load final campaign progress",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Load final campaign progress": {
+   "main": [
+    [
+     {
+      "node": "Build authoritative completion",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Build authoritative completion": {
+   "main": [
+    [
+     {
+      "node": "Complete campaign",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  }
+ },
+ "settings": {
+  "executionOrder": "v1",
+  "saveDataErrorExecution": "none",
+  "saveDataSuccessExecution": "none",
+  "saveManualExecutions": false,
+  "errorWorkflow": "98d5e1a4-2dba-5e5a-9be1-2e5d9220859d",
+  "saveExecutionProgress": false,
+  "executionTimeout": 180,
+  "binaryMode": "separate"
+ },
+ "staticData": null,
+ "meta": {
+  "templateCredsSetupCompleted": true
+ },
+ "nodeGroups": [],
+ "pinData": {},
+ "versionId": "7c97d84d-acb4-4463-b343-23f10c45e0ca",
+ "activeVersionId": "7c97d84d-acb4-4463-b343-23f10c45e0ca",
+ "versionCounter": 6,
+ "triggerCount": 0,
+ "sourceWorkflowId": null,
+ "shared": [
+  {
+   "updatedAt": "2026-08-11T12:52:18.476Z",
+   "createdAt": "2026-08-11T12:52:18.476Z",
+   "role": "workflow:owner",
+   "workflowId": "VOSCAM000000001",
+   "projectId": "e2rPVcUBR4DTE3mO",
+   "project": {
+    "updatedAt": "2026-07-24T09:45:30.763Z",
+    "createdAt": "2026-07-24T09:45:07.113Z",
+    "id": "e2rPVcUBR4DTE3mO",
+    "name": "Virya Crew <virya.crew@gmail.com>",
+    "type": "personal",
+    "icon": null,
+    "description": null,
+    "customTelemetryTags": [],
+    "creatorId": "89259ec0-46eb-41d3-a04e-eb12f52f6342"
+   }
+  }
+ ],
+ "tags": [],
+ "activeVersion": {
+  "updatedAt": "2026-08-21T11:30:00.696Z",
+  "createdAt": "2026-08-21T11:29:59.575Z",
+  "versionId": "7c97d84d-acb4-4463-b343-23f10c45e0ca",
+  "workflowId": "VOSCAM000000001",
+  "nodes": [
+   {
+    "parameters": {
+     "inputSource": "passthrough"
+    },
+    "id": "92631664-f0e5-4679-b269-db302ddfe022",
+    "name": "Called by verified ingress",
+    "type": "n8n-nodes-base.executeWorkflowTrigger",
+    "typeVersion": 1.1,
+    "position": [
+     -352,
+     64
+    ]
+   },
+   {
+    "parameters": {
+     "jsCode": "const e=$json;if(!e||e.type!=='communication.campaign_due'||e.version!==1) throw new Error('Unsupported campaign event');const d=e.data??{};if(!d.campaign_id||!['email','push'].includes(d.channel)||!d.template_key) throw new Error('Invalid campaign payload');return [{json:{event_id:e.id,campaign_id:d.campaign_id,channel:String(d.channel),template_key:String(d.template_key),campaign_slug:String(d.campaign_slug||'')}}];"
+    },
+    "id": "427296fa-6778-428b-8137-e4cc1768e920",
+    "name": "Validate campaign",
+    "type": "n8n-nodes-base.code",
+    "typeVersion": 2,
+    "position": [
+     112,
+     64
+    ]
+   },
+   {
+    "parameters": {
+     "url": "={{ 'https://signal-api.virya.music/v1/internal/communications/campaigns/' + $json.campaign_id + '/delivery-plan?limit=500' }}",
+     "sendHeaders": true,
+     "headerParameters": {
+      "parameters": [
+       {
+        "name": "Authorization",
+        "value": "={{ 'Bearer ' + $env.CROWDRELAY_COMMERCE_API_KEY }}"
+       }
+      ]
+     },
+     "options": {
+      "response": {
+       "response": {
+        "responseFormat": "json"
+       }
+      },
+      "timeout": 30000
+     }
+    },
+    "id": "7baf42e0-4173-4b6b-9525-4ef1806d3eb6",
+    "name": "Load delivery plan",
+    "type": "n8n-nodes-base.httpRequest",
+    "typeVersion": 4.4,
+    "position": [
+     592,
+     80
+    ],
+    "retryOnFail": true,
+    "maxTries": 3,
+    "waitBetweenTries": 3000
+   },
+   {
+    "parameters": {
+     "conditions": {
+      "options": {
+       "caseSensitive": true,
+       "leftValue": "",
+       "typeValidation": "strict",
+       "version": 2
+      },
+      "conditions": [
+       {
+        "id": "d5662b66-9ce7-463b-ab1d-95e004e2830c",
+        "leftValue": "={{ Array.isArray($json.recipients) ? $json.recipients.length : 0 }}",
+        "rightValue": 0,
+        "operator": {
+         "type": "number",
+         "operation": "gt"
+        }
+       }
+      ],
+      "combinator": "and"
+     },
+     "options": {}
+    },
+    "id": "c61d74a4-0f4e-4595-8d93-5b2454c566aa",
+    "name": "Any recipients?",
+    "type": "n8n-nodes-base.if",
+    "typeVersion": 2.2,
+    "position": [
+     352,
+     64
+    ]
+   },
+   {
+    "parameters": {
+     "jsCode": "const plan=$json; const src=$('Validate campaign').first().json;if(plan.next_after_fan_id) throw new Error('Campaign >500 recipients: pagination intentionally requires follow-up implementation before auto-send');const rec=Array.isArray(plan.recipients)?plan.recipients:[];const key=src.template_key;const content=(plan.campaign&&plan.campaign.content)||{};const resolveCta=(v)=>{if(!v)return '';const s=String(v);return s.startsWith('env:')?String($env[s.slice(4)]||''):s;};const ctas=content.growth_ctas||{};const ctaLines=[['Spotify',resolveCta(ctas.spotify_artist_url)],['Bandsintown',resolveCta(ctas.bandsintown_follow_url)],['Playlista',resolveCta(ctas.spotify_playlist_url)]].filter(([,u])=>u).map(([l,u])=>l+': '+u);const ticketUrl=content.ticket_url?String(content.ticket_url):'';if(ticketUrl)ctaLines.push('Koncert: '+ticketUrl);const copy=(r)=>{const pl=String(r.locale||'pl').toLowerCase().startsWith('pl');const name=String(r.display_name||'').trim();const hi=pl?(name?`Cze\u015b\u0107 ${name}!`:'Cze\u015b\u0107!'):(name?`Hi ${name}!`:'Hi!');const map={\n'show.growth.free_fan_push.v1':['VIRYA \u2014 obserwuj nas i nie przegap koncertu','VIRYA \u2014 follow us and catch the show'],\n'release.announcement.v1':['Nowa premiera VIRYA nadchodzi','A new VIRYA release is coming'],\n'release.fan_warmup.v1':['VIRYA \u2014 premiera coraz bli\u017cej','VIRYA \u2014 release incoming'],\n'release.countdown.v1':['VIRYA \u2014 ju\u017c za chwil\u0119','VIRYA \u2014 almost there'],\n'release.release_day.v1':['Nowa premiera VIRYA \u2014 dzi\u015b','New VIRYA release \u2014 today'],\n'release.sustain.v1':['S\u0142yszeli\u015bcie ju\u017c now\u0105 VIRYA?','Have you heard the new VIRYA release?'],\n'release.wrap.v1':['Dzi\u0119ki za premier\u0119 z VIRYA','Thanks for joining the VIRYA release'],\n'event.announcement.v1':['VIRYA \u2014 nowy koncert','VIRYA \u2014 new show'],\n'event.interest_reminder.v1':['VIRYA \u2014 przypomnienie o koncercie','VIRYA \u2014 show reminder'],\n'event.last_call.v1':['VIRYA \u2014 ostatni moment przed koncertem','VIRYA \u2014 last call before the show'],\n'event.day_of.v1':['VIRYA \u2014 widzimy si\u0119 dzi\u015b','VIRYA \u2014 see you today'],\n'event.thank_you.v1':['Dzi\u0119ki za koncert z VIRYA','Thanks for the show with VIRYA']};const sub=(map[key]||['VIRYA \u2014 nowy sygna\u0142','VIRYA \u2014 new signal'])[pl?0:1];let body=pl?`${hi}\\n\\nMamy dla Ciebie aktualny sygna\u0142 VIRYA. Szczeg\u00f3\u0142y, muzyka i koncerty:\\nhttps://virya.music/pl/signal/\\n\\nDo zobaczenia,\\nVIRYA`:`${hi}\\n\\nHere is the latest VIRYA signal. Music, releases and shows:\\nhttps://virya.music/signal/\\n\\nSee you,\\nVIRYA`;if(ctaLines.length)body+='\\n\\n'+ctaLines.join('\\n');return {SendTo:r.email,SendSubject:sub,SendBody:body,fan_id:r.fan_id};};return rec.map(r=>({json:{...copy(r),campaign_id:src.campaign_id,event_id:src.event_id,attempt_key:`email:${src.campaign_id}:${r.fan_id}`}}));"
+    },
+    "id": "60642a29-a34e-40bd-b35c-a48e276f62c1",
+    "name": "Build deterministic campaign messages",
+    "type": "n8n-nodes-base.code",
+    "typeVersion": 2,
+    "position": [
+     592,
+     -64
+    ]
+   },
+   {
+    "parameters": {
+     "sendTo": "={{ $json.SendTo }}",
+     "subject": "={{ $json.SendSubject }}",
+     "emailType": "text",
+     "message": "={{ $json.SendBody }}",
+     "options": {
+      "appendAttribution": false,
+      "senderName": "Wojciech Bator / Virya"
+     }
+    },
+    "id": "b7783992-02bf-4e75-852d-5125037a630e",
+    "name": "Gmail \u2014 campaign SEND",
+    "type": "n8n-nodes-base.gmail",
+    "typeVersion": 2.1,
+    "position": [
+     1120,
+     -64
+    ],
+    "webhookId": "488bd4c7-c5d9-4636-9166-dd726cd4acf6",
+    "credentials": {
+     "gmailOAuth2": {
+      "id": "BJg5tKEWMNRw0GA1",
+      "name": "Gmail account"
+     }
+    },
+    "onError": "continueErrorOutput"
+   },
+   {
+    "parameters": {
+     "jsCode": "const src=$('Validate campaign').first().json;const d=$json?.delivery??{};const pending=Number(d.pending_count??-1),claimed=Number(d.claimed_count??-1);if(pending!==0||claimed!==0)throw new Error(`Campaign delivery still open pending=${pending} claimed=${claimed}`);const recipient_count=Number(d.eligible_count??-1),delivered_count=Number(d.delivered_count??-1),failed_count=Number(d.failed_count??-1);if([recipient_count,delivered_count,failed_count].some(v=>!Number.isInteger(v)||v<0)||delivered_count+failed_count!==recipient_count)throw new Error('Invalid authoritative campaign delivery progress');return [{json:{campaign_id:src.campaign_id,recipient_count,delivered_count,failed_count}}];"
+    },
+    "id": "c97d1e98-70db-4056-8220-e39e439e1839",
+    "name": "Build authoritative completion",
+    "type": "n8n-nodes-base.code",
+    "typeVersion": 2,
+    "position": [
+     1664,
+     0
+    ]
+   },
+   {
+    "parameters": {
+     "jsCode": "return [{json:{campaign_id:$('Validate campaign').first().json.campaign_id}}];"
+    },
+    "id": "bfa4040a-e273-4d6d-bf5f-a22b3dfc4d7f",
+    "name": "Zero delivery",
+    "type": "n8n-nodes-base.code",
+    "typeVersion": 2,
+    "position": [
+     1264,
+     240
+    ]
+   },
+   {
+    "parameters": {
+     "method": "POST",
+     "url": "={{ 'https://signal-api.virya.music/v1/internal/communications/campaigns/' + $json.campaign_id + '/complete' }}",
+     "sendHeaders": true,
+     "headerParameters": {
+      "parameters": [
+       {
+        "name": "Authorization",
+        "value": "={{ 'Bearer ' + $env.CROWDRELAY_COMMERCE_API_KEY }}"
+       }
+      ]
+     },
+     "sendBody": true,
+     "contentType": "raw",
+     "rawContentType": "application/json",
+     "body": "={{ JSON.stringify({recipient_count:$json.recipient_count,delivered_count:$json.delivered_count,failed_count:$json.failed_count}) }}",
+     "options": {
+      "timeout": 30000
+     }
+    },
+    "id": "acb62b51-c87b-49e4-bacc-1f3643fc5488",
+    "name": "Complete campaign",
+    "type": "n8n-nodes-base.httpRequest",
+    "typeVersion": 4.4,
+    "position": [
+     1872,
+     0
+    ],
+    "retryOnFail": true,
+    "maxTries": 3,
+    "waitBetweenTries": 3000
+   },
+   {
+    "parameters": {
+     "conditions": {
+      "options": {
+       "caseSensitive": true,
+       "leftValue": "",
+       "typeValidation": "strict",
+       "version": 2
+      },
+      "conditions": [
+       {
+        "id": "d3fd1aae-1a57-4b3f-bcb0-d332823e74e2",
+        "leftValue": "={{ $json.channel }}",
+        "rightValue": "push",
+        "operator": {
+         "type": "string",
+         "operation": "equals"
+        }
+       }
+      ],
+      "combinator": "and"
+     },
+     "options": {}
+    },
+    "id": "99234c38-4fd2-4ea9-b08f-9b2eabd3d322",
+    "name": "Push campaign?",
+    "type": "n8n-nodes-base.if",
+    "typeVersion": 2.2,
+    "position": [
+     352,
+     -112
+    ]
+   },
+   {
+    "parameters": {
+     "method": "POST",
+     "url": "={{ 'https://signal-api.virya.music/v1/internal/communications/campaigns/' + $json.campaign_id + '/push/enqueue' }}",
+     "sendHeaders": true,
+     "headerParameters": {
+      "parameters": [
+       {
+        "name": "Authorization",
+        "value": "={{ 'Bearer ' + $env.CROWDRELAY_COMMERCE_API_KEY }}"
+       }
+      ]
+     },
+     "options": {
+      "response": {
+       "response": {
+        "responseFormat": "json"
+       }
+      },
+      "timeout": 30000
+     }
+    },
+    "id": "a68365aa-11d5-4edb-8442-e6481cddab3a",
+    "name": "CrowdRelay \u2014 enqueue push campaign",
+    "type": "n8n-nodes-base.httpRequest",
+    "typeVersion": 4.2,
+    "position": [
+     592,
+     -224
+    ]
+   },
+   {
+    "parameters": {
+     "method": "POST",
+     "url": "={{ 'https://signal-api.virya.music/v1/internal/communications/campaigns/' + $json.campaign_id + '/deliveries/' + $json.fan_id + '/claim' }}",
+     "sendHeaders": true,
+     "headerParameters": {
+      "parameters": [
+       {
+        "name": "Authorization",
+        "value": "={{ 'Bearer ' + $env.CROWDRELAY_COMMERCE_API_KEY }}"
+       }
+      ]
+     },
+     "sendBody": true,
+     "contentType": "raw",
+     "rawContentType": "application/json",
+     "body": "={{ JSON.stringify({attempt_key:$json.attempt_key}) }}",
+     "options": {
+      "response": {
+       "response": {
+        "responseFormat": "json"
+       }
+      },
+      "timeout": 30000
+     }
+    },
+    "id": "4abb4905-222b-40c3-83a1-ca10804c3d58",
+    "name": "CrowdRelay \u2014 claim campaign email",
+    "type": "n8n-nodes-base.httpRequest",
+    "typeVersion": 4.2,
+    "position": [
+     864,
+     -64
+    ]
+   },
+   {
+    "parameters": {
+     "jsCode": "const src=$('Build deterministic campaign messages').item.json||{};const claim=$json||{};if(claim.send_allowed!==true||!claim.delivery?.attempt_key)return [];return [{json:{...src,attempt_key:String(claim.delivery.attempt_key)}}];"
+    },
+    "id": "1092d448-3735-49bf-a3a2-33d8563f5d0d",
+    "name": "Require send-allowed claim",
+    "type": "n8n-nodes-base.code",
+    "typeVersion": 2,
+    "position": [
+     992,
+     -64
+    ]
+   },
+   {
+    "parameters": {
+     "method": "POST",
+     "url": "={{ 'https://signal-api.virya.music/v1/internal/communications/campaigns/' + $('Require send-allowed claim').item.json.campaign_id + '/deliveries/' + $('Require send-allowed claim').item.json.fan_id + '/result' }}",
+     "sendHeaders": true,
+     "headerParameters": {
+      "parameters": [
+       {
+        "name": "Authorization",
+        "value": "={{ 'Bearer ' + $env.CROWDRELAY_COMMERCE_API_KEY }}"
+       }
+      ]
+     },
+     "sendBody": true,
+     "contentType": "raw",
+     "rawContentType": "application/json",
+     "body": "={{ JSON.stringify({attempt_key:$('Require send-allowed claim').item.json.attempt_key,status:'delivered',provider_reference:String($json.id||$json.messageId||$json.threadId||$json.thread_id||'gmail').slice(0,240),error_code:null}) }}",
+     "options": {
+      "response": {
+       "response": {
+        "responseFormat": "json"
+       }
+      },
+      "timeout": 30000
+     }
+    },
+    "id": "14c73faa-6a5a-47e2-8b9c-08c1b19d1961",
+    "name": "CrowdRelay \u2014 report campaign email delivered",
+    "type": "n8n-nodes-base.httpRequest",
+    "typeVersion": 4.2,
+    "position": [
+     1264,
+     -96
+    ]
+   },
+   {
+    "parameters": {
+     "jsCode": "const src=$('Require send-allowed claim').item.json||{};throw new Error(`Campaign Gmail provider outcome ambiguous for ${src.campaign_id||'unknown'}/${src.fan_id||'unknown'}; delivery claim retained to prevent automatic duplicate send`);"
+    },
+    "id": "f21b56eb-8bbc-412d-a2ec-4a1940454012",
+    "name": "Fail closed on ambiguous campaign Gmail",
+    "type": "n8n-nodes-base.code",
+    "typeVersion": 2,
+    "position": [
+     1264,
+     80
+    ]
+   },
+   {
+    "parameters": {
+     "url": "={{ 'https://signal-api.virya.music/v1/internal/communications/campaigns/' + $('Validate campaign').first().json.campaign_id + '/delivery-plan?limit=1' }}",
+     "sendHeaders": true,
+     "headerParameters": {
+      "parameters": [
+       {
+        "name": "Authorization",
+        "value": "={{ 'Bearer ' + $env.CROWDRELAY_COMMERCE_API_KEY }}"
+       }
+      ]
+     },
+     "options": {
+      "response": {
+       "response": {
+        "responseFormat": "json"
+       }
+      },
+      "timeout": 30000
+     }
+    },
+    "id": "2653eec2-d6c2-45c3-a4e0-b70c8dcc1fec",
+    "name": "Load final campaign progress",
+    "type": "n8n-nodes-base.httpRequest",
+    "typeVersion": 4.2,
+    "position": [
+     1472,
+     0
+    ]
+   }
+  ],
+  "connections": {
+   "Called by verified ingress": {
+    "main": [
+     [
+      {
+       "node": "Validate campaign",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "Validate campaign": {
+    "main": [
+     [
+      {
+       "node": "Push campaign?",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "Load delivery plan": {
+    "main": [
+     [
+      {
+       "node": "Any recipients?",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "Any recipients?": {
+    "main": [
+     [
+      {
+       "node": "Build deterministic campaign messages",
+       "type": "main",
+       "index": 0
+      }
+     ],
+     [
+      {
+       "node": "Zero delivery",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "Build deterministic campaign messages": {
+    "main": [
+     [
+      {
+       "node": "CrowdRelay \u2014 claim campaign email",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "Gmail \u2014 campaign SEND": {
+    "main": [
+     [
+      {
+       "node": "CrowdRelay \u2014 report campaign email delivered",
+       "type": "main",
+       "index": 0
+      }
+     ],
+     [
+      {
+       "node": "Fail closed on ambiguous campaign Gmail",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "Zero delivery": {
+    "main": [
+     [
+      {
+       "node": "Load final campaign progress",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "Push campaign?": {
+    "main": [
+     [
+      {
+       "node": "CrowdRelay \u2014 enqueue push campaign",
+       "type": "main",
+       "index": 0
+      }
+     ],
+     [
+      {
+       "node": "Load delivery plan",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "CrowdRelay \u2014 claim campaign email": {
+    "main": [
+     [
+      {
+       "node": "Require send-allowed claim",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "Require send-allowed claim": {
+    "main": [
+     [
+      {
+       "node": "Gmail \u2014 campaign SEND",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "CrowdRelay \u2014 report campaign email delivered": {
+    "main": [
+     [
+      {
+       "node": "Load final campaign progress",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "Load final campaign progress": {
+    "main": [
+     [
+      {
+       "node": "Build authoritative completion",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "Build authoritative completion": {
+    "main": [
+     [
+      {
+       "node": "Complete campaign",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   }
+  },
+  "nodeGroups": [],
+  "authors": "Virya Crew",
+  "name": "Version 7c97d84d",
+  "description": "",
+  "autosaved": false,
+  "workflowPublishHistory": [
+   {
+    "createdAt": "2026-08-21T11:30:00.692Z",
+    "id": 625,
+    "workflowId": "VOSCAM000000001",
+    "versionId": "7c97d84d-acb4-4463-b343-23f10c45e0ca",
+    "event": "activated",
+    "userId": "89259ec0-46eb-41d3-a04e-eb12f52f6342"
+   }
+  ]
+ }
+}

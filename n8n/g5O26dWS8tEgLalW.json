@@ -1,0 +1,780 @@
+{
+ "updatedAt": "2026-08-15T20:53:52.219Z",
+ "createdAt": "2026-07-31T07:15:39.558Z",
+ "id": "g5O26dWS8tEgLalW",
+ "name": "CrowdRelay \u2014 event.published Facebook branch",
+ "description": null,
+ "active": true,
+ "isArchived": false,
+ "nodes": [
+  {
+   "parameters": {
+    "inputSource": "passthrough"
+   },
+   "id": "18178486-65ba-48d2-99a8-f53c12fcbd6a",
+   "name": "Called by verified ingress",
+   "type": "n8n-nodes-base.executeWorkflowTrigger",
+   "typeVersion": 1.1,
+   "position": [
+    -1120,
+    200
+   ]
+  },
+  {
+   "parameters": {
+    "method": "GET",
+    "url": "={{ ($env.CROWDRELAY_API_URL || 'https://signal-api.virya.music/v1').replace(/\\/$/, '') + '/public/events/' + encodeURIComponent($json.data.event.slug) }}",
+    "options": {
+     "timeout": 15000,
+     "response": {
+      "response": {
+       "responseFormat": "json"
+      }
+     }
+    }
+   },
+   "id": "e4b98dab-e310-44c3-b985-ea32a968f5df",
+   "name": "Read current CrowdRelay event",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.2,
+   "position": [
+    -900,
+    200
+   ],
+   "retryOnFail": true,
+   "maxTries": 3,
+   "waitBetweenTries": 2000
+  },
+  {
+   "parameters": {
+    "jsCode": "const envelope = $('Called by verified ingress').first().json;\nif (!envelope || envelope.type !== 'event.published' || envelope.version !== 1) throw new Error('Unsupported CrowdRelay event');\nconst original = envelope.data?.event ?? {};\nconst current = $json ?? {};\nconst event = {\n  ...original,\n  ...current,\n  city: current.city?.name ?? original.city ?? null,\n  bandsintown_event_url: current.external_event_url ?? original.bandsintown_event_url ?? null,\n};\nif (!event.slug || !event.title || !event.starts_at) throw new Error('Missing event fields');\nconst base = ($env.CROWDRELAY_PUBLIC_SITE_URL || 'https://virya.music').replace(/\\/$/, '');\nconst eventUrl = `${base}/pl/live/${encodeURIComponent(event.slug)}/`;\nconst date = new Intl.DateTimeFormat('pl-PL', { dateStyle: 'full', timeStyle: 'short', timeZone: event.timezone || 'Europe/Warsaw' }).format(new Date(event.starts_at));\nconst place = [event.venue, event.city].filter(Boolean).join(' \u00b7 ');\nconst addTrigger = (value, trigger) => { try { const url = new URL(value); url.searchParams.set('trigger', trigger); return url.toString(); } catch { return null; } };\nconst rsvpUrl = addTrigger(event.bandsintown_event_url, 'rsvp_going');\nconst followUrl = $env.BANDSINTOWN_ARTIST_URL || 'https://www.bandsintown.com/a/15587796-virya?trigger=track';\nconst message = [\n  `NOWY KONCERT // ${event.title}`,\n  date,\n  place,\n  event.description || null,\n  `Bilety i szczeg\u00f3\u0142y: ${eventUrl}`,\n  rsvpUrl ? `RSVP na Bandsintown: ${rsvpUrl}` : null,\n  `Obserwuj Viry\u0119 na Bandsintown: ${followUrl}`,\n].filter(Boolean).join('\\\\n\\\\n');\nreturn [{ json: { envelope, eventId: envelope.id, event, eventUrl, rsvpUrl, followUrl, message } }];"
+   },
+   "id": "a85267bc-de28-4113-bed4-79646dbbbeca",
+   "name": "Validate and build publication",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    -660,
+    200
+   ]
+  },
+  {
+   "parameters": {
+    "method": "GET",
+    "url": "https://graph.facebook.com/v24.0/me/accounts",
+    "authentication": "genericCredentialType",
+    "genericAuthType": "oAuth2Api",
+    "sendQuery": true,
+    "queryParameters": {
+     "parameters": [
+      {
+       "name": "fields",
+       "value": "id,name,access_token"
+      },
+      {
+       "name": "limit",
+       "value": "100"
+      }
+     ]
+    },
+    "options": {
+     "timeout": 30000,
+     "response": {
+      "response": {
+       "responseFormat": "json"
+      }
+     }
+    }
+   },
+   "id": "e2a1d0d5-1dc1-475f-aba5-9a90c513318e",
+   "name": "Get managed Facebook Pages",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.2,
+   "position": [
+    -680,
+    200
+   ],
+   "credentials": {
+    "oAuth2Api": {
+     "id": "u8PUa0YZcmFfEIGg",
+     "name": "Meta Virya OAuth2"
+    }
+   },
+   "retryOnFail": true,
+   "maxTries": 3,
+   "waitBetweenTries": 2000
+  },
+  {
+   "parameters": {
+    "jsCode": "const source = $('Validate and build publication').first().json;\nconst pages = Array.isArray($json.data) ? $json.data : [];\nconst wanted = String($env.META_VIRYA_PAGE_ID || '').trim();\nconst page = pages.find(item => wanted && String(item.id) === wanted) || pages.find(item => /virya/i.test(String(item.name || '')));\nif (!page?.id || !page?.access_token) throw new Error('Virya Facebook Page not found');\nreturn [{ json: { ...source, pageId: String(page.id), pageAccessToken: String(page.access_token) } }];"
+   },
+   "id": "cda97116-10e0-44e2-892a-c8448c3db725",
+   "name": "Select Virya Page",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    -460,
+    200
+   ]
+  },
+  {
+   "parameters": {
+    "method": "GET",
+    "url": "={{ 'https://graph.facebook.com/v24.0/' + $json.pageId + '/feed' }}",
+    "sendQuery": true,
+    "queryParameters": {
+     "parameters": [
+      {
+       "name": "fields",
+       "value": "id,message,created_time"
+      },
+      {
+       "name": "limit",
+       "value": "50"
+      },
+      {
+       "name": "access_token",
+       "value": "={{ $json.pageAccessToken }}"
+      }
+     ]
+    },
+    "options": {
+     "timeout": 30000,
+     "response": {
+      "response": {
+       "responseFormat": "json"
+      }
+     }
+    }
+   },
+   "id": "7f5c9a72-fe33-457e-99c6-608e44576d28",
+   "name": "Read recent Facebook Page posts",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.2,
+   "position": [
+    -240,
+    200
+   ],
+   "retryOnFail": true,
+   "maxTries": 3,
+   "waitBetweenTries": 2000
+  },
+  {
+   "parameters": {
+    "jsCode": "const source = $('Select Virya Page').first().json;\nconst posts = Array.isArray($json.data) ? $json.data : [];\nconst found = posts.some(post => typeof post.message === 'string' && post.message.includes(source.eventUrl));\nreturn [{ json: { ...source, facebookDone: found } }];"
+   },
+   "id": "a2141ccf-9743-4cef-bfb0-245c27714ac0",
+   "name": "Check Facebook external idempotency",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    0,
+    200
+   ]
+  },
+  {
+   "parameters": {
+    "conditions": {
+     "options": {
+      "caseSensitive": true,
+      "leftValue": "",
+      "typeValidation": "strict",
+      "version": 2
+     },
+     "conditions": [
+      {
+       "id": "090cf64b-0e3e-4794-8f28-b9342fb2a723",
+       "leftValue": "={{ $json.facebookDone }}",
+       "rightValue": true,
+       "operator": {
+        "type": "boolean",
+        "operation": "true",
+        "singleValue": true
+       }
+      }
+     ],
+     "combinator": "and"
+    },
+    "options": {}
+   },
+   "id": "9e74fa17-1812-40b3-95e8-9076cc0e7125",
+   "name": "Facebook already published?",
+   "type": "n8n-nodes-base.if",
+   "typeVersion": 2.2,
+   "position": [
+    220,
+    200
+   ]
+  },
+  {
+   "parameters": {
+    "method": "POST",
+    "url": "={{ 'https://graph.facebook.com/v24.0/' + $json.pageId + '/feed' }}",
+    "sendBody": true,
+    "contentType": "form-urlencoded",
+    "bodyParameters": {
+     "parameters": [
+      {
+       "name": "message",
+       "value": "={{ $json.message }}"
+      },
+      {
+       "name": "link",
+       "value": "={{ $json.eventUrl }}"
+      },
+      {
+       "name": "access_token",
+       "value": "={{ $json.pageAccessToken }}"
+      }
+     ]
+    },
+    "options": {
+     "timeout": 30000,
+     "response": {
+      "response": {
+       "responseFormat": "json"
+      }
+     }
+    }
+   },
+   "id": "5d991d11-3da4-445a-b45c-574596cc7bf9",
+   "name": "Publish Facebook Page post",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.2,
+   "position": [
+    440,
+    360
+   ]
+  },
+  {
+   "parameters": {},
+   "id": "0e2c8c9b-236c-40ce-baed-10ade053b034",
+   "name": "Publication complete",
+   "type": "n8n-nodes-base.noOp",
+   "typeVersion": 1,
+   "position": [
+    1760,
+    120
+   ]
+  }
+ ],
+ "connections": {
+  "Called by verified ingress": {
+   "main": [
+    [
+     {
+      "node": "Read current CrowdRelay event",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Validate and build publication": {
+   "main": [
+    [
+     {
+      "node": "Get managed Facebook Pages",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Get managed Facebook Pages": {
+   "main": [
+    [
+     {
+      "node": "Select Virya Page",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Select Virya Page": {
+   "main": [
+    [
+     {
+      "node": "Read recent Facebook Page posts",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Read recent Facebook Page posts": {
+   "main": [
+    [
+     {
+      "node": "Check Facebook external idempotency",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Check Facebook external idempotency": {
+   "main": [
+    [
+     {
+      "node": "Facebook already published?",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Facebook already published?": {
+   "main": [
+    [
+     {
+      "node": "Publication complete",
+      "type": "main",
+      "index": 0
+     }
+    ],
+    [
+     {
+      "node": "Publish Facebook Page post",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Publish Facebook Page post": {
+   "main": [
+    [
+     {
+      "node": "Publication complete",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Read current CrowdRelay event": {
+   "main": [
+    [
+     {
+      "node": "Validate and build publication",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  }
+ },
+ "settings": {
+  "executionOrder": "v1",
+  "saveDataErrorExecution": "none",
+  "saveDataSuccessExecution": "none",
+  "saveManualExecutions": false,
+  "errorWorkflow": "98d5e1a4-2dba-5e5a-9be1-2e5d9220859d"
+ },
+ "staticData": null,
+ "meta": {
+  "templateCredsSetupCompleted": true
+ },
+ "nodeGroups": [],
+ "pinData": {},
+ "versionId": "eb8cf25a-02c4-4976-978e-2a15b96caf8b",
+ "activeVersionId": "eb8cf25a-02c4-4976-978e-2a15b96caf8b",
+ "versionCounter": 10,
+ "triggerCount": 0,
+ "sourceWorkflowId": null,
+ "shared": [
+  {
+   "updatedAt": "2026-07-31T07:15:39.558Z",
+   "createdAt": "2026-07-31T07:15:39.558Z",
+   "role": "workflow:owner",
+   "workflowId": "g5O26dWS8tEgLalW",
+   "projectId": "e2rPVcUBR4DTE3mO",
+   "project": {
+    "updatedAt": "2026-07-24T09:45:30.763Z",
+    "createdAt": "2026-07-24T09:45:07.113Z",
+    "id": "e2rPVcUBR4DTE3mO",
+    "name": "Virya Crew <virya.crew@gmail.com>",
+    "type": "personal",
+    "icon": null,
+    "description": null,
+    "customTelemetryTags": [],
+    "creatorId": "89259ec0-46eb-41d3-a04e-eb12f52f6342"
+   }
+  }
+ ],
+ "tags": [],
+ "activeVersion": {
+  "updatedAt": "2026-08-12T17:01:41.269Z",
+  "createdAt": "2026-08-12T17:01:41.269Z",
+  "versionId": "eb8cf25a-02c4-4976-978e-2a15b96caf8b",
+  "workflowId": "g5O26dWS8tEgLalW",
+  "nodes": [
+   {
+    "parameters": {
+     "inputSource": "passthrough"
+    },
+    "id": "18178486-65ba-48d2-99a8-f53c12fcbd6a",
+    "name": "Called by verified ingress",
+    "type": "n8n-nodes-base.executeWorkflowTrigger",
+    "typeVersion": 1.1,
+    "position": [
+     -1120,
+     200
+    ]
+   },
+   {
+    "parameters": {
+     "method": "GET",
+     "url": "={{ ($env.CROWDRELAY_API_URL || 'https://signal-api.virya.music/v1').replace(/\\/$/, '') + '/public/events/' + encodeURIComponent($json.data.event.slug) }}",
+     "options": {
+      "timeout": 15000,
+      "response": {
+       "response": {
+        "responseFormat": "json"
+       }
+      }
+     }
+    },
+    "id": "e4b98dab-e310-44c3-b985-ea32a968f5df",
+    "name": "Read current CrowdRelay event",
+    "type": "n8n-nodes-base.httpRequest",
+    "typeVersion": 4.2,
+    "position": [
+     -900,
+     200
+    ],
+    "retryOnFail": true,
+    "maxTries": 3,
+    "waitBetweenTries": 2000
+   },
+   {
+    "parameters": {
+     "jsCode": "const envelope = $('Called by verified ingress').first().json;\nif (!envelope || envelope.type !== 'event.published' || envelope.version !== 1) throw new Error('Unsupported CrowdRelay event');\nconst original = envelope.data?.event ?? {};\nconst current = $json ?? {};\nconst event = {\n  ...original,\n  ...current,\n  city: current.city?.name ?? original.city ?? null,\n  bandsintown_event_url: current.external_event_url ?? original.bandsintown_event_url ?? null,\n};\nif (!event.slug || !event.title || !event.starts_at) throw new Error('Missing event fields');\nconst base = ($env.CROWDRELAY_PUBLIC_SITE_URL || 'https://virya.music').replace(/\\/$/, '');\nconst eventUrl = `${base}/pl/live/${encodeURIComponent(event.slug)}/`;\nconst date = new Intl.DateTimeFormat('pl-PL', { dateStyle: 'full', timeStyle: 'short', timeZone: event.timezone || 'Europe/Warsaw' }).format(new Date(event.starts_at));\nconst place = [event.venue, event.city].filter(Boolean).join(' \u00b7 ');\nconst addTrigger = (value, trigger) => { try { const url = new URL(value); url.searchParams.set('trigger', trigger); return url.toString(); } catch { return null; } };\nconst rsvpUrl = addTrigger(event.bandsintown_event_url, 'rsvp_going');\nconst followUrl = $env.BANDSINTOWN_ARTIST_URL || 'https://www.bandsintown.com/a/15587796-virya?trigger=track';\nconst message = [\n  `NOWY KONCERT // ${event.title}`,\n  date,\n  place,\n  event.description || null,\n  `Bilety i szczeg\u00f3\u0142y: ${eventUrl}`,\n  rsvpUrl ? `RSVP na Bandsintown: ${rsvpUrl}` : null,\n  `Obserwuj Viry\u0119 na Bandsintown: ${followUrl}`,\n].filter(Boolean).join('\\\\n\\\\n');\nreturn [{ json: { envelope, eventId: envelope.id, event, eventUrl, rsvpUrl, followUrl, message } }];"
+    },
+    "id": "a85267bc-de28-4113-bed4-79646dbbbeca",
+    "name": "Validate and build publication",
+    "type": "n8n-nodes-base.code",
+    "typeVersion": 2,
+    "position": [
+     -660,
+     200
+    ]
+   },
+   {
+    "parameters": {
+     "method": "GET",
+     "url": "https://graph.facebook.com/v24.0/me/accounts",
+     "authentication": "genericCredentialType",
+     "genericAuthType": "oAuth2Api",
+     "sendQuery": true,
+     "queryParameters": {
+      "parameters": [
+       {
+        "name": "fields",
+        "value": "id,name,access_token"
+       },
+       {
+        "name": "limit",
+        "value": "100"
+       }
+      ]
+     },
+     "options": {
+      "timeout": 30000,
+      "response": {
+       "response": {
+        "responseFormat": "json"
+       }
+      }
+     }
+    },
+    "id": "e2a1d0d5-1dc1-475f-aba5-9a90c513318e",
+    "name": "Get managed Facebook Pages",
+    "type": "n8n-nodes-base.httpRequest",
+    "typeVersion": 4.2,
+    "position": [
+     -680,
+     200
+    ],
+    "credentials": {
+     "oAuth2Api": {
+      "id": "u8PUa0YZcmFfEIGg",
+      "name": "Meta Virya OAuth2"
+     }
+    },
+    "retryOnFail": true,
+    "maxTries": 3,
+    "waitBetweenTries": 2000
+   },
+   {
+    "parameters": {
+     "jsCode": "const source = $('Validate and build publication').first().json;\nconst pages = Array.isArray($json.data) ? $json.data : [];\nconst wanted = String($env.META_VIRYA_PAGE_ID || '').trim();\nconst page = pages.find(item => wanted && String(item.id) === wanted) || pages.find(item => /virya/i.test(String(item.name || '')));\nif (!page?.id || !page?.access_token) throw new Error('Virya Facebook Page not found');\nreturn [{ json: { ...source, pageId: String(page.id), pageAccessToken: String(page.access_token) } }];"
+    },
+    "id": "cda97116-10e0-44e2-892a-c8448c3db725",
+    "name": "Select Virya Page",
+    "type": "n8n-nodes-base.code",
+    "typeVersion": 2,
+    "position": [
+     -460,
+     200
+    ]
+   },
+   {
+    "parameters": {
+     "method": "GET",
+     "url": "={{ 'https://graph.facebook.com/v24.0/' + $json.pageId + '/feed' }}",
+     "sendQuery": true,
+     "queryParameters": {
+      "parameters": [
+       {
+        "name": "fields",
+        "value": "id,message,created_time"
+       },
+       {
+        "name": "limit",
+        "value": "50"
+       },
+       {
+        "name": "access_token",
+        "value": "={{ $json.pageAccessToken }}"
+       }
+      ]
+     },
+     "options": {
+      "timeout": 30000,
+      "response": {
+       "response": {
+        "responseFormat": "json"
+       }
+      }
+     }
+    },
+    "id": "7f5c9a72-fe33-457e-99c6-608e44576d28",
+    "name": "Read recent Facebook Page posts",
+    "type": "n8n-nodes-base.httpRequest",
+    "typeVersion": 4.2,
+    "position": [
+     -240,
+     200
+    ],
+    "retryOnFail": true,
+    "maxTries": 3,
+    "waitBetweenTries": 2000
+   },
+   {
+    "parameters": {
+     "jsCode": "const source = $('Select Virya Page').first().json;\nconst posts = Array.isArray($json.data) ? $json.data : [];\nconst found = posts.some(post => typeof post.message === 'string' && post.message.includes(source.eventUrl));\nreturn [{ json: { ...source, facebookDone: found } }];"
+    },
+    "id": "a2141ccf-9743-4cef-bfb0-245c27714ac0",
+    "name": "Check Facebook external idempotency",
+    "type": "n8n-nodes-base.code",
+    "typeVersion": 2,
+    "position": [
+     0,
+     200
+    ]
+   },
+   {
+    "parameters": {
+     "conditions": {
+      "options": {
+       "caseSensitive": true,
+       "leftValue": "",
+       "typeValidation": "strict",
+       "version": 2
+      },
+      "conditions": [
+       {
+        "id": "090cf64b-0e3e-4794-8f28-b9342fb2a723",
+        "leftValue": "={{ $json.facebookDone }}",
+        "rightValue": true,
+        "operator": {
+         "type": "boolean",
+         "operation": "true",
+         "singleValue": true
+        }
+       }
+      ],
+      "combinator": "and"
+     },
+     "options": {}
+    },
+    "id": "9e74fa17-1812-40b3-95e8-9076cc0e7125",
+    "name": "Facebook already published?",
+    "type": "n8n-nodes-base.if",
+    "typeVersion": 2.2,
+    "position": [
+     220,
+     200
+    ]
+   },
+   {
+    "parameters": {
+     "method": "POST",
+     "url": "={{ 'https://graph.facebook.com/v24.0/' + $json.pageId + '/feed' }}",
+     "sendBody": true,
+     "contentType": "form-urlencoded",
+     "bodyParameters": {
+      "parameters": [
+       {
+        "name": "message",
+        "value": "={{ $json.message }}"
+       },
+       {
+        "name": "link",
+        "value": "={{ $json.eventUrl }}"
+       },
+       {
+        "name": "access_token",
+        "value": "={{ $json.pageAccessToken }}"
+       }
+      ]
+     },
+     "options": {
+      "timeout": 30000,
+      "response": {
+       "response": {
+        "responseFormat": "json"
+       }
+      }
+     }
+    },
+    "id": "5d991d11-3da4-445a-b45c-574596cc7bf9",
+    "name": "Publish Facebook Page post",
+    "type": "n8n-nodes-base.httpRequest",
+    "typeVersion": 4.2,
+    "position": [
+     440,
+     360
+    ]
+   },
+   {
+    "parameters": {},
+    "id": "0e2c8c9b-236c-40ce-baed-10ade053b034",
+    "name": "Publication complete",
+    "type": "n8n-nodes-base.noOp",
+    "typeVersion": 1,
+    "position": [
+     1760,
+     120
+    ]
+   }
+  ],
+  "connections": {
+   "Called by verified ingress": {
+    "main": [
+     [
+      {
+       "node": "Read current CrowdRelay event",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "Validate and build publication": {
+    "main": [
+     [
+      {
+       "node": "Get managed Facebook Pages",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "Get managed Facebook Pages": {
+    "main": [
+     [
+      {
+       "node": "Select Virya Page",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "Select Virya Page": {
+    "main": [
+     [
+      {
+       "node": "Read recent Facebook Page posts",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "Read recent Facebook Page posts": {
+    "main": [
+     [
+      {
+       "node": "Check Facebook external idempotency",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "Check Facebook external idempotency": {
+    "main": [
+     [
+      {
+       "node": "Facebook already published?",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "Facebook already published?": {
+    "main": [
+     [
+      {
+       "node": "Publication complete",
+       "type": "main",
+       "index": 0
+      }
+     ],
+     [
+      {
+       "node": "Publish Facebook Page post",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "Publish Facebook Page post": {
+    "main": [
+     [
+      {
+       "node": "Publication complete",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "Read current CrowdRelay event": {
+    "main": [
+     [
+      {
+       "node": "Validate and build publication",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   }
+  },
+  "nodeGroups": [],
+  "authors": "import",
+  "name": null,
+  "description": null,
+  "autosaved": false,
+  "workflowPublishHistory": []
+ }
+}

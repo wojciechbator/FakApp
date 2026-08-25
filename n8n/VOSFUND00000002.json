@@ -1,0 +1,508 @@
+{
+ "updatedAt": "2026-08-15T20:52:29.294Z",
+ "createdAt": "2026-08-11T09:00:00.000Z",
+ "id": "VOSFUND00000002",
+ "name": "CrowdRelay \u2014 CrowdRelayOS funding submission executor",
+ "description": "Executes only explicitly human-approved funding submissions with a configured email adapter.",
+ "active": true,
+ "isArchived": false,
+ "nodes": [
+  {
+   "id": "66c55129-c014-485a-85b9-fe0a23b95b6b",
+   "name": "Called by verified ingress",
+   "type": "n8n-nodes-base.executeWorkflowTrigger",
+   "position": [
+    -80,
+    -144
+   ],
+   "parameters": {
+    "inputSource": "passthrough"
+   },
+   "typeVersion": 1.1
+  },
+  {
+   "id": "19911d63-7dfb-4cc5-8a5f-938645a7afc2",
+   "name": "Validate human-approved email submission",
+   "type": "n8n-nodes-base.code",
+   "position": [
+    176,
+    -144
+   ],
+   "parameters": {
+    "jsCode": "const e=$json;if(!e||e.type!=='crowdrelay.funding.submission_requested'||e.version!==1) throw new Error('Unsupported funding submission event');const d=e.data??{};if(d.human_approved!==true) throw new Error('Funding submission without human approval');const m=d.metadata&&typeof d.metadata==='object'?d.metadata:{};if(String(m.submission_method||'').toLowerCase()!=='email') throw new Error('No configured email submission adapter');const to=String(m.submission_email||d.contact_email||'').trim();if(!to.includes('@')) throw new Error('Missing funding submission email');const subject=String(m.submission_subject||`VIRYA \u2014 ${d.title} \u2014 wniosek`).slice(0,220);const body=String(m.submission_body||`Dzie\u0144 dobry,\\n\\nprzesy\u0142amy zatwierdzone zg\u0142oszenie VIRYA do programu \u201e${d.title}\u201d.\\n\\nDane zespo\u0142u i EPK: https://virya.music/pl/epk/\\n\\nProsimy o potwierdzenie otrzymania.\\n\\nPozdrawiamy,\\nVIRYA`);return [{json:{event_id:e.id,action_id:d.action_id,opportunity_id:d.opportunity_id,SendTo:to,SendSubject:subject,SendBody:body}}];"
+   },
+   "typeVersion": 2
+  },
+  {
+   "id": "93e789e3-c7da-4582-b5a3-3b7ff2b5aec5",
+   "name": "Gmail \u2014 submit funding",
+   "type": "n8n-nodes-base.gmail",
+   "onError": "continueErrorOutput",
+   "position": [
+    672,
+    -144
+   ],
+   "webhookId": "9bb661f9-4b77-4143-996a-22dd37f18019",
+   "parameters": {
+    "sendTo": "={{ $json.SendTo }}",
+    "message": "={{ $json.SendBody }}",
+    "options": {
+     "senderName": "Wojciech Bator / Virya",
+     "appendAttribution": false
+    },
+    "subject": "={{ $json.SendSubject }}",
+    "emailType": "text"
+   },
+   "credentials": {
+    "gmailOAuth2": {
+     "id": "BJg5tKEWMNRw0GA1",
+     "name": "Gmail account"
+    }
+   },
+   "typeVersion": 2.1
+  },
+  {
+   "id": "c748de38-8980-4d97-9391-a8572ab9c414",
+   "name": "Prepare funding submit success receipt",
+   "type": "n8n-nodes-base.code",
+   "position": [
+    720,
+    -240
+   ],
+   "parameters": {
+    "jsCode": "const src=$('Validate human-approved email submission').item.json||{};const sent=$json||{};return [{json:{action_id:src.action_id,claim_token:$('Resolve provider execution claim').item.json.claim_token,status:'succeeded',provider_reference:String(sent.id||sent.messageId||sent.threadId||'gmail').slice(0,240),metadata:{event_id:src.event_id,provider:'gmail',domain_transition:'submitted'},occurred_at:new Date().toISOString()}}];"
+   },
+   "typeVersion": 2
+  },
+  {
+   "id": "c408dd53-71c0-44bc-97c7-09d8bd1ffd26",
+   "name": "Fail closed on ambiguous provider error",
+   "type": "n8n-nodes-base.code",
+   "position": [
+    720,
+    -48
+   ],
+   "parameters": {
+    "jsCode": "const src=$('Resolve provider execution claim').item.json||{}; throw new Error(`Provider outcome ambiguous for action ${src.action_id||'unknown'}; claim retained to prevent automatic duplicate`);"
+   },
+   "typeVersion": 2
+  },
+  {
+   "id": "ace3ed69-c220-4652-8569-d32499e7494a",
+   "name": "Queue funding submit success receipt",
+   "type": "n8n-nodes-base.executeWorkflow",
+   "position": [
+    992,
+    -240
+   ],
+   "parameters": {
+    "options": {},
+    "workflowId": {
+     "__rl": true,
+     "mode": "id",
+     "value": "VOSRECEIPT00001"
+    }
+   },
+   "typeVersion": 1.3,
+   "alwaysOutputData": true
+  },
+  {
+   "id": "ac65acea-0670-49f9-b2ab-140afd9748b5",
+   "name": "Provider execution claim",
+   "type": "n8n-nodes-base.httpRequest",
+   "position": [
+    336,
+    -144
+   ],
+   "parameters": {
+    "url": "={{ 'https://signal-api.virya.music/v1/internal/autopilot/actions/' + $json.action_id + '/execution-claim' }}",
+    "method": "POST",
+    "options": {
+     "timeout": 30000
+    },
+    "jsonBody": "={{ ({executor_id:String($env.VIRYAOS_EXECUTOR_ID||'virya-n8n-primary').trim(),occurred_at:new Date().toISOString()}) }}",
+    "sendBody": true,
+    "sendHeaders": true,
+    "specifyBody": "json",
+    "headerParameters": {
+     "parameters": [
+      {
+       "name": "Authorization",
+       "value": "={{ 'Bearer ' + $env.CROWDRELAY_COMMERCE_API_KEY }}"
+      }
+     ]
+    }
+   },
+   "typeVersion": 4.4
+  },
+  {
+   "id": "600af944-ca55-4fdc-9768-62b71318c67f",
+   "name": "Resolve provider execution claim",
+   "type": "n8n-nodes-base.code",
+   "position": [
+    496,
+    -144
+   ],
+   "parameters": {
+    "jsCode": "const src=$('Validate human-approved email submission').item.json||{}; const r=$json||{}; const disposition=String(r.disposition||'');\nif(disposition==='already_succeeded') return [];\nif(disposition!=='claimed'||!r.claim_token) throw new Error(`Provider execution ${disposition||'unclaimed'}; fail closed to prevent duplicate external side effects`);\nreturn [{json:{...src,claim_token:String(r.claim_token),attempt_number:Number(r.attempt_number||1)}}];"
+   },
+   "typeVersion": 2
+  }
+ ],
+ "connections": {
+  "Called by verified ingress": {
+   "main": [
+    [
+     {
+      "node": "Validate human-approved email submission",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Validate human-approved email submission": {
+   "main": [
+    [
+     {
+      "node": "Provider execution claim",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Gmail \u2014 submit funding": {
+   "main": [
+    [
+     {
+      "node": "Prepare funding submit success receipt",
+      "type": "main",
+      "index": 0
+     }
+    ],
+    [
+     {
+      "node": "Fail closed on ambiguous provider error",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Prepare funding submit success receipt": {
+   "main": [
+    [
+     {
+      "node": "Queue funding submit success receipt",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Provider execution claim": {
+   "main": [
+    [
+     {
+      "node": "Resolve provider execution claim",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Resolve provider execution claim": {
+   "main": [
+    [
+     {
+      "node": "Gmail \u2014 submit funding",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  }
+ },
+ "settings": {
+  "executionOrder": "v1",
+  "saveDataErrorExecution": "none",
+  "saveDataSuccessExecution": "none",
+  "saveManualExecutions": false,
+  "errorWorkflow": "98d5e1a4-2dba-5e5a-9be1-2e5d9220859d",
+  "saveExecutionProgress": false,
+  "executionTimeout": 90,
+  "binaryMode": "separate"
+ },
+ "staticData": null,
+ "meta": {
+  "templateCredsSetupCompleted": true
+ },
+ "nodeGroups": [],
+ "pinData": {},
+ "versionId": "a08fd01c-aa4a-4980-a074-9596089fa135",
+ "activeVersionId": "a08fd01c-aa4a-4980-a074-9596089fa135",
+ "versionCounter": 6,
+ "triggerCount": 0,
+ "sourceWorkflowId": null,
+ "shared": [
+  {
+   "updatedAt": "2026-08-11T12:54:43.571Z",
+   "createdAt": "2026-08-11T12:54:43.571Z",
+   "role": "workflow:owner",
+   "workflowId": "VOSFUND00000002",
+   "projectId": "e2rPVcUBR4DTE3mO",
+   "project": {
+    "updatedAt": "2026-07-24T09:45:30.763Z",
+    "createdAt": "2026-07-24T09:45:07.113Z",
+    "id": "e2rPVcUBR4DTE3mO",
+    "name": "Virya Crew <virya.crew@gmail.com>",
+    "type": "personal",
+    "icon": null,
+    "description": null,
+    "customTelemetryTags": [],
+    "creatorId": "89259ec0-46eb-41d3-a04e-eb12f52f6342"
+   }
+  }
+ ],
+ "tags": [],
+ "activeVersion": {
+  "updatedAt": "2026-08-25T12:20:51.980Z",
+  "createdAt": "2026-08-13T20:36:17.880Z",
+  "versionId": "a08fd01c-aa4a-4980-a074-9596089fa135",
+  "workflowId": "VOSFUND00000002",
+  "nodes": [
+   {
+    "id": "66c55129-c014-485a-85b9-fe0a23b95b6b",
+    "name": "Called by verified ingress",
+    "type": "n8n-nodes-base.executeWorkflowTrigger",
+    "position": [
+     -80,
+     -144
+    ],
+    "parameters": {
+     "inputSource": "passthrough"
+    },
+    "typeVersion": 1.1
+   },
+   {
+    "id": "19911d63-7dfb-4cc5-8a5f-938645a7afc2",
+    "name": "Validate human-approved email submission",
+    "type": "n8n-nodes-base.code",
+    "position": [
+     176,
+     -144
+    ],
+    "parameters": {
+     "jsCode": "const e=$json;if(!e||e.type!=='crowdrelay.funding.submission_requested'||e.version!==1) throw new Error('Unsupported funding submission event');const d=e.data??{};if(d.human_approved!==true) throw new Error('Funding submission without human approval');const m=d.metadata&&typeof d.metadata==='object'?d.metadata:{};if(String(m.submission_method||'').toLowerCase()!=='email') throw new Error('No configured email submission adapter');const to=String(m.submission_email||d.contact_email||'').trim();if(!to.includes('@')) throw new Error('Missing funding submission email');const subject=String(m.submission_subject||`VIRYA \u2014 ${d.title} \u2014 wniosek`).slice(0,220);const body=String(m.submission_body||`Dzie\u0144 dobry,\\n\\nprzesy\u0142amy zatwierdzone zg\u0142oszenie VIRYA do programu \u201e${d.title}\u201d.\\n\\nDane zespo\u0142u i EPK: https://virya.music/pl/epk/\\n\\nProsimy o potwierdzenie otrzymania.\\n\\nPozdrawiamy,\\nVIRYA`);return [{json:{event_id:e.id,action_id:d.action_id,opportunity_id:d.opportunity_id,SendTo:to,SendSubject:subject,SendBody:body}}];"
+    },
+    "typeVersion": 2
+   },
+   {
+    "id": "93e789e3-c7da-4582-b5a3-3b7ff2b5aec5",
+    "name": "Gmail \u2014 submit funding",
+    "type": "n8n-nodes-base.gmail",
+    "onError": "continueErrorOutput",
+    "position": [
+     672,
+     -144
+    ],
+    "webhookId": "9bb661f9-4b77-4143-996a-22dd37f18019",
+    "parameters": {
+     "sendTo": "={{ $json.SendTo }}",
+     "message": "={{ $json.SendBody }}",
+     "options": {
+      "senderName": "Wojciech Bator / Virya",
+      "appendAttribution": false
+     },
+     "subject": "={{ $json.SendSubject }}",
+     "emailType": "text"
+    },
+    "credentials": {
+     "gmailOAuth2": {
+      "id": "BJg5tKEWMNRw0GA1",
+      "name": "Gmail account"
+     }
+    },
+    "typeVersion": 2.1
+   },
+   {
+    "id": "c748de38-8980-4d97-9391-a8572ab9c414",
+    "name": "Prepare funding submit success receipt",
+    "type": "n8n-nodes-base.code",
+    "position": [
+     720,
+     -240
+    ],
+    "parameters": {
+     "jsCode": "const src=$('Validate human-approved email submission').item.json||{};const sent=$json||{};return [{json:{action_id:src.action_id,claim_token:$('Resolve provider execution claim').item.json.claim_token,status:'succeeded',provider_reference:String(sent.id||sent.messageId||sent.threadId||'gmail').slice(0,240),metadata:{event_id:src.event_id,provider:'gmail',domain_transition:'submitted'},occurred_at:new Date().toISOString()}}];"
+    },
+    "typeVersion": 2
+   },
+   {
+    "id": "c408dd53-71c0-44bc-97c7-09d8bd1ffd26",
+    "name": "Fail closed on ambiguous provider error",
+    "type": "n8n-nodes-base.code",
+    "position": [
+     720,
+     -48
+    ],
+    "parameters": {
+     "jsCode": "const src=$('Resolve provider execution claim').item.json||{}; throw new Error(`Provider outcome ambiguous for action ${src.action_id||'unknown'}; claim retained to prevent automatic duplicate`);"
+    },
+    "typeVersion": 2
+   },
+   {
+    "id": "ace3ed69-c220-4652-8569-d32499e7494a",
+    "name": "Queue funding submit success receipt",
+    "type": "n8n-nodes-base.executeWorkflow",
+    "position": [
+     992,
+     -240
+    ],
+    "parameters": {
+     "options": {},
+     "workflowId": {
+      "__rl": true,
+      "mode": "id",
+      "value": "VOSRECEIPT00001"
+     }
+    },
+    "typeVersion": 1.3,
+    "alwaysOutputData": true
+   },
+   {
+    "id": "ac65acea-0670-49f9-b2ab-140afd9748b5",
+    "name": "Provider execution claim",
+    "type": "n8n-nodes-base.httpRequest",
+    "position": [
+     336,
+     -144
+    ],
+    "parameters": {
+     "url": "={{ 'https://signal-api.virya.music/v1/internal/autopilot/actions/' + $json.action_id + '/execution-claim' }}",
+     "method": "POST",
+     "options": {
+      "timeout": 30000
+     },
+     "jsonBody": "={{ ({executor_id:String($env.VIRYAOS_EXECUTOR_ID||'virya-n8n-primary').trim(),occurred_at:new Date().toISOString()}) }}",
+     "sendBody": true,
+     "sendHeaders": true,
+     "specifyBody": "json",
+     "headerParameters": {
+      "parameters": [
+       {
+        "name": "Authorization",
+        "value": "={{ 'Bearer ' + $env.CROWDRELAY_COMMERCE_API_KEY }}"
+       }
+      ]
+     }
+    },
+    "typeVersion": 4.4
+   },
+   {
+    "id": "600af944-ca55-4fdc-9768-62b71318c67f",
+    "name": "Resolve provider execution claim",
+    "type": "n8n-nodes-base.code",
+    "position": [
+     496,
+     -144
+    ],
+    "parameters": {
+     "jsCode": "const src=$('Validate human-approved email submission').item.json||{}; const r=$json||{}; const disposition=String(r.disposition||'');\nif(disposition==='already_succeeded') return [];\nif(disposition!=='claimed'||!r.claim_token) throw new Error(`Provider execution ${disposition||'unclaimed'}; fail closed to prevent duplicate external side effects`);\nreturn [{json:{...src,claim_token:String(r.claim_token),attempt_number:Number(r.attempt_number||1)}}];"
+    },
+    "typeVersion": 2
+   }
+  ],
+  "connections": {
+   "Called by verified ingress": {
+    "main": [
+     [
+      {
+       "node": "Validate human-approved email submission",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "Validate human-approved email submission": {
+    "main": [
+     [
+      {
+       "node": "Provider execution claim",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "Gmail \u2014 submit funding": {
+    "main": [
+     [
+      {
+       "node": "Prepare funding submit success receipt",
+       "type": "main",
+       "index": 0
+      }
+     ],
+     [
+      {
+       "node": "Fail closed on ambiguous provider error",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "Prepare funding submit success receipt": {
+    "main": [
+     [
+      {
+       "node": "Queue funding submit success receipt",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "Provider execution claim": {
+    "main": [
+     [
+      {
+       "node": "Resolve provider execution claim",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "Resolve provider execution claim": {
+    "main": [
+     [
+      {
+       "node": "Gmail \u2014 submit funding",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   }
+  },
+  "nodeGroups": [],
+  "authors": "Virya Crew",
+  "name": "Version a08fd01c",
+  "description": "",
+  "autosaved": true,
+  "workflowPublishHistory": [
+   {
+    "createdAt": "2026-08-13T20:36:20.566Z",
+    "id": 598,
+    "workflowId": "VOSFUND00000002",
+    "versionId": "a08fd01c-aa4a-4980-a074-9596089fa135",
+    "event": "activated",
+    "userId": "89259ec0-46eb-41d3-a04e-eb12f52f6342"
+   }
+  ]
+ }
+}

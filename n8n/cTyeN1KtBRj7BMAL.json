@@ -1,0 +1,764 @@
+{
+ "updatedAt": "2026-08-15T20:53:07.004Z",
+ "createdAt": "2026-07-24T09:45:08.790Z",
+ "id": "cTyeN1KtBRj7BMAL",
+ "name": "VIRYA 02 \u2014 Reply monitor \u2192 CRM + Discord Bot",
+ "description": null,
+ "active": true,
+ "isArchived": false,
+ "nodes": [
+  {
+   "id": "9b088ef6-ddfd-4bf0-af9a-8b1c1f09176e",
+   "name": "START HERE",
+   "type": "n8n-nodes-base.stickyNote",
+   "position": [
+    1376,
+    96
+   ],
+   "parameters": {
+    "color": 5,
+    "width": 430,
+    "height": 330,
+    "content": "## REPLY MONITOR\nCodziennie w po\u0142udnie sprawdza przychodz\u0105ce wiadomo\u015bci, ale uznaje za odpowied\u017a tylko mail z Gmail_Thread_ID obecnym w OUTREACH_LOG.\n\nZapisuje kr\u00f3tki opis (maks. 240 znak\u00f3w), klas\u0119 odpowiedzi i next step. Pe\u0142na tre\u015b\u0107 zostaje w Gmailu.\n\nPo imporcie pod\u0142\u0105cz Google Sheets OAuth2, Gmail OAuth2 (virya.crew@gmail.com) i Discord Bot. Najpierw test r\u0119czny."
+   },
+   "typeVersion": 1
+  },
+  {
+   "id": "47a2376c-757e-4065-9652-4983c4de3731",
+   "name": "Czytaj CRM threads",
+   "type": "n8n-nodes-base.googleSheets",
+   "maxTries": 5,
+   "position": [
+    1680,
+    464
+   ],
+   "parameters": {
+    "options": {
+     "dataLocationOnSheet": {
+      "values": {
+       "headerRow": 4,
+       "firstDataRow": 5,
+       "rangeDefinition": "specifyRange"
+      }
+     }
+    },
+    "filtersUI": {
+     "values": []
+    },
+    "sheetName": {
+     "__rl": true,
+     "mode": "name",
+     "value": "OUTREACH_LOG"
+    },
+    "documentId": {
+     "__rl": true,
+     "mode": "id",
+     "value": "1P9FqB7brPc6fZ2dkJMFCc3cVyKbcIjSAvMas-3mZD4g"
+    }
+   },
+   "credentials": {
+    "googleSheetsOAuth2Api": {
+     "id": "bc2Y1XmIdyu5ySTa",
+     "name": "Google Sheets account"
+    }
+   },
+   "retryOnFail": true,
+   "typeVersion": 4.7,
+   "alwaysOutputData": true,
+   "waitBetweenTries": 15000
+  },
+  {
+   "id": "82686dda-6c75-4cec-bbd9-698fc0c5afff",
+   "name": "Pack CRM Rows",
+   "type": "n8n-nodes-base.code",
+   "position": [
+    1920,
+    464
+   ],
+   "parameters": {
+    "jsCode": "return [{ json: { crmRows: $input.all().map(item => item.json).filter(row => row.Record_ID) } }];"
+   },
+   "typeVersion": 2
+  },
+  {
+   "id": "71bdb57b-abb5-4371-9ab9-20a6f09d769e",
+   "name": "Gmail \u2014 przychodz\u0105ce",
+   "type": "n8n-nodes-base.gmail",
+   "maxTries": 4,
+   "position": [
+    2160,
+    464
+   ],
+   "webhookId": "f293c33e-0f59-4f2b-ad31-30c290be9d83",
+   "parameters": {
+    "limit": 100,
+    "filters": {
+     "q": "newer_than:14d -from:me",
+     "readStatus": "both"
+    },
+    "operation": "getAll"
+   },
+   "credentials": {
+    "gmailOAuth2": {
+     "id": "BJg5tKEWMNRw0GA1",
+     "name": "Gmail account"
+    }
+   },
+   "retryOnFail": true,
+   "typeVersion": 2.2,
+   "alwaysOutputData": true,
+   "waitBetweenTries": 15000
+  },
+  {
+   "id": "373756e8-2394-41da-8063-77b4771b774c",
+   "name": "Dopasuj i sklasyfikuj",
+   "type": "n8n-nodes-base.code",
+   "position": [
+    2400,
+    464
+   ],
+   "parameters": {
+    "jsCode": "const rows = $('Pack CRM Rows').first().json.crmRows || [];\nconst incoming = $input.all().map(item => item.json || {});\nconst clean = value => String(value ?? '').replace(/\\s+/g, ' ').trim();\nconst time = value => {\n  const parsed = new Date(value || 0).getTime();\n  return Number.isFinite(parsed) ? parsed : 0;\n};\nconst latestByThread = new Map();\nfor (const message of incoming) {\n  const threadId = clean(message.threadId || message.thread_id);\n  if (!threadId) continue;\n  const current = latestByThread.get(threadId);\n  const messageTime = time(message.date || message.internalDate);\n  if (!current || messageTime >= current._messageTime) {\n    latestByThread.set(threadId, { ...message, _messageTime: messageTime });\n  }\n}\nconst output = [];\nfor (const [threadId, message] of latestByThread.entries()) {\n  const candidates = rows\n    .filter(row => clean(row.Gmail_Thread_ID) === threadId && !clean(row.Reply_At))\n    .sort((a, b) => time(b.Sent_At) - time(a.Sent_At));\n  const row = candidates[0];\n  if (!row) continue;\n  const sentAt = time(row.Sent_At);\n  if (sentAt && message._messageTime && message._messageTime <= sentAt) continue;\n  const snippet = clean(\n    message.snippet ||\n    message.textPlain ||\n    message.text ||\n    message.Subject ||\n    message.subject\n  ).slice(0, 500);\n  const subject = clean(message.Subject || message.subject);\n  const probe = clean(`${subject} ${snippet}`).toLowerCase();\n  const positive = /ch\u0119tnie|zainteres|poprosimy|zagramy|dodamy|recenzj|wywiad|propozycj|pasuje|jasne|super|interested|sounds good|happy to|would love|please send|let'?s do|available|confirmed/.test(probe);\n  const negative = /nie jeste\u015bmy|nie mo\u017cemy|nie tym razem|odmaw|nie pasuje|rezygn|not interested|not a fit|cannot|can'?t|decline|pass this time|no availability/.test(probe);\n  const replyClass = positive ? 'Pozytywna' : negative ? 'Negatywna' : 'Neutralna';\n  const nextStep = positive\n    ? 'Odpowiedz osobi\u015bcie w 24 h i ustal konkret'\n    : negative\n      ? 'Podzi\u0119kuj; zamknij bez kolejnego follow-upu'\n      : 'Przeczytaj pe\u0142ny w\u0105tek i zdecyduj w 24 h';\n  const replyAt = message._messageTime\n    ? new Date(message._messageTime).toISOString()\n    : new Date().toISOString();\n  output.push({\n    json: {\n      Record_ID: row.Record_ID,\n      Status: 'Odpowied\u017a',\n      Reply_At: replyAt,\n      Reply_Summary: snippet || 'Odpowied\u017a w Gmailu \u2014 otw\u00f3rz w\u0105tek',\n      Reply_Class: replyClass,\n      Next_Step: nextStep,\n      Discord_Status: 'Pending',\n      Last_Synced_At: new Date().toISOString()\n    }\n  });\n}\nreturn output;"
+   },
+   "typeVersion": 2
+  },
+  {
+   "id": "0cc32c07-c1c9-405a-a78a-03d712a89d56",
+   "name": "Zapisz odpowied\u017a w logu",
+   "type": "n8n-nodes-base.googleSheets",
+   "position": [
+    2656,
+    464
+   ],
+   "parameters": {
+    "options": {
+     "locationDefine": {
+      "values": {
+       "headerRow": 4,
+       "firstDataRow": 5
+      }
+     }
+    },
+    "fieldsUi": {
+     "values": [
+      {
+       "column": "Status",
+       "fieldValue": "={{ $json.Status }}"
+      },
+      {
+       "column": "Reply_At",
+       "fieldValue": "={{ $json.Reply_At }}"
+      },
+      {
+       "column": "Reply_Summary",
+       "fieldValue": "={{ $json.Reply_Summary }}"
+      },
+      {
+       "column": "Reply_Class",
+       "fieldValue": "={{ $json.Reply_Class }}"
+      },
+      {
+       "column": "Next_Step",
+       "fieldValue": "={{ $json.Next_Step }}"
+      },
+      {
+       "column": "Discord_Status",
+       "fieldValue": "={{ $json.Discord_Status }}"
+      },
+      {
+       "column": "Last_Synced_At",
+       "fieldValue": "={{ $json.Last_Synced_At }}"
+      }
+     ]
+    },
+    "operation": "update",
+    "sheetName": {
+     "__rl": true,
+     "mode": "name",
+     "value": "OUTREACH_LOG"
+    },
+    "documentId": {
+     "__rl": true,
+     "mode": "id",
+     "value": "1P9FqB7brPc6fZ2dkJMFCc3cVyKbcIjSAvMas-3mZD4g"
+    },
+    "valueToMatchOn": "={{ $json.Record_ID }}",
+    "columnToMatchOn": "Record_ID"
+   },
+   "credentials": {
+    "googleSheetsOAuth2Api": {
+     "id": "bc2Y1XmIdyu5ySTa",
+     "name": "Google Sheets account"
+    }
+   },
+   "typeVersion": 3
+  },
+  {
+   "id": "9b7758a0-773b-469a-b41c-f5ca87c992e3",
+   "name": "Zbuduj alert",
+   "type": "n8n-nodes-base.code",
+   "position": [
+    2912,
+    464
+   ],
+   "parameters": {
+    "jsCode": "const replies = $input.all().map(item => item.json || {});\nif (!replies.length) return [];\nconst lines = replies.slice(0, 8).map(row =>\n  `\u2022 **${row.Record_ID || 'kontakt'}** \u2014 ${row.Reply_Class || 'Odpowied\u017a'}: ${String(row.Reply_Summary || '').slice(0, 180)}\\n  Nast\u0119pny krok: ${row.Next_Step || 'sprawd\u017a w Gmailu'}`\n);\nconst more = replies.length > 8 ? `\\n\\nPozosta\u0142e odpowiedzi: ${replies.length - 8} \u2014 sprawd\u017a OUTREACH_LOG.` : '';\nconst message = (`\ud83d\udcec **VIRYA \u2014 nowe odpowiedzi (${replies.length})**\\n${lines.join('\\n')}${more}`).slice(0, 1950);\nreturn [{ json: { discord_message: message, allowed_mentions: { parse: [] } } }];"
+   },
+   "typeVersion": 2
+  },
+  {
+   "id": "a8858fe6-4b4f-471e-b087-78d7a3370a43",
+   "name": "Discord Bot \u2014 nowa odpowied\u017a",
+   "type": "n8n-nodes-base.httpRequest",
+   "maxTries": 5,
+   "position": [
+    3168,
+    464
+   ],
+   "parameters": {
+    "url": "https://discord.com/api/v10/channels/1355498740588482578/messages",
+    "method": "POST",
+    "options": {
+     "timeout": 30000
+    },
+    "jsonBody": "={{ ({ content: String((($json.discord_message)) ?? '').slice(0, 2000), allowed_mentions: ($json.allowed_mentions && typeof $json.allowed_mentions === 'object') ? $json.allowed_mentions : { parse: [] } }) }}",
+    "sendBody": true,
+    "sendHeaders": true,
+    "specifyBody": "json",
+    "authentication": "genericCredentialType",
+    "genericAuthType": "httpHeaderAuth",
+    "headerParameters": {
+     "parameters": [
+      {
+       "name": "User-Agent",
+       "value": "Virya-n8n/1.0 (https://virya.music)"
+      }
+     ]
+    }
+   },
+   "credentials": {
+    "httpHeaderAuth": {
+     "id": "FB7ONYMUsZFfObWB",
+     "name": "Discord Bot HTTP"
+    }
+   },
+   "retryOnFail": true,
+   "typeVersion": 4.4,
+   "waitBetweenTries": 5000
+  },
+  {
+   "id": "066ff7e0-e92c-49ec-839b-f2f54c35eef6",
+   "name": "Daily \u2014 reply monitor 12:10",
+   "type": "n8n-nodes-base.scheduleTrigger",
+   "notes": "Light runtime cadence: 0 10 12 * * * (Europe/Warsaw). Workflow logic and data mappings unchanged.",
+   "position": [
+    1456,
+    464
+   ],
+   "parameters": {
+    "rule": {
+     "interval": [
+      {
+       "field": "cronExpression",
+       "expression": "0 10 12 * * *"
+      }
+     ]
+    }
+   },
+   "notesInFlow": true,
+   "typeVersion": 1.3
+  }
+ ],
+ "connections": {
+  "Czytaj CRM threads": {
+   "main": [
+    [
+     {
+      "node": "Pack CRM Rows",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Pack CRM Rows": {
+   "main": [
+    [
+     {
+      "node": "Gmail \u2014 przychodz\u0105ce",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Gmail \u2014 przychodz\u0105ce": {
+   "main": [
+    [
+     {
+      "node": "Dopasuj i sklasyfikuj",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Dopasuj i sklasyfikuj": {
+   "main": [
+    [
+     {
+      "node": "Zapisz odpowied\u017a w logu",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Zapisz odpowied\u017a w logu": {
+   "main": [
+    [
+     {
+      "node": "Zbuduj alert",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Zbuduj alert": {
+   "main": [
+    [
+     {
+      "node": "Discord Bot \u2014 nowa odpowied\u017a",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Daily \u2014 reply monitor 12:10": {
+   "main": [
+    [
+     {
+      "node": "Czytaj CRM threads",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  }
+ },
+ "settings": {
+  "executionOrder": "v1",
+  "binaryMode": "separate",
+  "availableInMCP": false,
+  "timezone": "Europe/Warsaw",
+  "errorWorkflow": "98d5e1a4-2dba-5e5a-9be1-2e5d9220859d",
+  "executionTimeout": 300,
+  "saveExecutionProgress": false
+ },
+ "staticData": {
+  "node:Codziennie w po\u0142udnie": {
+   "recurrenceRules": [
+    null
+   ],
+   "recurrenceRuleSignatures": [
+    null
+   ]
+  },
+  "node:Daily \u2014 reply monitor 12:10": {
+   "recurrenceRules": [
+    null
+   ],
+   "recurrenceRuleSignatures": [
+    null
+   ]
+  }
+ },
+ "meta": {
+  "templateCredsSetupCompleted": true,
+  "viryaLocalPackage": "2026-07-24"
+ },
+ "nodeGroups": [],
+ "pinData": {},
+ "versionId": "23c37a43-540d-49bd-ab02-555279038886",
+ "activeVersionId": "23c37a43-540d-49bd-ab02-555279038886",
+ "versionCounter": 13,
+ "triggerCount": 1,
+ "sourceWorkflowId": null,
+ "shared": [
+  {
+   "updatedAt": "2026-07-24T09:45:08.790Z",
+   "createdAt": "2026-07-24T09:45:08.790Z",
+   "role": "workflow:owner",
+   "workflowId": "cTyeN1KtBRj7BMAL",
+   "projectId": "e2rPVcUBR4DTE3mO",
+   "project": {
+    "updatedAt": "2026-07-24T09:45:30.763Z",
+    "createdAt": "2026-07-24T09:45:07.113Z",
+    "id": "e2rPVcUBR4DTE3mO",
+    "name": "Virya Crew <virya.crew@gmail.com>",
+    "type": "personal",
+    "icon": null,
+    "description": null,
+    "customTelemetryTags": [],
+    "creatorId": "89259ec0-46eb-41d3-a04e-eb12f52f6342"
+   }
+  }
+ ],
+ "tags": [],
+ "activeVersion": {
+  "updatedAt": "2026-08-25T12:20:51.980Z",
+  "createdAt": "2026-08-12T17:01:41.269Z",
+  "versionId": "23c37a43-540d-49bd-ab02-555279038886",
+  "workflowId": "cTyeN1KtBRj7BMAL",
+  "nodes": [
+   {
+    "id": "9b088ef6-ddfd-4bf0-af9a-8b1c1f09176e",
+    "name": "START HERE",
+    "type": "n8n-nodes-base.stickyNote",
+    "position": [
+     1376,
+     96
+    ],
+    "parameters": {
+     "color": 5,
+     "width": 430,
+     "height": 330,
+     "content": "## REPLY MONITOR\nCodziennie w po\u0142udnie sprawdza przychodz\u0105ce wiadomo\u015bci, ale uznaje za odpowied\u017a tylko mail z Gmail_Thread_ID obecnym w OUTREACH_LOG.\n\nZapisuje kr\u00f3tki opis (maks. 240 znak\u00f3w), klas\u0119 odpowiedzi i next step. Pe\u0142na tre\u015b\u0107 zostaje w Gmailu.\n\nPo imporcie pod\u0142\u0105cz Google Sheets OAuth2, Gmail OAuth2 (virya.crew@gmail.com) i Discord Bot. Najpierw test r\u0119czny."
+    },
+    "typeVersion": 1
+   },
+   {
+    "id": "47a2376c-757e-4065-9652-4983c4de3731",
+    "name": "Czytaj CRM threads",
+    "type": "n8n-nodes-base.googleSheets",
+    "maxTries": 5,
+    "position": [
+     1680,
+     464
+    ],
+    "parameters": {
+     "options": {
+      "dataLocationOnSheet": {
+       "values": {
+        "headerRow": 4,
+        "firstDataRow": 5,
+        "rangeDefinition": "specifyRange"
+       }
+      }
+     },
+     "filtersUI": {
+      "values": []
+     },
+     "sheetName": {
+      "__rl": true,
+      "mode": "name",
+      "value": "OUTREACH_LOG"
+     },
+     "documentId": {
+      "__rl": true,
+      "mode": "id",
+      "value": "1P9FqB7brPc6fZ2dkJMFCc3cVyKbcIjSAvMas-3mZD4g"
+     }
+    },
+    "credentials": {
+     "googleSheetsOAuth2Api": {
+      "id": "bc2Y1XmIdyu5ySTa",
+      "name": "Google Sheets account"
+     }
+    },
+    "retryOnFail": true,
+    "typeVersion": 4.7,
+    "alwaysOutputData": true,
+    "waitBetweenTries": 15000
+   },
+   {
+    "id": "82686dda-6c75-4cec-bbd9-698fc0c5afff",
+    "name": "Pack CRM Rows",
+    "type": "n8n-nodes-base.code",
+    "position": [
+     1920,
+     464
+    ],
+    "parameters": {
+     "jsCode": "return [{ json: { crmRows: $input.all().map(item => item.json).filter(row => row.Record_ID) } }];"
+    },
+    "typeVersion": 2
+   },
+   {
+    "id": "71bdb57b-abb5-4371-9ab9-20a6f09d769e",
+    "name": "Gmail \u2014 przychodz\u0105ce",
+    "type": "n8n-nodes-base.gmail",
+    "maxTries": 4,
+    "position": [
+     2160,
+     464
+    ],
+    "webhookId": "f293c33e-0f59-4f2b-ad31-30c290be9d83",
+    "parameters": {
+     "limit": 100,
+     "filters": {
+      "q": "newer_than:14d -from:me",
+      "readStatus": "both"
+     },
+     "operation": "getAll"
+    },
+    "credentials": {
+     "gmailOAuth2": {
+      "id": "BJg5tKEWMNRw0GA1",
+      "name": "Gmail account"
+     }
+    },
+    "retryOnFail": true,
+    "typeVersion": 2.2,
+    "alwaysOutputData": true,
+    "waitBetweenTries": 15000
+   },
+   {
+    "id": "373756e8-2394-41da-8063-77b4771b774c",
+    "name": "Dopasuj i sklasyfikuj",
+    "type": "n8n-nodes-base.code",
+    "position": [
+     2400,
+     464
+    ],
+    "parameters": {
+     "jsCode": "const rows = $('Pack CRM Rows').first().json.crmRows || [];\nconst incoming = $input.all().map(item => item.json || {});\nconst clean = value => String(value ?? '').replace(/\\s+/g, ' ').trim();\nconst time = value => {\n  const parsed = new Date(value || 0).getTime();\n  return Number.isFinite(parsed) ? parsed : 0;\n};\nconst latestByThread = new Map();\nfor (const message of incoming) {\n  const threadId = clean(message.threadId || message.thread_id);\n  if (!threadId) continue;\n  const current = latestByThread.get(threadId);\n  const messageTime = time(message.date || message.internalDate);\n  if (!current || messageTime >= current._messageTime) {\n    latestByThread.set(threadId, { ...message, _messageTime: messageTime });\n  }\n}\nconst output = [];\nfor (const [threadId, message] of latestByThread.entries()) {\n  const candidates = rows\n    .filter(row => clean(row.Gmail_Thread_ID) === threadId && !clean(row.Reply_At))\n    .sort((a, b) => time(b.Sent_At) - time(a.Sent_At));\n  const row = candidates[0];\n  if (!row) continue;\n  const sentAt = time(row.Sent_At);\n  if (sentAt && message._messageTime && message._messageTime <= sentAt) continue;\n  const snippet = clean(\n    message.snippet ||\n    message.textPlain ||\n    message.text ||\n    message.Subject ||\n    message.subject\n  ).slice(0, 500);\n  const subject = clean(message.Subject || message.subject);\n  const probe = clean(`${subject} ${snippet}`).toLowerCase();\n  const positive = /ch\u0119tnie|zainteres|poprosimy|zagramy|dodamy|recenzj|wywiad|propozycj|pasuje|jasne|super|interested|sounds good|happy to|would love|please send|let'?s do|available|confirmed/.test(probe);\n  const negative = /nie jeste\u015bmy|nie mo\u017cemy|nie tym razem|odmaw|nie pasuje|rezygn|not interested|not a fit|cannot|can'?t|decline|pass this time|no availability/.test(probe);\n  const replyClass = positive ? 'Pozytywna' : negative ? 'Negatywna' : 'Neutralna';\n  const nextStep = positive\n    ? 'Odpowiedz osobi\u015bcie w 24 h i ustal konkret'\n    : negative\n      ? 'Podzi\u0119kuj; zamknij bez kolejnego follow-upu'\n      : 'Przeczytaj pe\u0142ny w\u0105tek i zdecyduj w 24 h';\n  const replyAt = message._messageTime\n    ? new Date(message._messageTime).toISOString()\n    : new Date().toISOString();\n  output.push({\n    json: {\n      Record_ID: row.Record_ID,\n      Status: 'Odpowied\u017a',\n      Reply_At: replyAt,\n      Reply_Summary: snippet || 'Odpowied\u017a w Gmailu \u2014 otw\u00f3rz w\u0105tek',\n      Reply_Class: replyClass,\n      Next_Step: nextStep,\n      Discord_Status: 'Pending',\n      Last_Synced_At: new Date().toISOString()\n    }\n  });\n}\nreturn output;"
+    },
+    "typeVersion": 2
+   },
+   {
+    "id": "0cc32c07-c1c9-405a-a78a-03d712a89d56",
+    "name": "Zapisz odpowied\u017a w logu",
+    "type": "n8n-nodes-base.googleSheets",
+    "position": [
+     2656,
+     464
+    ],
+    "parameters": {
+     "options": {
+      "locationDefine": {
+       "values": {
+        "headerRow": 4,
+        "firstDataRow": 5
+       }
+      }
+     },
+     "fieldsUi": {
+      "values": [
+       {
+        "column": "Status",
+        "fieldValue": "={{ $json.Status }}"
+       },
+       {
+        "column": "Reply_At",
+        "fieldValue": "={{ $json.Reply_At }}"
+       },
+       {
+        "column": "Reply_Summary",
+        "fieldValue": "={{ $json.Reply_Summary }}"
+       },
+       {
+        "column": "Reply_Class",
+        "fieldValue": "={{ $json.Reply_Class }}"
+       },
+       {
+        "column": "Next_Step",
+        "fieldValue": "={{ $json.Next_Step }}"
+       },
+       {
+        "column": "Discord_Status",
+        "fieldValue": "={{ $json.Discord_Status }}"
+       },
+       {
+        "column": "Last_Synced_At",
+        "fieldValue": "={{ $json.Last_Synced_At }}"
+       }
+      ]
+     },
+     "operation": "update",
+     "sheetName": {
+      "__rl": true,
+      "mode": "name",
+      "value": "OUTREACH_LOG"
+     },
+     "documentId": {
+      "__rl": true,
+      "mode": "id",
+      "value": "1P9FqB7brPc6fZ2dkJMFCc3cVyKbcIjSAvMas-3mZD4g"
+     },
+     "valueToMatchOn": "={{ $json.Record_ID }}",
+     "columnToMatchOn": "Record_ID"
+    },
+    "credentials": {
+     "googleSheetsOAuth2Api": {
+      "id": "bc2Y1XmIdyu5ySTa",
+      "name": "Google Sheets account"
+     }
+    },
+    "typeVersion": 3
+   },
+   {
+    "id": "9b7758a0-773b-469a-b41c-f5ca87c992e3",
+    "name": "Zbuduj alert",
+    "type": "n8n-nodes-base.code",
+    "position": [
+     2912,
+     464
+    ],
+    "parameters": {
+     "jsCode": "const replies = $input.all().map(item => item.json || {});\nif (!replies.length) return [];\nconst lines = replies.slice(0, 8).map(row =>\n  `\u2022 **${row.Record_ID || 'kontakt'}** \u2014 ${row.Reply_Class || 'Odpowied\u017a'}: ${String(row.Reply_Summary || '').slice(0, 180)}\\n  Nast\u0119pny krok: ${row.Next_Step || 'sprawd\u017a w Gmailu'}`\n);\nconst more = replies.length > 8 ? `\\n\\nPozosta\u0142e odpowiedzi: ${replies.length - 8} \u2014 sprawd\u017a OUTREACH_LOG.` : '';\nconst message = (`\ud83d\udcec **VIRYA \u2014 nowe odpowiedzi (${replies.length})**\\n${lines.join('\\n')}${more}`).slice(0, 1950);\nreturn [{ json: { discord_message: message, allowed_mentions: { parse: [] } } }];"
+    },
+    "typeVersion": 2
+   },
+   {
+    "id": "a8858fe6-4b4f-471e-b087-78d7a3370a43",
+    "name": "Discord Bot \u2014 nowa odpowied\u017a",
+    "type": "n8n-nodes-base.httpRequest",
+    "maxTries": 5,
+    "position": [
+     3168,
+     464
+    ],
+    "parameters": {
+     "url": "https://discord.com/api/v10/channels/1355498740588482578/messages",
+     "method": "POST",
+     "options": {
+      "timeout": 30000
+     },
+     "jsonBody": "={{ ({ content: String((($json.discord_message)) ?? '').slice(0, 2000), allowed_mentions: ($json.allowed_mentions && typeof $json.allowed_mentions === 'object') ? $json.allowed_mentions : { parse: [] } }) }}",
+     "sendBody": true,
+     "sendHeaders": true,
+     "specifyBody": "json",
+     "authentication": "genericCredentialType",
+     "genericAuthType": "httpHeaderAuth",
+     "headerParameters": {
+      "parameters": [
+       {
+        "name": "User-Agent",
+        "value": "Virya-n8n/1.0 (https://virya.music)"
+       }
+      ]
+     }
+    },
+    "credentials": {
+     "httpHeaderAuth": {
+      "id": "FB7ONYMUsZFfObWB",
+      "name": "Discord Bot HTTP"
+     }
+    },
+    "retryOnFail": true,
+    "typeVersion": 4.4,
+    "waitBetweenTries": 5000
+   },
+   {
+    "id": "066ff7e0-e92c-49ec-839b-f2f54c35eef6",
+    "name": "Daily \u2014 reply monitor 12:10",
+    "type": "n8n-nodes-base.scheduleTrigger",
+    "notes": "Light runtime cadence: 0 10 12 * * * (Europe/Warsaw). Workflow logic and data mappings unchanged.",
+    "position": [
+     1456,
+     464
+    ],
+    "parameters": {
+     "rule": {
+      "interval": [
+       {
+        "field": "cronExpression",
+        "expression": "0 10 12 * * *"
+       }
+      ]
+     }
+    },
+    "notesInFlow": true,
+    "typeVersion": 1.3
+   }
+  ],
+  "connections": {
+   "Czytaj CRM threads": {
+    "main": [
+     [
+      {
+       "node": "Pack CRM Rows",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "Pack CRM Rows": {
+    "main": [
+     [
+      {
+       "node": "Gmail \u2014 przychodz\u0105ce",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "Gmail \u2014 przychodz\u0105ce": {
+    "main": [
+     [
+      {
+       "node": "Dopasuj i sklasyfikuj",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "Dopasuj i sklasyfikuj": {
+    "main": [
+     [
+      {
+       "node": "Zapisz odpowied\u017a w logu",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "Zapisz odpowied\u017a w logu": {
+    "main": [
+     [
+      {
+       "node": "Zbuduj alert",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "Zbuduj alert": {
+    "main": [
+     [
+      {
+       "node": "Discord Bot \u2014 nowa odpowied\u017a",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "Daily \u2014 reply monitor 12:10": {
+    "main": [
+     [
+      {
+       "node": "Czytaj CRM threads",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   }
+  },
+  "nodeGroups": [],
+  "authors": "import",
+  "name": null,
+  "description": null,
+  "autosaved": false,
+  "workflowPublishHistory": []
+ }
+}

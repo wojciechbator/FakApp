@@ -1,0 +1,508 @@
+{
+ "updatedAt": "2026-08-15T20:52:10.280Z",
+ "createdAt": "2026-08-11T09:00:00.000Z",
+ "id": "VOSAPP000000001",
+ "name": "CrowdRelay \u2014 CrowdRelayOS opportunity application executor",
+ "description": "Auto-submits only free, reversible, email-addressed opportunities already approved by Rust policy.",
+ "active": true,
+ "isArchived": false,
+ "nodes": [
+  {
+   "id": "4ebfbf1d-3dda-4800-930b-411c9cccdfdb",
+   "name": "Called by verified ingress",
+   "type": "n8n-nodes-base.executeWorkflowTrigger",
+   "position": [
+    -800,
+    112
+   ],
+   "parameters": {
+    "inputSource": "passthrough"
+   },
+   "typeVersion": 1.1
+  },
+  {
+   "id": "ed50ea46-83fe-4a59-9ba9-ab4a43958e65",
+   "name": "Validate safe application",
+   "type": "n8n-nodes-base.code",
+   "position": [
+    -560,
+    112
+   ],
+   "parameters": {
+    "jsCode": "const e=$json;if(!e||e.type!=='crowdrelay.opportunity.application_requested'||e.version!==1) throw new Error('Unsupported opportunity event');const d=e.data??{};if(d.payment_execution_allowed!==false||Number(d.application_fee_minor||0)!==0||d.requires_contract||d.exclusive) throw new Error('Guardrail violation: paid/contractual/exclusive application');const to=String(d.contact_email||'').trim();if(!to.includes('@')) throw new Error('No email executor for this opportunity');const m=d.metadata&&typeof d.metadata==='object'?d.metadata:{};const epk=String(m.epk_url||'https://virya.music/pl/epk/');const subject=String(m.application_subject||`Virya \u00d7 ${d.title||d.organization} \u2014 zg\u0142oszenie zespo\u0142u`).slice(0,220);const body=String(m.application_body||`Cze\u015b\u0107,\\n\\nzg\u0142aszamy VIRYA do ${d.title||'Waszego wydarzenia'}. Jeste\u015bmy zespo\u0142em modern metal z Wroc\u0142awia, \u0142\u0105cz\u0105cym progresj\u0119, metalcore i elektronik\u0119.\\n\\nEPK: ${epk}\\nMuzyka: https://virya.music/\\n\\nJe\u017celi potrzebujecie dodatkowych materia\u0142\u00f3w lub informacji technicznych, pode\u015blemy je od razu.\\n\\nPozdrawiamy,\\nVIRYA`);return [{json:{event_id:e.id,action_id:d.action_id,opportunity_id:d.opportunity_id,SendTo:to,SendSubject:subject,SendBody:body}}];"
+   },
+   "typeVersion": 2
+  },
+  {
+   "id": "a65e0794-2213-43fb-a6fa-f5fcb4f40b90",
+   "name": "Gmail \u2014 submit opportunity",
+   "type": "n8n-nodes-base.gmail",
+   "onError": "continueErrorOutput",
+   "position": [
+    -64,
+    112
+   ],
+   "webhookId": "d39d8288-9c4c-4332-8e57-52255930f48f",
+   "parameters": {
+    "sendTo": "={{ $json.SendTo }}",
+    "message": "={{ $json.SendBody }}",
+    "options": {
+     "senderName": "Wojciech Bator / Virya",
+     "appendAttribution": false
+    },
+    "subject": "={{ $json.SendSubject }}",
+    "emailType": "text"
+   },
+   "credentials": {
+    "gmailOAuth2": {
+     "id": "BJg5tKEWMNRw0GA1",
+     "name": "Gmail account"
+    }
+   },
+   "typeVersion": 2.1
+  },
+  {
+   "id": "a04b2658-eb69-40d7-8651-87d31c3706a7",
+   "name": "Prepare opportunity success receipt",
+   "type": "n8n-nodes-base.code",
+   "position": [
+    0,
+    0
+   ],
+   "parameters": {
+    "jsCode": "const src=$('Validate safe application').item.json||{};const sent=$json||{};return [{json:{action_id:src.action_id,claim_token:$('Resolve provider execution claim').item.json.claim_token,status:'succeeded',provider_reference:String(sent.id||sent.messageId||sent.threadId||'gmail').slice(0,240),metadata:{event_id:src.event_id,provider:'gmail',domain_transition:'submitted'},occurred_at:new Date().toISOString()}}];"
+   },
+   "typeVersion": 2
+  },
+  {
+   "id": "39bb85df-1623-489f-8897-e4889162b9e7",
+   "name": "Fail closed on ambiguous provider error",
+   "type": "n8n-nodes-base.code",
+   "position": [
+    0,
+    208
+   ],
+   "parameters": {
+    "jsCode": "const src=$('Resolve provider execution claim').item.json||{}; throw new Error(`Provider outcome ambiguous for action ${src.action_id||'unknown'}; claim retained to prevent automatic duplicate`);"
+   },
+   "typeVersion": 2
+  },
+  {
+   "id": "c73e030c-a98d-41d6-b07d-440811e5cf95",
+   "name": "Queue opportunity success receipt",
+   "type": "n8n-nodes-base.executeWorkflow",
+   "position": [
+    272,
+    0
+   ],
+   "parameters": {
+    "options": {},
+    "workflowId": {
+     "__rl": true,
+     "mode": "id",
+     "value": "VOSRECEIPT00001"
+    }
+   },
+   "typeVersion": 1.3,
+   "alwaysOutputData": true
+  },
+  {
+   "id": "30070e91-5241-4bf6-bc1c-63172bcc59bc",
+   "name": "Provider execution claim",
+   "type": "n8n-nodes-base.httpRequest",
+   "position": [
+    -400,
+    112
+   ],
+   "parameters": {
+    "url": "={{ 'https://signal-api.virya.music/v1/internal/autopilot/actions/' + $json.action_id + '/execution-claim' }}",
+    "method": "POST",
+    "options": {
+     "timeout": 30000
+    },
+    "jsonBody": "={{ ({executor_id:String($env.VIRYAOS_EXECUTOR_ID||'virya-n8n-primary').trim(),occurred_at:new Date().toISOString()}) }}",
+    "sendBody": true,
+    "sendHeaders": true,
+    "specifyBody": "json",
+    "headerParameters": {
+     "parameters": [
+      {
+       "name": "Authorization",
+       "value": "={{ 'Bearer ' + $env.CROWDRELAY_COMMERCE_API_KEY }}"
+      }
+     ]
+    }
+   },
+   "typeVersion": 4.4
+  },
+  {
+   "id": "1b3e75e8-53fd-4229-a98b-efb8b87ff622",
+   "name": "Resolve provider execution claim",
+   "type": "n8n-nodes-base.code",
+   "position": [
+    -240,
+    112
+   ],
+   "parameters": {
+    "jsCode": "const src=$('Validate safe application').item.json||{}; const r=$json||{}; const disposition=String(r.disposition||'');\nif(disposition==='already_succeeded') return [];\nif(disposition!=='claimed'||!r.claim_token) throw new Error(`Provider execution ${disposition||'unclaimed'}; fail closed to prevent duplicate external side effects`);\nreturn [{json:{...src,claim_token:String(r.claim_token),attempt_number:Number(r.attempt_number||1)}}];"
+   },
+   "typeVersion": 2
+  }
+ ],
+ "connections": {
+  "Called by verified ingress": {
+   "main": [
+    [
+     {
+      "node": "Validate safe application",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Validate safe application": {
+   "main": [
+    [
+     {
+      "node": "Provider execution claim",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Gmail \u2014 submit opportunity": {
+   "main": [
+    [
+     {
+      "node": "Prepare opportunity success receipt",
+      "type": "main",
+      "index": 0
+     }
+    ],
+    [
+     {
+      "node": "Fail closed on ambiguous provider error",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Prepare opportunity success receipt": {
+   "main": [
+    [
+     {
+      "node": "Queue opportunity success receipt",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Provider execution claim": {
+   "main": [
+    [
+     {
+      "node": "Resolve provider execution claim",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Resolve provider execution claim": {
+   "main": [
+    [
+     {
+      "node": "Gmail \u2014 submit opportunity",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  }
+ },
+ "settings": {
+  "executionOrder": "v1",
+  "saveDataErrorExecution": "none",
+  "saveDataSuccessExecution": "none",
+  "saveManualExecutions": false,
+  "errorWorkflow": "98d5e1a4-2dba-5e5a-9be1-2e5d9220859d",
+  "saveExecutionProgress": false,
+  "executionTimeout": 90,
+  "binaryMode": "separate"
+ },
+ "staticData": null,
+ "meta": {
+  "templateCredsSetupCompleted": true
+ },
+ "nodeGroups": [],
+ "pinData": {},
+ "versionId": "5beef605-cb42-482e-a4a6-1748ff063372",
+ "activeVersionId": "5beef605-cb42-482e-a4a6-1748ff063372",
+ "versionCounter": 6,
+ "triggerCount": 0,
+ "sourceWorkflowId": null,
+ "shared": [
+  {
+   "updatedAt": "2026-08-11T12:52:52.058Z",
+   "createdAt": "2026-08-11T12:52:52.058Z",
+   "role": "workflow:owner",
+   "workflowId": "VOSAPP000000001",
+   "projectId": "e2rPVcUBR4DTE3mO",
+   "project": {
+    "updatedAt": "2026-07-24T09:45:30.763Z",
+    "createdAt": "2026-07-24T09:45:07.113Z",
+    "id": "e2rPVcUBR4DTE3mO",
+    "name": "Virya Crew <virya.crew@gmail.com>",
+    "type": "personal",
+    "icon": null,
+    "description": null,
+    "customTelemetryTags": [],
+    "creatorId": "89259ec0-46eb-41d3-a04e-eb12f52f6342"
+   }
+  }
+ ],
+ "tags": [],
+ "activeVersion": {
+  "updatedAt": "2026-08-25T12:20:51.980Z",
+  "createdAt": "2026-08-13T20:30:48.969Z",
+  "versionId": "5beef605-cb42-482e-a4a6-1748ff063372",
+  "workflowId": "VOSAPP000000001",
+  "nodes": [
+   {
+    "id": "4ebfbf1d-3dda-4800-930b-411c9cccdfdb",
+    "name": "Called by verified ingress",
+    "type": "n8n-nodes-base.executeWorkflowTrigger",
+    "position": [
+     -800,
+     112
+    ],
+    "parameters": {
+     "inputSource": "passthrough"
+    },
+    "typeVersion": 1.1
+   },
+   {
+    "id": "ed50ea46-83fe-4a59-9ba9-ab4a43958e65",
+    "name": "Validate safe application",
+    "type": "n8n-nodes-base.code",
+    "position": [
+     -560,
+     112
+    ],
+    "parameters": {
+     "jsCode": "const e=$json;if(!e||e.type!=='crowdrelay.opportunity.application_requested'||e.version!==1) throw new Error('Unsupported opportunity event');const d=e.data??{};if(d.payment_execution_allowed!==false||Number(d.application_fee_minor||0)!==0||d.requires_contract||d.exclusive) throw new Error('Guardrail violation: paid/contractual/exclusive application');const to=String(d.contact_email||'').trim();if(!to.includes('@')) throw new Error('No email executor for this opportunity');const m=d.metadata&&typeof d.metadata==='object'?d.metadata:{};const epk=String(m.epk_url||'https://virya.music/pl/epk/');const subject=String(m.application_subject||`Virya \u00d7 ${d.title||d.organization} \u2014 zg\u0142oszenie zespo\u0142u`).slice(0,220);const body=String(m.application_body||`Cze\u015b\u0107,\\n\\nzg\u0142aszamy VIRYA do ${d.title||'Waszego wydarzenia'}. Jeste\u015bmy zespo\u0142em modern metal z Wroc\u0142awia, \u0142\u0105cz\u0105cym progresj\u0119, metalcore i elektronik\u0119.\\n\\nEPK: ${epk}\\nMuzyka: https://virya.music/\\n\\nJe\u017celi potrzebujecie dodatkowych materia\u0142\u00f3w lub informacji technicznych, pode\u015blemy je od razu.\\n\\nPozdrawiamy,\\nVIRYA`);return [{json:{event_id:e.id,action_id:d.action_id,opportunity_id:d.opportunity_id,SendTo:to,SendSubject:subject,SendBody:body}}];"
+    },
+    "typeVersion": 2
+   },
+   {
+    "id": "a65e0794-2213-43fb-a6fa-f5fcb4f40b90",
+    "name": "Gmail \u2014 submit opportunity",
+    "type": "n8n-nodes-base.gmail",
+    "onError": "continueErrorOutput",
+    "position": [
+     -64,
+     112
+    ],
+    "webhookId": "d39d8288-9c4c-4332-8e57-52255930f48f",
+    "parameters": {
+     "sendTo": "={{ $json.SendTo }}",
+     "message": "={{ $json.SendBody }}",
+     "options": {
+      "senderName": "Wojciech Bator / Virya",
+      "appendAttribution": false
+     },
+     "subject": "={{ $json.SendSubject }}",
+     "emailType": "text"
+    },
+    "credentials": {
+     "gmailOAuth2": {
+      "id": "BJg5tKEWMNRw0GA1",
+      "name": "Gmail account"
+     }
+    },
+    "typeVersion": 2.1
+   },
+   {
+    "id": "a04b2658-eb69-40d7-8651-87d31c3706a7",
+    "name": "Prepare opportunity success receipt",
+    "type": "n8n-nodes-base.code",
+    "position": [
+     0,
+     0
+    ],
+    "parameters": {
+     "jsCode": "const src=$('Validate safe application').item.json||{};const sent=$json||{};return [{json:{action_id:src.action_id,claim_token:$('Resolve provider execution claim').item.json.claim_token,status:'succeeded',provider_reference:String(sent.id||sent.messageId||sent.threadId||'gmail').slice(0,240),metadata:{event_id:src.event_id,provider:'gmail',domain_transition:'submitted'},occurred_at:new Date().toISOString()}}];"
+    },
+    "typeVersion": 2
+   },
+   {
+    "id": "39bb85df-1623-489f-8897-e4889162b9e7",
+    "name": "Fail closed on ambiguous provider error",
+    "type": "n8n-nodes-base.code",
+    "position": [
+     0,
+     208
+    ],
+    "parameters": {
+     "jsCode": "const src=$('Resolve provider execution claim').item.json||{}; throw new Error(`Provider outcome ambiguous for action ${src.action_id||'unknown'}; claim retained to prevent automatic duplicate`);"
+    },
+    "typeVersion": 2
+   },
+   {
+    "id": "c73e030c-a98d-41d6-b07d-440811e5cf95",
+    "name": "Queue opportunity success receipt",
+    "type": "n8n-nodes-base.executeWorkflow",
+    "position": [
+     272,
+     0
+    ],
+    "parameters": {
+     "options": {},
+     "workflowId": {
+      "__rl": true,
+      "mode": "id",
+      "value": "VOSRECEIPT00001"
+     }
+    },
+    "typeVersion": 1.3,
+    "alwaysOutputData": true
+   },
+   {
+    "id": "30070e91-5241-4bf6-bc1c-63172bcc59bc",
+    "name": "Provider execution claim",
+    "type": "n8n-nodes-base.httpRequest",
+    "position": [
+     -400,
+     112
+    ],
+    "parameters": {
+     "url": "={{ 'https://signal-api.virya.music/v1/internal/autopilot/actions/' + $json.action_id + '/execution-claim' }}",
+     "method": "POST",
+     "options": {
+      "timeout": 30000
+     },
+     "jsonBody": "={{ ({executor_id:String($env.VIRYAOS_EXECUTOR_ID||'virya-n8n-primary').trim(),occurred_at:new Date().toISOString()}) }}",
+     "sendBody": true,
+     "sendHeaders": true,
+     "specifyBody": "json",
+     "headerParameters": {
+      "parameters": [
+       {
+        "name": "Authorization",
+        "value": "={{ 'Bearer ' + $env.CROWDRELAY_COMMERCE_API_KEY }}"
+       }
+      ]
+     }
+    },
+    "typeVersion": 4.4
+   },
+   {
+    "id": "1b3e75e8-53fd-4229-a98b-efb8b87ff622",
+    "name": "Resolve provider execution claim",
+    "type": "n8n-nodes-base.code",
+    "position": [
+     -240,
+     112
+    ],
+    "parameters": {
+     "jsCode": "const src=$('Validate safe application').item.json||{}; const r=$json||{}; const disposition=String(r.disposition||'');\nif(disposition==='already_succeeded') return [];\nif(disposition!=='claimed'||!r.claim_token) throw new Error(`Provider execution ${disposition||'unclaimed'}; fail closed to prevent duplicate external side effects`);\nreturn [{json:{...src,claim_token:String(r.claim_token),attempt_number:Number(r.attempt_number||1)}}];"
+    },
+    "typeVersion": 2
+   }
+  ],
+  "connections": {
+   "Called by verified ingress": {
+    "main": [
+     [
+      {
+       "node": "Validate safe application",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "Validate safe application": {
+    "main": [
+     [
+      {
+       "node": "Provider execution claim",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "Gmail \u2014 submit opportunity": {
+    "main": [
+     [
+      {
+       "node": "Prepare opportunity success receipt",
+       "type": "main",
+       "index": 0
+      }
+     ],
+     [
+      {
+       "node": "Fail closed on ambiguous provider error",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "Prepare opportunity success receipt": {
+    "main": [
+     [
+      {
+       "node": "Queue opportunity success receipt",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "Provider execution claim": {
+    "main": [
+     [
+      {
+       "node": "Resolve provider execution claim",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "Resolve provider execution claim": {
+    "main": [
+     [
+      {
+       "node": "Gmail \u2014 submit opportunity",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   }
+  },
+  "nodeGroups": [],
+  "authors": "Virya Crew",
+  "name": "Version 5beef605",
+  "description": "",
+  "autosaved": true,
+  "workflowPublishHistory": [
+   {
+    "createdAt": "2026-08-13T20:31:13.371Z",
+    "id": 592,
+    "workflowId": "VOSAPP000000001",
+    "versionId": "5beef605-cb42-482e-a4a6-1748ff063372",
+    "event": "activated",
+    "userId": "89259ec0-46eb-41d3-a04e-eb12f52f6342"
+   }
+  ]
+ }
+}

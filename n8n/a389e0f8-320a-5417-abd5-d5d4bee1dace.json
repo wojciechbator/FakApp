@@ -1,0 +1,186 @@
+{
+ "updatedAt": "2026-08-15T20:52:51.942Z",
+ "createdAt": "2026-08-03T11:30:43.669Z",
+ "id": "a389e0f8-320a-5417-abd5-d5d4bee1dace",
+ "name": "CrowdRelay \u2014 internal lifecycle audit branch",
+ "description": null,
+ "active": true,
+ "isArchived": false,
+ "nodes": [
+  {
+   "parameters": {
+    "inputSource": "passthrough"
+   },
+   "id": "be763550-8322-42d3-aa33-928b82943f2b",
+   "name": "Called by verified ingress",
+   "type": "n8n-nodes-base.executeWorkflowTrigger",
+   "typeVersion": 1.1,
+   "position": [
+    0,
+    0
+   ]
+  },
+  {
+   "parameters": {
+    "jsCode": "const envelope = $json;\nconst supported = new Set([\"fan.session_recovered\", \"referral.qualified\", \"referral.reversed\", \"reward.granted\", \"merch_coupon.redeemed\", \"admission.pass.claimed\", \"concert.checked_in\"]);\nif (!envelope || !supported.has(String(envelope.type)) || envelope.version !== 1) {\n  throw new Error('Unsupported CrowdRelay internal lifecycle event');\n}\nconst data = envelope.data ?? {};\nif (!envelope.id || !data || typeof data !== 'object' || Array.isArray(data)) {\n  throw new Error('Missing internal lifecycle fields');\n}\n// These events already represent committed domain transitions.\n// n8n validates the contract and returns success without duplicating side effects.\nreturn [{ json: {\n  accepted: true,\n  event_id: envelope.id,\n  event_type: envelope.type,\n} }];"
+   },
+   "id": "a116a455-0480-4a88-ac4d-a257b5ac41f4",
+   "name": "Validate committed lifecycle event",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    280,
+    0
+   ]
+  },
+  {
+   "parameters": {},
+   "id": "db840dc7-7b2a-44db-9a7e-df79b8d7a4e4",
+   "name": "Lifecycle event accepted",
+   "type": "n8n-nodes-base.noOp",
+   "typeVersion": 1,
+   "position": [
+    560,
+    0
+   ]
+  }
+ ],
+ "connections": {
+  "Called by verified ingress": {
+   "main": [
+    [
+     {
+      "node": "Validate committed lifecycle event",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Validate committed lifecycle event": {
+   "main": [
+    [
+     {
+      "node": "Lifecycle event accepted",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  }
+ },
+ "settings": {
+  "executionOrder": "v1",
+  "saveDataErrorExecution": "none",
+  "saveDataSuccessExecution": "none",
+  "saveManualExecutions": false,
+  "errorWorkflow": "98d5e1a4-2dba-5e5a-9be1-2e5d9220859d"
+ },
+ "staticData": null,
+ "meta": {
+  "templateCredsSetupCompleted": true
+ },
+ "nodeGroups": [],
+ "pinData": {},
+ "versionId": "9345e416-6f12-4242-8b8e-009116494577",
+ "activeVersionId": "9345e416-6f12-4242-8b8e-009116494577",
+ "versionCounter": 3,
+ "triggerCount": 0,
+ "sourceWorkflowId": null,
+ "shared": [
+  {
+   "updatedAt": "2026-08-03T11:30:43.669Z",
+   "createdAt": "2026-08-03T11:30:43.669Z",
+   "role": "workflow:owner",
+   "workflowId": "a389e0f8-320a-5417-abd5-d5d4bee1dace",
+   "projectId": "e2rPVcUBR4DTE3mO",
+   "project": {
+    "updatedAt": "2026-07-24T09:45:30.763Z",
+    "createdAt": "2026-07-24T09:45:07.113Z",
+    "id": "e2rPVcUBR4DTE3mO",
+    "name": "Virya Crew <virya.crew@gmail.com>",
+    "type": "personal",
+    "icon": null,
+    "description": null,
+    "customTelemetryTags": [],
+    "creatorId": "89259ec0-46eb-41d3-a04e-eb12f52f6342"
+   }
+  }
+ ],
+ "tags": [],
+ "activeVersion": {
+  "updatedAt": "2026-08-12T17:01:41.269Z",
+  "createdAt": "2026-08-12T17:01:41.269Z",
+  "versionId": "9345e416-6f12-4242-8b8e-009116494577",
+  "workflowId": "a389e0f8-320a-5417-abd5-d5d4bee1dace",
+  "nodes": [
+   {
+    "parameters": {
+     "inputSource": "passthrough"
+    },
+    "id": "be763550-8322-42d3-aa33-928b82943f2b",
+    "name": "Called by verified ingress",
+    "type": "n8n-nodes-base.executeWorkflowTrigger",
+    "typeVersion": 1.1,
+    "position": [
+     0,
+     0
+    ]
+   },
+   {
+    "parameters": {
+     "jsCode": "const envelope = $json;\nconst supported = new Set([\"fan.session_recovered\", \"referral.qualified\", \"referral.reversed\", \"reward.granted\", \"merch_coupon.redeemed\", \"admission.pass.claimed\", \"concert.checked_in\"]);\nif (!envelope || !supported.has(String(envelope.type)) || envelope.version !== 1) {\n  throw new Error('Unsupported CrowdRelay internal lifecycle event');\n}\nconst data = envelope.data ?? {};\nif (!envelope.id || !data || typeof data !== 'object' || Array.isArray(data)) {\n  throw new Error('Missing internal lifecycle fields');\n}\n// These events already represent committed domain transitions.\n// n8n validates the contract and returns success without duplicating side effects.\nreturn [{ json: {\n  accepted: true,\n  event_id: envelope.id,\n  event_type: envelope.type,\n} }];"
+    },
+    "id": "a116a455-0480-4a88-ac4d-a257b5ac41f4",
+    "name": "Validate committed lifecycle event",
+    "type": "n8n-nodes-base.code",
+    "typeVersion": 2,
+    "position": [
+     280,
+     0
+    ]
+   },
+   {
+    "parameters": {},
+    "id": "db840dc7-7b2a-44db-9a7e-df79b8d7a4e4",
+    "name": "Lifecycle event accepted",
+    "type": "n8n-nodes-base.noOp",
+    "typeVersion": 1,
+    "position": [
+     560,
+     0
+    ]
+   }
+  ],
+  "connections": {
+   "Called by verified ingress": {
+    "main": [
+     [
+      {
+       "node": "Validate committed lifecycle event",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "Validate committed lifecycle event": {
+    "main": [
+     [
+      {
+       "node": "Lifecycle event accepted",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   }
+  },
+  "nodeGroups": [],
+  "authors": "import",
+  "name": null,
+  "description": null,
+  "autosaved": false,
+  "workflowPublishHistory": []
+ }
+}

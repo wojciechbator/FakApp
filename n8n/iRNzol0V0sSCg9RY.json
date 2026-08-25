@@ -1,0 +1,1577 @@
+{
+ "updatedAt": "2026-08-15T20:53:56.020Z",
+ "createdAt": "2026-07-24T09:45:08.790Z",
+ "id": "iRNzol0V0sSCg9RY",
+ "name": "VIRYA 00 \u2014 Cockpit Rebuilder",
+ "description": null,
+ "active": true,
+ "isArchived": false,
+ "nodes": [
+  {
+   "id": "eda852bf-e695-482a-b8c8-0973696fe878",
+   "name": "Manual \u2014 rebuild cockpit",
+   "type": "n8n-nodes-base.manualTrigger",
+   "position": [
+    -1200,
+    0
+   ],
+   "parameters": {},
+   "typeVersion": 1
+  },
+  {
+   "id": "ad7a1486-7d9c-4c5b-9af1-bbfe8ebf697a",
+   "name": "Schedule \u2014 daily 23:20",
+   "type": "n8n-nodes-base.scheduleTrigger",
+   "notes": "Light runtime cadence: 0 20 23 * * * (Europe/Warsaw). Workflow logic and data mappings unchanged.",
+   "position": [
+    -1200,
+    180
+   ],
+   "parameters": {
+    "rule": {
+     "interval": [
+      {
+       "field": "cronExpression",
+       "expression": "0 20 23 * * *"
+      }
+     ]
+    }
+   },
+   "notesInFlow": true,
+   "typeVersion": 1.2
+  },
+  {
+   "id": "ece24b18-1dc6-4659-9351-fd878f7c8192",
+   "name": "GS \u2014 OUTREACH_LOG",
+   "type": "n8n-nodes-base.googleSheets",
+   "maxTries": 5,
+   "position": [
+    -920,
+    80
+   ],
+   "parameters": {
+    "options": {
+     "dataLocationOnSheet": {
+      "values": {
+       "headerRow": 4,
+       "firstDataRow": 5,
+       "rangeDefinition": "specifyRange"
+      }
+     }
+    },
+    "filtersUI": {
+     "values": []
+    },
+    "sheetName": {
+     "__rl": true,
+     "mode": "name",
+     "value": "OUTREACH_LOG"
+    },
+    "documentId": {
+     "__rl": true,
+     "mode": "id",
+     "value": "1P9FqB7brPc6fZ2dkJMFCc3cVyKbcIjSAvMas-3mZD4g"
+    }
+   },
+   "credentials": {
+    "googleSheetsOAuth2Api": {
+     "id": "bc2Y1XmIdyu5ySTa",
+     "name": "Google Sheets account"
+    }
+   },
+   "executeOnce": true,
+   "retryOnFail": true,
+   "typeVersion": 4.7,
+   "alwaysOutputData": true,
+   "waitBetweenTries": 15000
+  },
+  {
+   "id": "cf0eac0e-7aad-419c-814e-870b375a40dd",
+   "name": "GS \u2014 OPPORTUNITIES",
+   "type": "n8n-nodes-base.googleSheets",
+   "maxTries": 5,
+   "position": [
+    -680,
+    80
+   ],
+   "parameters": {
+    "options": {
+     "dataLocationOnSheet": {
+      "values": {
+       "headerRow": 4,
+       "firstDataRow": 5,
+       "rangeDefinition": "specifyRange"
+      }
+     }
+    },
+    "filtersUI": {
+     "values": []
+    },
+    "sheetName": {
+     "__rl": true,
+     "mode": "name",
+     "value": "OPPORTUNITIES"
+    },
+    "documentId": {
+     "__rl": true,
+     "mode": "id",
+     "value": "1aeOq_LFPp7HmFnNCenjz0RA5wIATgfd--ycbmmAGEk4"
+    }
+   },
+   "credentials": {
+    "googleSheetsOAuth2Api": {
+     "id": "bc2Y1XmIdyu5ySTa",
+     "name": "Google Sheets account"
+    }
+   },
+   "executeOnce": true,
+   "retryOnFail": true,
+   "typeVersion": 4.7,
+   "alwaysOutputData": true,
+   "waitBetweenTries": 15000
+  },
+  {
+   "id": "32a46523-dadf-43d2-8ba0-f77eb579b9f1",
+   "name": "GS \u2014 SUPPORT_TARGETS",
+   "type": "n8n-nodes-base.googleSheets",
+   "maxTries": 5,
+   "position": [
+    -440,
+    80
+   ],
+   "parameters": {
+    "options": {
+     "dataLocationOnSheet": {
+      "values": {
+       "headerRow": 4,
+       "firstDataRow": 5,
+       "rangeDefinition": "specifyRange"
+      }
+     }
+    },
+    "filtersUI": {
+     "values": []
+    },
+    "sheetName": {
+     "__rl": true,
+     "mode": "name",
+     "value": "SUPPORT_TARGETS"
+    },
+    "documentId": {
+     "__rl": true,
+     "mode": "id",
+     "value": "1aeOq_LFPp7HmFnNCenjz0RA5wIATgfd--ycbmmAGEk4"
+    }
+   },
+   "credentials": {
+    "googleSheetsOAuth2Api": {
+     "id": "bc2Y1XmIdyu5ySTa",
+     "name": "Google Sheets account"
+    }
+   },
+   "executeOnce": true,
+   "retryOnFail": true,
+   "typeVersion": 4.7,
+   "alwaysOutputData": true,
+   "waitBetweenTries": 15000
+  },
+  {
+   "id": "3cfdb041-2ebd-4284-b943-00e9e1a26c43",
+   "name": "GS \u2014 SUBMISSION_LOG",
+   "type": "n8n-nodes-base.googleSheets",
+   "maxTries": 5,
+   "position": [
+    -200,
+    80
+   ],
+   "parameters": {
+    "options": {
+     "dataLocationOnSheet": {
+      "values": {
+       "headerRow": 1,
+       "firstDataRow": 2,
+       "rangeDefinition": "specifyRange"
+      }
+     }
+    },
+    "filtersUI": {
+     "values": []
+    },
+    "sheetName": {
+     "__rl": true,
+     "mode": "name",
+     "value": "SUBMISSION_LOG"
+    },
+    "documentId": {
+     "__rl": true,
+     "mode": "id",
+     "value": "1ksa6VePLgLQESHvJL-_zBZ2KzVNHYPndzwhXvVj4Vxw"
+    }
+   },
+   "credentials": {
+    "googleSheetsOAuth2Api": {
+     "id": "bc2Y1XmIdyu5ySTa",
+     "name": "Google Sheets account"
+    }
+   },
+   "executeOnce": true,
+   "retryOnFail": true,
+   "typeVersion": 4.7,
+   "alwaysOutputData": true,
+   "waitBetweenTries": 15000
+  },
+  {
+   "id": "8b6f6a39-ae25-4347-af8b-2387222768a2",
+   "name": "GS \u2014 SOCIAL_QUEUE",
+   "type": "n8n-nodes-base.googleSheets",
+   "maxTries": 5,
+   "position": [
+    40,
+    80
+   ],
+   "parameters": {
+    "options": {
+     "dataLocationOnSheet": {
+      "values": {
+       "headerRow": 4,
+       "firstDataRow": 5,
+       "rangeDefinition": "specifyRange"
+      }
+     }
+    },
+    "filtersUI": {
+     "values": []
+    },
+    "sheetName": {
+     "__rl": true,
+     "mode": "name",
+     "value": "QUEUE"
+    },
+    "documentId": {
+     "__rl": true,
+     "mode": "id",
+     "value": "1nav2ituUQ6MxY7NV6tds3AXTiPzqur1hS8Hg-wDjdl0"
+    }
+   },
+   "credentials": {
+    "googleSheetsOAuth2Api": {
+     "id": "bc2Y1XmIdyu5ySTa",
+     "name": "Google Sheets account"
+    }
+   },
+   "executeOnce": true,
+   "retryOnFail": true,
+   "typeVersion": 4.7,
+   "alwaysOutputData": true,
+   "waitBetweenTries": 15000
+  },
+  {
+   "id": "d5821336-245f-4308-8a3c-c6a484da13ec",
+   "name": "GS \u2014 SEO_TASKS",
+   "type": "n8n-nodes-base.googleSheets",
+   "maxTries": 5,
+   "position": [
+    280,
+    80
+   ],
+   "parameters": {
+    "options": {
+     "dataLocationOnSheet": {
+      "values": {
+       "headerRow": 1,
+       "firstDataRow": 2,
+       "rangeDefinition": "specifyRange"
+      }
+     }
+    },
+    "filtersUI": {
+     "values": []
+    },
+    "sheetName": {
+     "__rl": true,
+     "mode": "name",
+     "value": "TASKS"
+    },
+    "documentId": {
+     "__rl": true,
+     "mode": "id",
+     "value": "1RWqTUo2eJvG8OngqMfiyAFu5tkvSgVBl3FZNIU6nDNc"
+    }
+   },
+   "credentials": {
+    "googleSheetsOAuth2Api": {
+     "id": "bc2Y1XmIdyu5ySTa",
+     "name": "Google Sheets account"
+    }
+   },
+   "executeOnce": true,
+   "retryOnFail": true,
+   "typeVersion": 4.7,
+   "alwaysOutputData": true,
+   "waitBetweenTries": 15000
+  },
+  {
+   "id": "02b41a69-ffd9-4eb5-a0f7-6b54bd1483ef",
+   "name": "GS \u2014 AI_VISIBILITY",
+   "type": "n8n-nodes-base.googleSheets",
+   "maxTries": 5,
+   "position": [
+    520,
+    80
+   ],
+   "parameters": {
+    "options": {
+     "dataLocationOnSheet": {
+      "values": {
+       "headerRow": 1,
+       "firstDataRow": 2,
+       "rangeDefinition": "specifyRange"
+      }
+     }
+    },
+    "filtersUI": {
+     "values": []
+    },
+    "sheetName": {
+     "__rl": true,
+     "mode": "name",
+     "value": "AI_VISIBILITY"
+    },
+    "documentId": {
+     "__rl": true,
+     "mode": "id",
+     "value": "1RWqTUo2eJvG8OngqMfiyAFu5tkvSgVBl3FZNIU6nDNc"
+    }
+   },
+   "credentials": {
+    "googleSheetsOAuth2Api": {
+     "id": "bc2Y1XmIdyu5ySTa",
+     "name": "Google Sheets account"
+    }
+   },
+   "executeOnce": true,
+   "retryOnFail": true,
+   "typeVersion": 4.7,
+   "alwaysOutputData": true,
+   "waitBetweenTries": 15000
+  },
+  {
+   "id": "64817746-9dc9-4076-a30a-d850a2510c22",
+   "name": "GS \u2014 MEDIA_RESULTS",
+   "type": "n8n-nodes-base.googleSheets",
+   "maxTries": 5,
+   "position": [
+    760,
+    80
+   ],
+   "parameters": {
+    "options": {
+     "dataLocationOnSheet": {
+      "values": {
+       "headerRow": 1,
+       "firstDataRow": 2,
+       "rangeDefinition": "specifyRange"
+      }
+     }
+    },
+    "filtersUI": {
+     "values": []
+    },
+    "sheetName": {
+     "__rl": true,
+     "mode": "name",
+     "value": "MEDIA_RESULTS"
+    },
+    "documentId": {
+     "__rl": true,
+     "mode": "id",
+     "value": "1wrfH2R7J8iiGn2zhKKsqytq92vK_gKOOQjkyEwsGu3s"
+    }
+   },
+   "credentials": {
+    "googleSheetsOAuth2Api": {
+     "id": "bc2Y1XmIdyu5ySTa",
+     "name": "Google Sheets account"
+    }
+   },
+   "executeOnce": true,
+   "retryOnFail": true,
+   "typeVersion": 4.7,
+   "alwaysOutputData": true,
+   "waitBetweenTries": 15000
+  },
+  {
+   "id": "786bf58e-04cf-4c48-8704-37cd7bce5d93",
+   "name": "GS \u2014 PLAYLIST_RESULTS",
+   "type": "n8n-nodes-base.googleSheets",
+   "maxTries": 5,
+   "position": [
+    1000,
+    80
+   ],
+   "parameters": {
+    "options": {
+     "dataLocationOnSheet": {
+      "values": {
+       "headerRow": 1,
+       "firstDataRow": 2,
+       "rangeDefinition": "specifyRange"
+      }
+     }
+    },
+    "filtersUI": {
+     "values": []
+    },
+    "sheetName": {
+     "__rl": true,
+     "mode": "name",
+     "value": "PLAYLIST_RESULTS"
+    },
+    "documentId": {
+     "__rl": true,
+     "mode": "id",
+     "value": "1wrfH2R7J8iiGn2zhKKsqytq92vK_gKOOQjkyEwsGu3s"
+    }
+   },
+   "credentials": {
+    "googleSheetsOAuth2Api": {
+     "id": "bc2Y1XmIdyu5ySTa",
+     "name": "Google Sheets account"
+    }
+   },
+   "executeOnce": true,
+   "retryOnFail": true,
+   "typeVersion": 4.7,
+   "alwaysOutputData": true,
+   "waitBetweenTries": 15000
+  },
+  {
+   "id": "99803d84-3e78-4b09-9c1a-889c3d0fa800",
+   "name": "Code \u2014 Build cockpit metrics",
+   "type": "n8n-nodes-base.code",
+   "position": [
+    1240,
+    80
+   ],
+   "parameters": {
+    "jsCode": "function rows(name) {\n  try { return $(name).all().map(i => i.json || {}).filter(r => Object.keys(r).length); }\n  catch { return []; }\n}\nfunction s(v) { return String(v ?? '').trim(); }\nfunction up(v) { return s(v).toUpperCase(); }\nfunction has(v) { return s(v) !== ''; }\nfunction localStamp(d = new Date()) {\n  return new Intl.DateTimeFormat('sv-SE', {\n    timeZone: 'Europe/Warsaw', year: 'numeric', month: '2-digit', day: '2-digit',\n    hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false\n  }).format(d);\n}\nfunction dateOnly(d = new Date()) { return localStamp(d).slice(0, 10); }\nfunction parseDate(v) {\n  const x = s(v);\n  if (!x) return null;\n  const normalized = /^\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}/.test(x) ? x.replace(' ', 'T') : x;\n  const d = new Date(normalized);\n  return Number.isNaN(d.getTime()) ? null : d;\n}\nfunction withinDays(v, days) {\n  const d = parseDate(v); if (!d) return false;\n  const age = Date.now() - d.getTime();\n  return age >= 0 && age <= days * 86400000;\n}\nfunction futureWithin(v, days) {\n  const d = parseDate(v); if (!d) return false;\n  const diff = d.getTime() - Date.now();\n  return diff >= 0 && diff <= days * 86400000;\n}\nfunction earliest(values) {\n  return values.map(v => ({raw:s(v), d:parseDate(v)})).filter(x => x.d && x.d.getTime() >= Date.now())\n    .sort((a,b) => a.d - b.d)[0]?.raw || '';\n}\nfunction closed(v) {\n  return /(ODRZUC|ZAMKNI|CLOSED|SKIPPED|NIEAKTUAL|ARCHIVED|DONE|COMPLETED|WYS\u0141ANO|ZG\u0141OSZONE)/i.test(s(v));\n}\nfunction handled(v) {\n  return /(DONE|HANDLED|CLOSED|RESOLVED|OBS\u0141U\u017b|COMPLETED)/i.test(s(v));\n}\nfunction validAsset(r) {\n  const id = s(r.Asset_Drive_ID), url = s(r.Asset_URL);\n  if (!id || !url) return false;\n  if (/\\/folders\\//i.test(url)) return false;\n  return /\\/file\\/d\\//i.test(url) || /uc\\?id=/i.test(url) || /\\.(mp4|mov|jpg|jpeg|png|webp)(\\?|$)/i.test(url);\n}\n\nconst outreach = rows('GS \u2014 OUTREACH_LOG');\nconst opportunities = rows('GS \u2014 OPPORTUNITIES').filter(r => has(r.Opportunity_ID));\nconst supports = rows('GS \u2014 SUPPORT_TARGETS').filter(r => has(r.Target_ID));\nconst submissions = rows('GS \u2014 SUBMISSION_LOG').filter(r => has(r.Log_ID));\nconst social = rows('GS \u2014 SOCIAL_QUEUE').filter(r => has(r.Item_ID) && up(r.Item_ID) !== 'QUEUE-0000');\nconst seoTasks = rows('GS \u2014 SEO_TASKS').filter(r => has(r.Task_ID));\nconst aiRows = rows('GS \u2014 AI_VISIBILITY').filter(r => has(r.Check_ID));\nconst media = rows('GS \u2014 MEDIA_RESULTS').filter(r => has(r.Result_ID) && !/^WZ\u00d3R/i.test(s(r.Result_ID)));\nconst playlist = rows('GS \u2014 PLAYLIST_RESULTS').filter(r => has(r.Placement_ID) && !/^WZ\u00d3R/i.test(s(r.Placement_ID)));\n\nconst replyAction = outreach.filter(r => has(r.Reply_At) && !handled(r.Discord_Status) && !handled(r.Status));\nconst followupsDue = outreach.filter(r => has(r.Follow_Up_At) && !has(r.Reply_At) && parseDate(r.Follow_Up_At)?.getTime() <= Date.now());\nconst urgentOpps = opportunities.filter(r => up(r.Priority) === 'A' && !closed(r.Status) && futureWithin(r.Deadline, 14));\nconst supportReady = supports.filter(r => /^A\\b/i.test(s(r.Tier)) && !closed(r.Status) && /(SZKIC GOTOWY|DO KONTAKTU)/i.test(s(r.Status)));\nconst socialReady = social.filter(r => up(r.Status) === 'READY_FOR_APPROVAL');\nconst socialValid = socialReady.filter(validAsset);\nconst socialInvalid = socialReady.length - socialValid.length;\nconst seoDue = seoTasks.filter(r => !closed(r.Status) && futureWithin(r.Due_At, 7));\n\nconst sent30 = outreach.filter(r => has(r.Gmail_Message_ID) && withinDays(r.Sent_At, 30));\nconst replies30 = outreach.filter(r => withinDays(r.Reply_At, 30));\nconst media30 = media.filter(r => has(r.URL) && withinDays(r.Published_At, 30));\nconst playlist30 = playlist.filter(r => has(r.Placement_URL) && withinDays(r.Start_At, 30));\nconst social30 = social.filter(r => (has(r.IG_Media_ID) || has(r.FB_Post_ID) || has(r.Published_At)) && withinDays(r.Published_At, 30));\nconst opps30 = opportunities.filter(r => /^OPP-/i.test(s(r.Opportunity_ID)) && withinDays(r.Found_At, 30));\n\nconst nextFollowup = earliest(outreach.filter(r => !has(r.Reply_At)).map(r => r.Follow_Up_At));\nconst nextDeadline = earliest(opportunities.filter(r => !closed(r.Status)).map(r => r.Deadline));\nconst nextSocial = earliest(social.filter(r => up(r.Status) === 'APPROVED' && validAsset(r)).map(r => r.Suggested_Publish_At));\n\nconst latestAI = aiRows.slice().sort((a,b) => (parseDate(b.Checked_At)?.getTime()||0) - (parseDate(a.Checked_At)?.getTime()||0))[0] || {};\nconst aiLimited = up(latestAI.Content_Gap) === 'RATE_LIMITED' || up(latestAI.Query) === '__RATE_LIMITED__';\nconst aiError = has(latestAI.Content_Gap) && !['RATE_LIMITED',''].includes(up(latestAI.Content_Gap));\nconst aiValue = aiLimited ? 'RATE_LIMITED' : aiError ? 'ERROR' : has(latestAI.Checked_At) ? 'OK' : 'BRAK DANYCH';\nconst aiStatus = aiLimited || aiError ? 'UWAGA' : has(latestAI.Checked_At) ? 'OK' : 'INFO';\n\nconst freshnessCandidates = [\n  ...outreach.flatMap(r => [r.Last_Synced_At, r.Reply_At, r.Sent_At]),\n  ...opportunities.map(r => r.Found_At),\n  ...social.map(r => r.Created_At),\n  ...aiRows.map(r => r.Checked_At)\n].filter(has);\nconst latestActivity = freshnessCandidates.map(parseDate).filter(Boolean).sort((a,b)=>b-a)[0];\nconst freshHours = latestActivity ? (Date.now()-latestActivity.getTime())/3600000 : Infinity;\nconst refresh = localStamp();\n\nconst links = {\n  outreach:'https://docs.google.com/spreadsheets/d/1P9FqB7brPc6fZ2dkJMFCc3cVyKbcIjSAvMas-3mZD4g/edit',\n  scout:'https://docs.google.com/spreadsheets/d/1aeOq_LFPp7HmFnNCenjz0RA5wIATgfd--ycbmmAGEk4/edit',\n  social:'https://docs.google.com/spreadsheets/d/1nav2ituUQ6MxY7NV6tds3AXTiPzqur1hS8Hg-wDjdl0/edit',\n  seo:'https://docs.google.com/spreadsheets/d/1RWqTUo2eJvG8OngqMfiyAFu5tkvSgVBl3FZNIU6nDNc/edit',\n  results:'https://docs.google.com/spreadsheets/d/1wrfH2R7J8iiGn2zhKKsqytq92vK_gKOOQjkyEwsGu3s/edit',\n  cockpit:'https://docs.google.com/spreadsheets/d/1jjt266IE0AsZkGRrVmWT60FQoOqKFWUkNUlzKIkTjmY/edit',\n  backend:'https://drive.google.com/drive/folders/1a1qgW0IF9waN32XIKy34NGHAI2JJy6HL'\n};\nfunction metric(id, area, label, value, status, detail, link) {\n  return {Metric_ID:id, Obszar:area, Wska\u017anik:label, Warto\u015b\u0107:value, Status:status, 'Co to znaczy':detail, Od\u015bwie\u017cono:refresh, Link:link};\n}\nconst out = [\n  metric('DEC_REPLY','DO DECYZJI','Odpowiedzi wymagaj\u0105ce reakcji',replyAction.length,replyAction.length?'PILNE':'OK','Nowa odpowied\u017a znika z tej liczby po oznaczeniu jej jako obs\u0142u\u017conej.',links.outreach),\n  metric('DEC_FOLLOWUP','DO DECYZJI','Follow-upy nale\u017cne teraz',followupsDue.length,followupsDue.length?'UWAGA':'OK','Wyliczane z Sent_At, Follow_Up_At i braku Reply_At.',links.outreach),\n  metric('DEC_OPPORTUNITY','DO DECYZJI','Pilne okazje priorytetu A',urgentOpps.length,urgentOpps.length?'PILNE':'OK','Tylko otwarte okazje z potwierdzonym terminem w ci\u0105gu 14 dni.',links.scout),\n  metric('DEC_SUPPORT','DO DECYZJI','Supporty gotowe do konkretnego pitchu',supportReady.length,supportReady.length?'UWAGA':'OK','Aktywne cele Tier A ze statusem Szkic gotowy lub Do kontaktu.',links.scout),\n  metric('DEC_SOCIAL','DO DECYZJI','Posty z poprawnym assetem do akceptacji',`${socialValid.length} / ${socialInvalid}`,socialValid.length?'UWAGA':socialInvalid?'PILNE':'OK','Pierwsza liczba: realne pliki do decyzji. Druga: rekordy z nieprawid\u0142owym assetem.',links.social),\n  metric('DEC_SEO','DO DECYZJI','Otwarte zadania SEO z terminem \u22647 dni',seoDue.length,seoDue.length?'UWAGA':'OK','Powstaj\u0105 wy\u0142\u0105cznie z potwierdzonych problem\u00f3w audytu.',links.seo),\n  metric('RES_OUT_SENT','WYNIKI 30 DNI','Wys\u0142ane kontakty medialne',sent30.length,'INFO','Liczone wy\u0142\u0105cznie po Gmail_Message_ID i Sent_At.',links.outreach),\n  metric('RES_OUT_REPLY','WYNIKI 30 DNI','Odpowiedzi na outreach',replies30.length,replies30.length?'OK':'INFO','Ka\u017cda odpowied\u017a pochodzi z istniej\u0105cego w\u0105tku Gmail.',links.outreach),\n  metric('RES_MEDIA','WYNIKI 30 DNI','Potwierdzone publikacje / emisje',media30.length,'INFO','Wynik liczy si\u0119 dopiero z URL-em i dat\u0105 publikacji.',links.results),\n  metric('RES_PLAYLIST','WYNIKI 30 DNI','Potwierdzone placementy',playlist30.length,'INFO','Liczone wy\u0142\u0105cznie z potwierdzonego Placement_URL.',links.results),\n  metric('RES_SOCIAL','WYNIKI 30 DNI','Opublikowane materia\u0142y social',social30.length,'INFO','Liczone po Published_At i ID publikacji.',links.social),\n  metric('RES_OPPS','WYNIKI 30 DNI','Nowe okazje znalezione',opps30.length,'INFO','Kandydaci Opportunity Scout; nie ka\u017cdy wymaga dzia\u0142ania.',links.scout),\n  metric('NEXT_FOLLOWUP','NAJBLI\u017bSZY TERMIN','Najbli\u017cszy follow-up',nextFollowup || 'Brak','INFO','Pierwszy przysz\u0142y, nieobs\u0142u\u017cony Follow_Up_At.',links.outreach),\n  metric('NEXT_DEADLINE','NAJBLI\u017bSZY TERMIN','Najbli\u017cszy deadline okazji',nextDeadline || 'Brak potwierdzonego',nextDeadline?'UWAGA':'OK','Brak wpisanej daty nie jest traktowany jako deadline.',links.scout),\n  metric('NEXT_SOCIAL','NAJBLI\u017bSZY TERMIN','Najbli\u017csza zatwierdzona publikacja',nextSocial || 'Brak',nextSocial?'INFO':'OK','Pokazuje tylko APPROVED z realnym plikiem assetu.',links.social),\n  metric('SYS_AI','SYSTEM','Gemini AI visibility',aiValue,aiStatus,aiLimited?'Ostatni run dosta\u0142 429; paczka pozostaje do ponowienia.':aiError?'Ostatni run zako\u0144czy\u0142 si\u0119 b\u0142\u0119dem danych.':'Ostatni zapis AI visibility jest dost\u0119pny.',links.seo),\n  metric('SYS_FRESH','SYSTEM','\u015awie\u017co\u015b\u0107 danych',latestActivity?localStamp(latestActivity):'Brak danych',freshHours<=48?'OK':'UWAGA',freshHours<=48?'Ostatnia aktywno\u015b\u0107 \u017ar\u00f3de\u0142 mie\u015bci si\u0119 w 48 godzinach.':'Brak \u015bwie\u017cej aktywno\u015bci \u017ar\u00f3de\u0142 od ponad 48 godzin.',links.backend),\n  metric('SYS_REFRESH','SYSTEM','Ostatnie od\u015bwie\u017cenie Cockpitu',refresh,'OK','VIRYA 00 przebudowa\u0142 widok automatycznie.',links.cockpit)\n];\nreturn out.map(json => ({json}));"
+   },
+   "typeVersion": 2
+  },
+  {
+   "id": "91ab2fbc-220f-4627-9401-36b9baef4ac5",
+   "name": "GS \u2014 Update COCKPIT",
+   "type": "n8n-nodes-base.googleSheets",
+   "position": [
+    1500,
+    -40
+   ],
+   "parameters": {
+    "options": {
+     "locationDefine": {
+      "values": {
+       "headerRow": 5,
+       "firstDataRow": 6
+      }
+     }
+    },
+    "fieldsUi": {
+     "values": [
+      {
+       "column": "Obszar",
+       "fieldValue": "={{ $json.Obszar }}"
+      },
+      {
+       "column": "Wska\u017anik",
+       "fieldValue": "={{ $json.Wska\u017anik }}"
+      },
+      {
+       "column": "Warto\u015b\u0107",
+       "fieldValue": "={{ $json.Warto\u015b\u0107 }}"
+      },
+      {
+       "column": "Status",
+       "fieldValue": "={{ $json.Status }}"
+      },
+      {
+       "column": "Co to znaczy",
+       "fieldValue": "={{ $json['Co to znaczy'] }}"
+      },
+      {
+       "column": "Od\u015bwie\u017cono",
+       "fieldValue": "={{ $json.Od\u015bwie\u017cono }}"
+      },
+      {
+       "column": "Link",
+       "fieldValue": "={{ $json.Link }}"
+      }
+     ]
+    },
+    "operation": "update",
+    "sheetName": {
+     "__rl": true,
+     "mode": "name",
+     "value": "COCKPIT"
+    },
+    "documentId": {
+     "__rl": true,
+     "mode": "id",
+     "value": "1jjt266IE0AsZkGRrVmWT60FQoOqKFWUkNUlzKIkTjmY"
+    },
+    "valueToMatchOn": "={{ $json.Metric_ID }}",
+    "columnToMatchOn": "Metric_ID"
+   },
+   "credentials": {
+    "googleSheetsOAuth2Api": {
+     "id": "bc2Y1XmIdyu5ySTa",
+     "name": "Google Sheets account"
+    }
+   },
+   "typeVersion": 3
+  },
+  {
+   "id": "45e205e6-6695-4c4f-bb2b-73503d9010ee",
+   "name": "Code \u2014 Daily snapshot",
+   "type": "n8n-nodes-base.code",
+   "position": [
+    1500,
+    200
+   ],
+   "parameters": {
+    "jsCode": "const data=$getWorkflowStaticData('global');\nconst now=new Date();\nconst stamp=new Intl.DateTimeFormat('sv-SE',{timeZone:'Europe/Warsaw',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false}).format(now);\nconst day=stamp.slice(0,10);\nif(data.lastSnapshotDate===day)return[];\ndata.lastSnapshotDate=day;\nreturn $input.all().map(i=>{const r=i.json||{};return{json:{Snapshot_Date:day,Metric_ID:r.Metric_ID||'',Area:r.Obszar||'',Metric:r.Wska\u017anik||'',Value:r.Warto\u015b\u0107??'',Status:r.Status||'',Detail:r['Co to znaczy']||'',Source:'VIRYA 00 \u2014 Cockpit Rebuilder',Updated_At:r.Od\u015bwie\u017cono||stamp,Link:r.Link||''}}});"
+   },
+   "typeVersion": 2
+  },
+  {
+   "id": "1f93ef4b-e108-4c61-9a47-afc7b898db4a",
+   "name": "GS \u2014 Append KPI_HISTORY",
+   "type": "n8n-nodes-base.googleSheets",
+   "position": [
+    1740,
+    200
+   ],
+   "parameters": {
+    "columns": {
+     "value": {},
+     "schema": [],
+     "mappingMode": "autoMapInputData",
+     "matchingColumns": [],
+     "attemptToConvertTypes": false,
+     "convertFieldsToString": false
+    },
+    "options": {
+     "locationDefine": {
+      "values": {
+       "headerRow": 1,
+       "firstDataRow": 2
+      }
+     }
+    },
+    "operation": "append",
+    "sheetName": {
+     "__rl": true,
+     "mode": "name",
+     "value": "KPI_HISTORY"
+    },
+    "documentId": {
+     "__rl": true,
+     "mode": "id",
+     "value": "1jjt266IE0AsZkGRrVmWT60FQoOqKFWUkNUlzKIkTjmY"
+    }
+   },
+   "credentials": {
+    "googleSheetsOAuth2Api": {
+     "id": "bc2Y1XmIdyu5ySTa",
+     "name": "Google Sheets account"
+    }
+   },
+   "typeVersion": 4.7
+  },
+  {
+   "id": "24e8aaf8-ef28-42b5-b022-baef945140fa",
+   "name": "SETUP",
+   "type": "n8n-nodes-base.stickyNote",
+   "position": [
+    -1200,
+    -380
+   ],
+   "parameters": {
+    "width": 650,
+    "height": 260,
+    "content": "## VIRYA 00 \u2014 Cockpit Rebuilder\n- Jeden cichy workflow, bez Discord.\n- Co godzin\u0119 czyta istniej\u0105ce \u017ar\u00f3d\u0142a i aktualizuje sta\u0142e Metric_ID.\n- Nie tworzy zada\u0144 i nie wymaga r\u0119cznej obs\u0142ugi arkuszy.\n- Po imporcie: sprawd\u017a credential Google Sheets, uruchom Manual, potem aktywuj harmonogram."
+   },
+   "typeVersion": 1
+  }
+ ],
+ "connections": {
+  "Manual \u2014 rebuild cockpit": {
+   "main": [
+    [
+     {
+      "node": "GS \u2014 OUTREACH_LOG",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Schedule \u2014 daily 23:20": {
+   "main": [
+    [
+     {
+      "node": "GS \u2014 OUTREACH_LOG",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "GS \u2014 OUTREACH_LOG": {
+   "main": [
+    [
+     {
+      "node": "GS \u2014 OPPORTUNITIES",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "GS \u2014 OPPORTUNITIES": {
+   "main": [
+    [
+     {
+      "node": "GS \u2014 SUPPORT_TARGETS",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "GS \u2014 SUPPORT_TARGETS": {
+   "main": [
+    [
+     {
+      "node": "GS \u2014 SUBMISSION_LOG",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "GS \u2014 SUBMISSION_LOG": {
+   "main": [
+    [
+     {
+      "node": "GS \u2014 SOCIAL_QUEUE",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "GS \u2014 SOCIAL_QUEUE": {
+   "main": [
+    [
+     {
+      "node": "GS \u2014 SEO_TASKS",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "GS \u2014 SEO_TASKS": {
+   "main": [
+    [
+     {
+      "node": "GS \u2014 AI_VISIBILITY",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "GS \u2014 AI_VISIBILITY": {
+   "main": [
+    [
+     {
+      "node": "GS \u2014 MEDIA_RESULTS",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "GS \u2014 MEDIA_RESULTS": {
+   "main": [
+    [
+     {
+      "node": "GS \u2014 PLAYLIST_RESULTS",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "GS \u2014 PLAYLIST_RESULTS": {
+   "main": [
+    [
+     {
+      "node": "Code \u2014 Build cockpit metrics",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Code \u2014 Build cockpit metrics": {
+   "main": [
+    [
+     {
+      "node": "GS \u2014 Update COCKPIT",
+      "type": "main",
+      "index": 0
+     },
+     {
+      "node": "Code \u2014 Daily snapshot",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Code \u2014 Daily snapshot": {
+   "main": [
+    [
+     {
+      "node": "GS \u2014 Append KPI_HISTORY",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  }
+ },
+ "settings": {
+  "executionOrder": "v1",
+  "binaryMode": "separate",
+  "availableInMCP": false,
+  "timezone": "Europe/Warsaw",
+  "errorWorkflow": "98d5e1a4-2dba-5e5a-9be1-2e5d9220859d",
+  "executionTimeout": 300,
+  "saveExecutionProgress": false
+ },
+ "staticData": {
+  "node:Schedule \u2014 hourly": {
+   "recurrenceRules": [
+    null
+   ],
+   "recurrenceRuleSignatures": [
+    null
+   ]
+  },
+  "global": {
+   "lastSnapshotDate": "2026-08-24"
+  },
+  "node:Schedule \u2014 daily 23:20": {
+   "recurrenceRules": [
+    null
+   ],
+   "recurrenceRuleSignatures": [
+    null
+   ]
+  }
+ },
+ "meta": {
+  "templateCredsSetupCompleted": true,
+  "viryaLocalPackage": "2026-07-24"
+ },
+ "nodeGroups": [],
+ "pinData": {},
+ "versionId": "594cc599-69ef-4eac-97a9-29fe4dd91f66",
+ "activeVersionId": "594cc599-69ef-4eac-97a9-29fe4dd91f66",
+ "versionCounter": 10,
+ "triggerCount": 1,
+ "sourceWorkflowId": null,
+ "shared": [
+  {
+   "updatedAt": "2026-07-24T09:45:08.790Z",
+   "createdAt": "2026-07-24T09:45:08.790Z",
+   "role": "workflow:owner",
+   "workflowId": "iRNzol0V0sSCg9RY",
+   "projectId": "e2rPVcUBR4DTE3mO",
+   "project": {
+    "updatedAt": "2026-07-24T09:45:30.763Z",
+    "createdAt": "2026-07-24T09:45:07.113Z",
+    "id": "e2rPVcUBR4DTE3mO",
+    "name": "Virya Crew <virya.crew@gmail.com>",
+    "type": "personal",
+    "icon": null,
+    "description": null,
+    "customTelemetryTags": [],
+    "creatorId": "89259ec0-46eb-41d3-a04e-eb12f52f6342"
+   }
+  }
+ ],
+ "tags": [],
+ "activeVersion": {
+  "updatedAt": "2026-08-25T12:20:51.980Z",
+  "createdAt": "2026-08-12T17:01:41.269Z",
+  "versionId": "594cc599-69ef-4eac-97a9-29fe4dd91f66",
+  "workflowId": "iRNzol0V0sSCg9RY",
+  "nodes": [
+   {
+    "id": "eda852bf-e695-482a-b8c8-0973696fe878",
+    "name": "Manual \u2014 rebuild cockpit",
+    "type": "n8n-nodes-base.manualTrigger",
+    "position": [
+     -1200,
+     0
+    ],
+    "parameters": {},
+    "typeVersion": 1
+   },
+   {
+    "id": "ad7a1486-7d9c-4c5b-9af1-bbfe8ebf697a",
+    "name": "Schedule \u2014 daily 23:20",
+    "type": "n8n-nodes-base.scheduleTrigger",
+    "notes": "Light runtime cadence: 0 20 23 * * * (Europe/Warsaw). Workflow logic and data mappings unchanged.",
+    "position": [
+     -1200,
+     180
+    ],
+    "parameters": {
+     "rule": {
+      "interval": [
+       {
+        "field": "cronExpression",
+        "expression": "0 20 23 * * *"
+       }
+      ]
+     }
+    },
+    "notesInFlow": true,
+    "typeVersion": 1.2
+   },
+   {
+    "id": "ece24b18-1dc6-4659-9351-fd878f7c8192",
+    "name": "GS \u2014 OUTREACH_LOG",
+    "type": "n8n-nodes-base.googleSheets",
+    "maxTries": 5,
+    "position": [
+     -920,
+     80
+    ],
+    "parameters": {
+     "options": {
+      "dataLocationOnSheet": {
+       "values": {
+        "headerRow": 4,
+        "firstDataRow": 5,
+        "rangeDefinition": "specifyRange"
+       }
+      }
+     },
+     "filtersUI": {
+      "values": []
+     },
+     "sheetName": {
+      "__rl": true,
+      "mode": "name",
+      "value": "OUTREACH_LOG"
+     },
+     "documentId": {
+      "__rl": true,
+      "mode": "id",
+      "value": "1P9FqB7brPc6fZ2dkJMFCc3cVyKbcIjSAvMas-3mZD4g"
+     }
+    },
+    "credentials": {
+     "googleSheetsOAuth2Api": {
+      "id": "bc2Y1XmIdyu5ySTa",
+      "name": "Google Sheets account"
+     }
+    },
+    "executeOnce": true,
+    "retryOnFail": true,
+    "typeVersion": 4.7,
+    "alwaysOutputData": true,
+    "waitBetweenTries": 15000
+   },
+   {
+    "id": "cf0eac0e-7aad-419c-814e-870b375a40dd",
+    "name": "GS \u2014 OPPORTUNITIES",
+    "type": "n8n-nodes-base.googleSheets",
+    "maxTries": 5,
+    "position": [
+     -680,
+     80
+    ],
+    "parameters": {
+     "options": {
+      "dataLocationOnSheet": {
+       "values": {
+        "headerRow": 4,
+        "firstDataRow": 5,
+        "rangeDefinition": "specifyRange"
+       }
+      }
+     },
+     "filtersUI": {
+      "values": []
+     },
+     "sheetName": {
+      "__rl": true,
+      "mode": "name",
+      "value": "OPPORTUNITIES"
+     },
+     "documentId": {
+      "__rl": true,
+      "mode": "id",
+      "value": "1aeOq_LFPp7HmFnNCenjz0RA5wIATgfd--ycbmmAGEk4"
+     }
+    },
+    "credentials": {
+     "googleSheetsOAuth2Api": {
+      "id": "bc2Y1XmIdyu5ySTa",
+      "name": "Google Sheets account"
+     }
+    },
+    "executeOnce": true,
+    "retryOnFail": true,
+    "typeVersion": 4.7,
+    "alwaysOutputData": true,
+    "waitBetweenTries": 15000
+   },
+   {
+    "id": "32a46523-dadf-43d2-8ba0-f77eb579b9f1",
+    "name": "GS \u2014 SUPPORT_TARGETS",
+    "type": "n8n-nodes-base.googleSheets",
+    "maxTries": 5,
+    "position": [
+     -440,
+     80
+    ],
+    "parameters": {
+     "options": {
+      "dataLocationOnSheet": {
+       "values": {
+        "headerRow": 4,
+        "firstDataRow": 5,
+        "rangeDefinition": "specifyRange"
+       }
+      }
+     },
+     "filtersUI": {
+      "values": []
+     },
+     "sheetName": {
+      "__rl": true,
+      "mode": "name",
+      "value": "SUPPORT_TARGETS"
+     },
+     "documentId": {
+      "__rl": true,
+      "mode": "id",
+      "value": "1aeOq_LFPp7HmFnNCenjz0RA5wIATgfd--ycbmmAGEk4"
+     }
+    },
+    "credentials": {
+     "googleSheetsOAuth2Api": {
+      "id": "bc2Y1XmIdyu5ySTa",
+      "name": "Google Sheets account"
+     }
+    },
+    "executeOnce": true,
+    "retryOnFail": true,
+    "typeVersion": 4.7,
+    "alwaysOutputData": true,
+    "waitBetweenTries": 15000
+   },
+   {
+    "id": "3cfdb041-2ebd-4284-b943-00e9e1a26c43",
+    "name": "GS \u2014 SUBMISSION_LOG",
+    "type": "n8n-nodes-base.googleSheets",
+    "maxTries": 5,
+    "position": [
+     -200,
+     80
+    ],
+    "parameters": {
+     "options": {
+      "dataLocationOnSheet": {
+       "values": {
+        "headerRow": 1,
+        "firstDataRow": 2,
+        "rangeDefinition": "specifyRange"
+       }
+      }
+     },
+     "filtersUI": {
+      "values": []
+     },
+     "sheetName": {
+      "__rl": true,
+      "mode": "name",
+      "value": "SUBMISSION_LOG"
+     },
+     "documentId": {
+      "__rl": true,
+      "mode": "id",
+      "value": "1ksa6VePLgLQESHvJL-_zBZ2KzVNHYPndzwhXvVj4Vxw"
+     }
+    },
+    "credentials": {
+     "googleSheetsOAuth2Api": {
+      "id": "bc2Y1XmIdyu5ySTa",
+      "name": "Google Sheets account"
+     }
+    },
+    "executeOnce": true,
+    "retryOnFail": true,
+    "typeVersion": 4.7,
+    "alwaysOutputData": true,
+    "waitBetweenTries": 15000
+   },
+   {
+    "id": "8b6f6a39-ae25-4347-af8b-2387222768a2",
+    "name": "GS \u2014 SOCIAL_QUEUE",
+    "type": "n8n-nodes-base.googleSheets",
+    "maxTries": 5,
+    "position": [
+     40,
+     80
+    ],
+    "parameters": {
+     "options": {
+      "dataLocationOnSheet": {
+       "values": {
+        "headerRow": 4,
+        "firstDataRow": 5,
+        "rangeDefinition": "specifyRange"
+       }
+      }
+     },
+     "filtersUI": {
+      "values": []
+     },
+     "sheetName": {
+      "__rl": true,
+      "mode": "name",
+      "value": "QUEUE"
+     },
+     "documentId": {
+      "__rl": true,
+      "mode": "id",
+      "value": "1nav2ituUQ6MxY7NV6tds3AXTiPzqur1hS8Hg-wDjdl0"
+     }
+    },
+    "credentials": {
+     "googleSheetsOAuth2Api": {
+      "id": "bc2Y1XmIdyu5ySTa",
+      "name": "Google Sheets account"
+     }
+    },
+    "executeOnce": true,
+    "retryOnFail": true,
+    "typeVersion": 4.7,
+    "alwaysOutputData": true,
+    "waitBetweenTries": 15000
+   },
+   {
+    "id": "d5821336-245f-4308-8a3c-c6a484da13ec",
+    "name": "GS \u2014 SEO_TASKS",
+    "type": "n8n-nodes-base.googleSheets",
+    "maxTries": 5,
+    "position": [
+     280,
+     80
+    ],
+    "parameters": {
+     "options": {
+      "dataLocationOnSheet": {
+       "values": {
+        "headerRow": 1,
+        "firstDataRow": 2,
+        "rangeDefinition": "specifyRange"
+       }
+      }
+     },
+     "filtersUI": {
+      "values": []
+     },
+     "sheetName": {
+      "__rl": true,
+      "mode": "name",
+      "value": "TASKS"
+     },
+     "documentId": {
+      "__rl": true,
+      "mode": "id",
+      "value": "1RWqTUo2eJvG8OngqMfiyAFu5tkvSgVBl3FZNIU6nDNc"
+     }
+    },
+    "credentials": {
+     "googleSheetsOAuth2Api": {
+      "id": "bc2Y1XmIdyu5ySTa",
+      "name": "Google Sheets account"
+     }
+    },
+    "executeOnce": true,
+    "retryOnFail": true,
+    "typeVersion": 4.7,
+    "alwaysOutputData": true,
+    "waitBetweenTries": 15000
+   },
+   {
+    "id": "02b41a69-ffd9-4eb5-a0f7-6b54bd1483ef",
+    "name": "GS \u2014 AI_VISIBILITY",
+    "type": "n8n-nodes-base.googleSheets",
+    "maxTries": 5,
+    "position": [
+     520,
+     80
+    ],
+    "parameters": {
+     "options": {
+      "dataLocationOnSheet": {
+       "values": {
+        "headerRow": 1,
+        "firstDataRow": 2,
+        "rangeDefinition": "specifyRange"
+       }
+      }
+     },
+     "filtersUI": {
+      "values": []
+     },
+     "sheetName": {
+      "__rl": true,
+      "mode": "name",
+      "value": "AI_VISIBILITY"
+     },
+     "documentId": {
+      "__rl": true,
+      "mode": "id",
+      "value": "1RWqTUo2eJvG8OngqMfiyAFu5tkvSgVBl3FZNIU6nDNc"
+     }
+    },
+    "credentials": {
+     "googleSheetsOAuth2Api": {
+      "id": "bc2Y1XmIdyu5ySTa",
+      "name": "Google Sheets account"
+     }
+    },
+    "executeOnce": true,
+    "retryOnFail": true,
+    "typeVersion": 4.7,
+    "alwaysOutputData": true,
+    "waitBetweenTries": 15000
+   },
+   {
+    "id": "64817746-9dc9-4076-a30a-d850a2510c22",
+    "name": "GS \u2014 MEDIA_RESULTS",
+    "type": "n8n-nodes-base.googleSheets",
+    "maxTries": 5,
+    "position": [
+     760,
+     80
+    ],
+    "parameters": {
+     "options": {
+      "dataLocationOnSheet": {
+       "values": {
+        "headerRow": 1,
+        "firstDataRow": 2,
+        "rangeDefinition": "specifyRange"
+       }
+      }
+     },
+     "filtersUI": {
+      "values": []
+     },
+     "sheetName": {
+      "__rl": true,
+      "mode": "name",
+      "value": "MEDIA_RESULTS"
+     },
+     "documentId": {
+      "__rl": true,
+      "mode": "id",
+      "value": "1wrfH2R7J8iiGn2zhKKsqytq92vK_gKOOQjkyEwsGu3s"
+     }
+    },
+    "credentials": {
+     "googleSheetsOAuth2Api": {
+      "id": "bc2Y1XmIdyu5ySTa",
+      "name": "Google Sheets account"
+     }
+    },
+    "executeOnce": true,
+    "retryOnFail": true,
+    "typeVersion": 4.7,
+    "alwaysOutputData": true,
+    "waitBetweenTries": 15000
+   },
+   {
+    "id": "786bf58e-04cf-4c48-8704-37cd7bce5d93",
+    "name": "GS \u2014 PLAYLIST_RESULTS",
+    "type": "n8n-nodes-base.googleSheets",
+    "maxTries": 5,
+    "position": [
+     1000,
+     80
+    ],
+    "parameters": {
+     "options": {
+      "dataLocationOnSheet": {
+       "values": {
+        "headerRow": 1,
+        "firstDataRow": 2,
+        "rangeDefinition": "specifyRange"
+       }
+      }
+     },
+     "filtersUI": {
+      "values": []
+     },
+     "sheetName": {
+      "__rl": true,
+      "mode": "name",
+      "value": "PLAYLIST_RESULTS"
+     },
+     "documentId": {
+      "__rl": true,
+      "mode": "id",
+      "value": "1wrfH2R7J8iiGn2zhKKsqytq92vK_gKOOQjkyEwsGu3s"
+     }
+    },
+    "credentials": {
+     "googleSheetsOAuth2Api": {
+      "id": "bc2Y1XmIdyu5ySTa",
+      "name": "Google Sheets account"
+     }
+    },
+    "executeOnce": true,
+    "retryOnFail": true,
+    "typeVersion": 4.7,
+    "alwaysOutputData": true,
+    "waitBetweenTries": 15000
+   },
+   {
+    "id": "99803d84-3e78-4b09-9c1a-889c3d0fa800",
+    "name": "Code \u2014 Build cockpit metrics",
+    "type": "n8n-nodes-base.code",
+    "position": [
+     1240,
+     80
+    ],
+    "parameters": {
+     "jsCode": "function rows(name) {\n  try { return $(name).all().map(i => i.json || {}).filter(r => Object.keys(r).length); }\n  catch { return []; }\n}\nfunction s(v) { return String(v ?? '').trim(); }\nfunction up(v) { return s(v).toUpperCase(); }\nfunction has(v) { return s(v) !== ''; }\nfunction localStamp(d = new Date()) {\n  return new Intl.DateTimeFormat('sv-SE', {\n    timeZone: 'Europe/Warsaw', year: 'numeric', month: '2-digit', day: '2-digit',\n    hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false\n  }).format(d);\n}\nfunction dateOnly(d = new Date()) { return localStamp(d).slice(0, 10); }\nfunction parseDate(v) {\n  const x = s(v);\n  if (!x) return null;\n  const normalized = /^\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}/.test(x) ? x.replace(' ', 'T') : x;\n  const d = new Date(normalized);\n  return Number.isNaN(d.getTime()) ? null : d;\n}\nfunction withinDays(v, days) {\n  const d = parseDate(v); if (!d) return false;\n  const age = Date.now() - d.getTime();\n  return age >= 0 && age <= days * 86400000;\n}\nfunction futureWithin(v, days) {\n  const d = parseDate(v); if (!d) return false;\n  const diff = d.getTime() - Date.now();\n  return diff >= 0 && diff <= days * 86400000;\n}\nfunction earliest(values) {\n  return values.map(v => ({raw:s(v), d:parseDate(v)})).filter(x => x.d && x.d.getTime() >= Date.now())\n    .sort((a,b) => a.d - b.d)[0]?.raw || '';\n}\nfunction closed(v) {\n  return /(ODRZUC|ZAMKNI|CLOSED|SKIPPED|NIEAKTUAL|ARCHIVED|DONE|COMPLETED|WYS\u0141ANO|ZG\u0141OSZONE)/i.test(s(v));\n}\nfunction handled(v) {\n  return /(DONE|HANDLED|CLOSED|RESOLVED|OBS\u0141U\u017b|COMPLETED)/i.test(s(v));\n}\nfunction validAsset(r) {\n  const id = s(r.Asset_Drive_ID), url = s(r.Asset_URL);\n  if (!id || !url) return false;\n  if (/\\/folders\\//i.test(url)) return false;\n  return /\\/file\\/d\\//i.test(url) || /uc\\?id=/i.test(url) || /\\.(mp4|mov|jpg|jpeg|png|webp)(\\?|$)/i.test(url);\n}\n\nconst outreach = rows('GS \u2014 OUTREACH_LOG');\nconst opportunities = rows('GS \u2014 OPPORTUNITIES').filter(r => has(r.Opportunity_ID));\nconst supports = rows('GS \u2014 SUPPORT_TARGETS').filter(r => has(r.Target_ID));\nconst submissions = rows('GS \u2014 SUBMISSION_LOG').filter(r => has(r.Log_ID));\nconst social = rows('GS \u2014 SOCIAL_QUEUE').filter(r => has(r.Item_ID) && up(r.Item_ID) !== 'QUEUE-0000');\nconst seoTasks = rows('GS \u2014 SEO_TASKS').filter(r => has(r.Task_ID));\nconst aiRows = rows('GS \u2014 AI_VISIBILITY').filter(r => has(r.Check_ID));\nconst media = rows('GS \u2014 MEDIA_RESULTS').filter(r => has(r.Result_ID) && !/^WZ\u00d3R/i.test(s(r.Result_ID)));\nconst playlist = rows('GS \u2014 PLAYLIST_RESULTS').filter(r => has(r.Placement_ID) && !/^WZ\u00d3R/i.test(s(r.Placement_ID)));\n\nconst replyAction = outreach.filter(r => has(r.Reply_At) && !handled(r.Discord_Status) && !handled(r.Status));\nconst followupsDue = outreach.filter(r => has(r.Follow_Up_At) && !has(r.Reply_At) && parseDate(r.Follow_Up_At)?.getTime() <= Date.now());\nconst urgentOpps = opportunities.filter(r => up(r.Priority) === 'A' && !closed(r.Status) && futureWithin(r.Deadline, 14));\nconst supportReady = supports.filter(r => /^A\\b/i.test(s(r.Tier)) && !closed(r.Status) && /(SZKIC GOTOWY|DO KONTAKTU)/i.test(s(r.Status)));\nconst socialReady = social.filter(r => up(r.Status) === 'READY_FOR_APPROVAL');\nconst socialValid = socialReady.filter(validAsset);\nconst socialInvalid = socialReady.length - socialValid.length;\nconst seoDue = seoTasks.filter(r => !closed(r.Status) && futureWithin(r.Due_At, 7));\n\nconst sent30 = outreach.filter(r => has(r.Gmail_Message_ID) && withinDays(r.Sent_At, 30));\nconst replies30 = outreach.filter(r => withinDays(r.Reply_At, 30));\nconst media30 = media.filter(r => has(r.URL) && withinDays(r.Published_At, 30));\nconst playlist30 = playlist.filter(r => has(r.Placement_URL) && withinDays(r.Start_At, 30));\nconst social30 = social.filter(r => (has(r.IG_Media_ID) || has(r.FB_Post_ID) || has(r.Published_At)) && withinDays(r.Published_At, 30));\nconst opps30 = opportunities.filter(r => /^OPP-/i.test(s(r.Opportunity_ID)) && withinDays(r.Found_At, 30));\n\nconst nextFollowup = earliest(outreach.filter(r => !has(r.Reply_At)).map(r => r.Follow_Up_At));\nconst nextDeadline = earliest(opportunities.filter(r => !closed(r.Status)).map(r => r.Deadline));\nconst nextSocial = earliest(social.filter(r => up(r.Status) === 'APPROVED' && validAsset(r)).map(r => r.Suggested_Publish_At));\n\nconst latestAI = aiRows.slice().sort((a,b) => (parseDate(b.Checked_At)?.getTime()||0) - (parseDate(a.Checked_At)?.getTime()||0))[0] || {};\nconst aiLimited = up(latestAI.Content_Gap) === 'RATE_LIMITED' || up(latestAI.Query) === '__RATE_LIMITED__';\nconst aiError = has(latestAI.Content_Gap) && !['RATE_LIMITED',''].includes(up(latestAI.Content_Gap));\nconst aiValue = aiLimited ? 'RATE_LIMITED' : aiError ? 'ERROR' : has(latestAI.Checked_At) ? 'OK' : 'BRAK DANYCH';\nconst aiStatus = aiLimited || aiError ? 'UWAGA' : has(latestAI.Checked_At) ? 'OK' : 'INFO';\n\nconst freshnessCandidates = [\n  ...outreach.flatMap(r => [r.Last_Synced_At, r.Reply_At, r.Sent_At]),\n  ...opportunities.map(r => r.Found_At),\n  ...social.map(r => r.Created_At),\n  ...aiRows.map(r => r.Checked_At)\n].filter(has);\nconst latestActivity = freshnessCandidates.map(parseDate).filter(Boolean).sort((a,b)=>b-a)[0];\nconst freshHours = latestActivity ? (Date.now()-latestActivity.getTime())/3600000 : Infinity;\nconst refresh = localStamp();\n\nconst links = {\n  outreach:'https://docs.google.com/spreadsheets/d/1P9FqB7brPc6fZ2dkJMFCc3cVyKbcIjSAvMas-3mZD4g/edit',\n  scout:'https://docs.google.com/spreadsheets/d/1aeOq_LFPp7HmFnNCenjz0RA5wIATgfd--ycbmmAGEk4/edit',\n  social:'https://docs.google.com/spreadsheets/d/1nav2ituUQ6MxY7NV6tds3AXTiPzqur1hS8Hg-wDjdl0/edit',\n  seo:'https://docs.google.com/spreadsheets/d/1RWqTUo2eJvG8OngqMfiyAFu5tkvSgVBl3FZNIU6nDNc/edit',\n  results:'https://docs.google.com/spreadsheets/d/1wrfH2R7J8iiGn2zhKKsqytq92vK_gKOOQjkyEwsGu3s/edit',\n  cockpit:'https://docs.google.com/spreadsheets/d/1jjt266IE0AsZkGRrVmWT60FQoOqKFWUkNUlzKIkTjmY/edit',\n  backend:'https://drive.google.com/drive/folders/1a1qgW0IF9waN32XIKy34NGHAI2JJy6HL'\n};\nfunction metric(id, area, label, value, status, detail, link) {\n  return {Metric_ID:id, Obszar:area, Wska\u017anik:label, Warto\u015b\u0107:value, Status:status, 'Co to znaczy':detail, Od\u015bwie\u017cono:refresh, Link:link};\n}\nconst out = [\n  metric('DEC_REPLY','DO DECYZJI','Odpowiedzi wymagaj\u0105ce reakcji',replyAction.length,replyAction.length?'PILNE':'OK','Nowa odpowied\u017a znika z tej liczby po oznaczeniu jej jako obs\u0142u\u017conej.',links.outreach),\n  metric('DEC_FOLLOWUP','DO DECYZJI','Follow-upy nale\u017cne teraz',followupsDue.length,followupsDue.length?'UWAGA':'OK','Wyliczane z Sent_At, Follow_Up_At i braku Reply_At.',links.outreach),\n  metric('DEC_OPPORTUNITY','DO DECYZJI','Pilne okazje priorytetu A',urgentOpps.length,urgentOpps.length?'PILNE':'OK','Tylko otwarte okazje z potwierdzonym terminem w ci\u0105gu 14 dni.',links.scout),\n  metric('DEC_SUPPORT','DO DECYZJI','Supporty gotowe do konkretnego pitchu',supportReady.length,supportReady.length?'UWAGA':'OK','Aktywne cele Tier A ze statusem Szkic gotowy lub Do kontaktu.',links.scout),\n  metric('DEC_SOCIAL','DO DECYZJI','Posty z poprawnym assetem do akceptacji',`${socialValid.length} / ${socialInvalid}`,socialValid.length?'UWAGA':socialInvalid?'PILNE':'OK','Pierwsza liczba: realne pliki do decyzji. Druga: rekordy z nieprawid\u0142owym assetem.',links.social),\n  metric('DEC_SEO','DO DECYZJI','Otwarte zadania SEO z terminem \u22647 dni',seoDue.length,seoDue.length?'UWAGA':'OK','Powstaj\u0105 wy\u0142\u0105cznie z potwierdzonych problem\u00f3w audytu.',links.seo),\n  metric('RES_OUT_SENT','WYNIKI 30 DNI','Wys\u0142ane kontakty medialne',sent30.length,'INFO','Liczone wy\u0142\u0105cznie po Gmail_Message_ID i Sent_At.',links.outreach),\n  metric('RES_OUT_REPLY','WYNIKI 30 DNI','Odpowiedzi na outreach',replies30.length,replies30.length?'OK':'INFO','Ka\u017cda odpowied\u017a pochodzi z istniej\u0105cego w\u0105tku Gmail.',links.outreach),\n  metric('RES_MEDIA','WYNIKI 30 DNI','Potwierdzone publikacje / emisje',media30.length,'INFO','Wynik liczy si\u0119 dopiero z URL-em i dat\u0105 publikacji.',links.results),\n  metric('RES_PLAYLIST','WYNIKI 30 DNI','Potwierdzone placementy',playlist30.length,'INFO','Liczone wy\u0142\u0105cznie z potwierdzonego Placement_URL.',links.results),\n  metric('RES_SOCIAL','WYNIKI 30 DNI','Opublikowane materia\u0142y social',social30.length,'INFO','Liczone po Published_At i ID publikacji.',links.social),\n  metric('RES_OPPS','WYNIKI 30 DNI','Nowe okazje znalezione',opps30.length,'INFO','Kandydaci Opportunity Scout; nie ka\u017cdy wymaga dzia\u0142ania.',links.scout),\n  metric('NEXT_FOLLOWUP','NAJBLI\u017bSZY TERMIN','Najbli\u017cszy follow-up',nextFollowup || 'Brak','INFO','Pierwszy przysz\u0142y, nieobs\u0142u\u017cony Follow_Up_At.',links.outreach),\n  metric('NEXT_DEADLINE','NAJBLI\u017bSZY TERMIN','Najbli\u017cszy deadline okazji',nextDeadline || 'Brak potwierdzonego',nextDeadline?'UWAGA':'OK','Brak wpisanej daty nie jest traktowany jako deadline.',links.scout),\n  metric('NEXT_SOCIAL','NAJBLI\u017bSZY TERMIN','Najbli\u017csza zatwierdzona publikacja',nextSocial || 'Brak',nextSocial?'INFO':'OK','Pokazuje tylko APPROVED z realnym plikiem assetu.',links.social),\n  metric('SYS_AI','SYSTEM','Gemini AI visibility',aiValue,aiStatus,aiLimited?'Ostatni run dosta\u0142 429; paczka pozostaje do ponowienia.':aiError?'Ostatni run zako\u0144czy\u0142 si\u0119 b\u0142\u0119dem danych.':'Ostatni zapis AI visibility jest dost\u0119pny.',links.seo),\n  metric('SYS_FRESH','SYSTEM','\u015awie\u017co\u015b\u0107 danych',latestActivity?localStamp(latestActivity):'Brak danych',freshHours<=48?'OK':'UWAGA',freshHours<=48?'Ostatnia aktywno\u015b\u0107 \u017ar\u00f3de\u0142 mie\u015bci si\u0119 w 48 godzinach.':'Brak \u015bwie\u017cej aktywno\u015bci \u017ar\u00f3de\u0142 od ponad 48 godzin.',links.backend),\n  metric('SYS_REFRESH','SYSTEM','Ostatnie od\u015bwie\u017cenie Cockpitu',refresh,'OK','VIRYA 00 przebudowa\u0142 widok automatycznie.',links.cockpit)\n];\nreturn out.map(json => ({json}));"
+    },
+    "typeVersion": 2
+   },
+   {
+    "id": "91ab2fbc-220f-4627-9401-36b9baef4ac5",
+    "name": "GS \u2014 Update COCKPIT",
+    "type": "n8n-nodes-base.googleSheets",
+    "position": [
+     1500,
+     -40
+    ],
+    "parameters": {
+     "options": {
+      "locationDefine": {
+       "values": {
+        "headerRow": 5,
+        "firstDataRow": 6
+       }
+      }
+     },
+     "fieldsUi": {
+      "values": [
+       {
+        "column": "Obszar",
+        "fieldValue": "={{ $json.Obszar }}"
+       },
+       {
+        "column": "Wska\u017anik",
+        "fieldValue": "={{ $json.Wska\u017anik }}"
+       },
+       {
+        "column": "Warto\u015b\u0107",
+        "fieldValue": "={{ $json.Warto\u015b\u0107 }}"
+       },
+       {
+        "column": "Status",
+        "fieldValue": "={{ $json.Status }}"
+       },
+       {
+        "column": "Co to znaczy",
+        "fieldValue": "={{ $json['Co to znaczy'] }}"
+       },
+       {
+        "column": "Od\u015bwie\u017cono",
+        "fieldValue": "={{ $json.Od\u015bwie\u017cono }}"
+       },
+       {
+        "column": "Link",
+        "fieldValue": "={{ $json.Link }}"
+       }
+      ]
+     },
+     "operation": "update",
+     "sheetName": {
+      "__rl": true,
+      "mode": "name",
+      "value": "COCKPIT"
+     },
+     "documentId": {
+      "__rl": true,
+      "mode": "id",
+      "value": "1jjt266IE0AsZkGRrVmWT60FQoOqKFWUkNUlzKIkTjmY"
+     },
+     "valueToMatchOn": "={{ $json.Metric_ID }}",
+     "columnToMatchOn": "Metric_ID"
+    },
+    "credentials": {
+     "googleSheetsOAuth2Api": {
+      "id": "bc2Y1XmIdyu5ySTa",
+      "name": "Google Sheets account"
+     }
+    },
+    "typeVersion": 3
+   },
+   {
+    "id": "45e205e6-6695-4c4f-bb2b-73503d9010ee",
+    "name": "Code \u2014 Daily snapshot",
+    "type": "n8n-nodes-base.code",
+    "position": [
+     1500,
+     200
+    ],
+    "parameters": {
+     "jsCode": "const data=$getWorkflowStaticData('global');\nconst now=new Date();\nconst stamp=new Intl.DateTimeFormat('sv-SE',{timeZone:'Europe/Warsaw',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false}).format(now);\nconst day=stamp.slice(0,10);\nif(data.lastSnapshotDate===day)return[];\ndata.lastSnapshotDate=day;\nreturn $input.all().map(i=>{const r=i.json||{};return{json:{Snapshot_Date:day,Metric_ID:r.Metric_ID||'',Area:r.Obszar||'',Metric:r.Wska\u017anik||'',Value:r.Warto\u015b\u0107??'',Status:r.Status||'',Detail:r['Co to znaczy']||'',Source:'VIRYA 00 \u2014 Cockpit Rebuilder',Updated_At:r.Od\u015bwie\u017cono||stamp,Link:r.Link||''}}});"
+    },
+    "typeVersion": 2
+   },
+   {
+    "id": "1f93ef4b-e108-4c61-9a47-afc7b898db4a",
+    "name": "GS \u2014 Append KPI_HISTORY",
+    "type": "n8n-nodes-base.googleSheets",
+    "position": [
+     1740,
+     200
+    ],
+    "parameters": {
+     "columns": {
+      "value": {},
+      "schema": [],
+      "mappingMode": "autoMapInputData",
+      "matchingColumns": [],
+      "attemptToConvertTypes": false,
+      "convertFieldsToString": false
+     },
+     "options": {
+      "locationDefine": {
+       "values": {
+        "headerRow": 1,
+        "firstDataRow": 2
+       }
+      }
+     },
+     "operation": "append",
+     "sheetName": {
+      "__rl": true,
+      "mode": "name",
+      "value": "KPI_HISTORY"
+     },
+     "documentId": {
+      "__rl": true,
+      "mode": "id",
+      "value": "1jjt266IE0AsZkGRrVmWT60FQoOqKFWUkNUlzKIkTjmY"
+     }
+    },
+    "credentials": {
+     "googleSheetsOAuth2Api": {
+      "id": "bc2Y1XmIdyu5ySTa",
+      "name": "Google Sheets account"
+     }
+    },
+    "typeVersion": 4.7
+   },
+   {
+    "id": "24e8aaf8-ef28-42b5-b022-baef945140fa",
+    "name": "SETUP",
+    "type": "n8n-nodes-base.stickyNote",
+    "position": [
+     -1200,
+     -380
+    ],
+    "parameters": {
+     "width": 650,
+     "height": 260,
+     "content": "## VIRYA 00 \u2014 Cockpit Rebuilder\n- Jeden cichy workflow, bez Discord.\n- Co godzin\u0119 czyta istniej\u0105ce \u017ar\u00f3d\u0142a i aktualizuje sta\u0142e Metric_ID.\n- Nie tworzy zada\u0144 i nie wymaga r\u0119cznej obs\u0142ugi arkuszy.\n- Po imporcie: sprawd\u017a credential Google Sheets, uruchom Manual, potem aktywuj harmonogram."
+    },
+    "typeVersion": 1
+   }
+  ],
+  "connections": {
+   "Manual \u2014 rebuild cockpit": {
+    "main": [
+     [
+      {
+       "node": "GS \u2014 OUTREACH_LOG",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "Schedule \u2014 daily 23:20": {
+    "main": [
+     [
+      {
+       "node": "GS \u2014 OUTREACH_LOG",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "GS \u2014 OUTREACH_LOG": {
+    "main": [
+     [
+      {
+       "node": "GS \u2014 OPPORTUNITIES",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "GS \u2014 OPPORTUNITIES": {
+    "main": [
+     [
+      {
+       "node": "GS \u2014 SUPPORT_TARGETS",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "GS \u2014 SUPPORT_TARGETS": {
+    "main": [
+     [
+      {
+       "node": "GS \u2014 SUBMISSION_LOG",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "GS \u2014 SUBMISSION_LOG": {
+    "main": [
+     [
+      {
+       "node": "GS \u2014 SOCIAL_QUEUE",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "GS \u2014 SOCIAL_QUEUE": {
+    "main": [
+     [
+      {
+       "node": "GS \u2014 SEO_TASKS",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "GS \u2014 SEO_TASKS": {
+    "main": [
+     [
+      {
+       "node": "GS \u2014 AI_VISIBILITY",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "GS \u2014 AI_VISIBILITY": {
+    "main": [
+     [
+      {
+       "node": "GS \u2014 MEDIA_RESULTS",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "GS \u2014 MEDIA_RESULTS": {
+    "main": [
+     [
+      {
+       "node": "GS \u2014 PLAYLIST_RESULTS",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "GS \u2014 PLAYLIST_RESULTS": {
+    "main": [
+     [
+      {
+       "node": "Code \u2014 Build cockpit metrics",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "Code \u2014 Build cockpit metrics": {
+    "main": [
+     [
+      {
+       "node": "GS \u2014 Update COCKPIT",
+       "type": "main",
+       "index": 0
+      },
+      {
+       "node": "Code \u2014 Daily snapshot",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "Code \u2014 Daily snapshot": {
+    "main": [
+     [
+      {
+       "node": "GS \u2014 Append KPI_HISTORY",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   }
+  },
+  "nodeGroups": [],
+  "authors": "import",
+  "name": null,
+  "description": null,
+  "autosaved": false,
+  "workflowPublishHistory": []
+ }
+}

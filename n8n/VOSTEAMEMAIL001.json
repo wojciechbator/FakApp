@@ -1,0 +1,505 @@
+{
+ "updatedAt": "2026-08-18T21:03:56.002Z",
+ "createdAt": "2026-08-18T21:03:56.002Z",
+ "id": "VOSTEAMEMAIL001",
+ "name": "CrowdRelay \u2014 CrowdRelayOS team email executor",
+ "description": null,
+ "active": false,
+ "isArchived": false,
+ "nodes": [
+  {
+   "parameters": {
+    "inputSource": "passthrough"
+   },
+   "id": "868d96f3-2ee2-42b9-b6df-10e65d2d83e5",
+   "name": "Called by verified ingress",
+   "type": "n8n-nodes-base.executeWorkflowTrigger",
+   "typeVersion": 1.1,
+   "position": [
+    -1248,
+    112
+   ]
+  },
+  {
+   "parameters": {
+    "jsCode": "const e=$json||{};\nif(e.version!==1||String(e.type)!=='viryaos.team.assignment_email_requested') throw new Error('Unsupported VIRYA team email event');\nconst d=e.data||{}; const clean=v=>String(v??'').replace(/[\\r\\n\\t]+/g,' ').trim();\nconst action_id=clean(d.action_id); const assignment_id=clean(d.assignment_id); const to=clean(d.recipient_email).toLowerCase();\nif(!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(to)||!action_id||!assignment_id) throw new Error('Invalid VIRYA team email payload');\nconst reminder=Math.max(0,Math.min(12,Number(d.reminder_number||0)||0));\nconst title=clean(d.task_title).slice(0,180)||'Zadanie w VIRYA OS'; const detail=String(d.task_detail||'').trim().slice(0,1800);\nconst rawName=clean(d.recipient_name); const name=/^Team Member \\d+$/i.test(rawName)?'':rawName.split(/\\s+/)[0];\nlet deadline=''; if(d.due_at){ const dt=new Date(d.due_at); if(!Number.isNaN(dt.getTime())) deadline=dt.toLocaleString('pl-PL',{timeZone:'Europe/Warsaw',dateStyle:'medium',timeStyle:'short'}); }\nconst path=String(d.action_url_path||'/staff/control/'); if(!path.startsWith('/')||path.includes('://')) throw new Error('Invalid action path');\nconst link='https://virya.music'+path; const hi=name?`Cze\u015b\u0107 ${name}!`:'Cze\u015b\u0107!';\nconst subject=reminder>0?`VIRYA \u2014 przypomnienie: ${title}`:`VIRYA \u2014 nowe zadanie: ${title}`;\nconst lead=reminder>0?'Ma\u0142e przypomnienie \u2014 to zadanie nadal czeka na domkni\u0119cie.':'Wpad\u0142o do Ciebie nowe zadanie od VIRYA OS.';\nconst due=deadline?`\\nTermin: ${deadline}`:'';\nconst body=`${hi}\\n\\n${lead}\\n\\n${title}\\n${detail}${due}\\n\\nSzczeg\u00f3\u0142y / domkni\u0119cie:\\n${link}\\n\\nJe\u015bli co\u015b blokuje wykonanie, po prostu daj zna\u0107 ekipie \u2014 bez spiny.\\n\\nVIRYA`;\nreturn [{json:{event_id:String(e.id||''),action_id,assignment_id,SendTo:to,SendSubject:subject.slice(0,180),SendBody:body,reminder_number:reminder}}];"
+   },
+   "id": "9fc804ae-3d57-4035-9546-073e3f959ee8",
+   "name": "Validate and build friendly team email",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    -1008,
+    112
+   ]
+  },
+  {
+   "parameters": {
+    "method": "POST",
+    "url": "={{ 'https://signal-api.virya.music/v1/internal/autopilot/actions/' + $json.action_id + '/execution-claim' }}",
+    "sendHeaders": true,
+    "headerParameters": {
+     "parameters": [
+      {
+       "name": "Authorization",
+       "value": "={{ 'Bearer ' + $env.CROWDRELAY_COMMERCE_API_KEY }}"
+      }
+     ]
+    },
+    "sendBody": true,
+    "specifyBody": "json",
+    "jsonBody": "={{ ({executor_id:String($env.VIRYAOS_EXECUTOR_ID||'virya-n8n-primary').trim(),occurred_at:new Date().toISOString()}) }}",
+    "options": {
+     "timeout": 30000
+    }
+   },
+   "id": "cc316a4d-9058-4801-9c87-3425c16c792c",
+   "name": "CrowdRelay \u2014 claim Gmail execution",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.4,
+   "position": [
+    -768,
+    112
+   ]
+  },
+  {
+   "parameters": {
+    "jsCode": "const src=$('Validate and build friendly team email').item.json||{}; const r=$json||{};\nconst disposition=String(r.disposition||'');\nif(disposition==='already_succeeded') return [];\nif(disposition!=='claimed'||!r.claim_token) throw new Error(`VIRYA team email execution is ${disposition||'unclaimed'}; fail closed to avoid duplicate provider side effects`);\nreturn [{json:{...src,claim_token:String(r.claim_token),attempt_number:Number(r.attempt_number||1)}}];"
+   },
+   "id": "c0b34c6b-b3b6-4a4a-b49a-8cf6ab2259f8",
+   "name": "Resolve execution claim",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    -528,
+    112
+   ]
+  },
+  {
+   "parameters": {
+    "sendTo": "={{ $json.SendTo }}",
+    "subject": "={{ $json.SendSubject }}",
+    "emailType": "text",
+    "message": "={{ $json.SendBody }}",
+    "options": {
+     "appendAttribution": false,
+     "senderName": "VIRYA"
+    }
+   },
+   "id": "1f02452c-ec15-4fec-80f7-44264cdeb569",
+   "name": "Gmail \u2014 send team task",
+   "type": "n8n-nodes-base.gmail",
+   "typeVersion": 2.1,
+   "position": [
+    -256,
+    112
+   ],
+   "webhookId": "bfb7a678-e21e-46de-b86e-33e288cd51f7",
+   "credentials": {
+    "gmailOAuth2": {
+     "id": "BJg5tKEWMNRw0GA1",
+     "name": "Gmail account"
+    }
+   },
+   "onError": "continueErrorOutput"
+  },
+  {
+   "parameters": {
+    "jsCode": "const src=$('Resolve execution claim').item.json||{}; const sent=$('Gmail \u2014 send team task').item.json||{};\nconst provider=String(sent.threadId||sent.thread_id||sent.id||sent.messageId||'').trim(); if(!provider) throw new Error('Gmail success missing provider reference');\nreturn [{json:{action_id:src.action_id,claim_token:src.claim_token,status:'succeeded',provider_reference:provider.slice(0,240),metadata:{event_id:src.event_id,assignment_id:src.assignment_id,provider:'gmail',attempt_number:src.attempt_number,kind:'team_task_email'},occurred_at:new Date().toISOString()}}];"
+   },
+   "id": "f6c98c34-9636-4ce1-90e2-f47b4fada00e",
+   "name": "Prepare provider-confirmed success receipt",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    0,
+    0
+   ]
+  },
+  {
+   "parameters": {
+    "workflowId": {
+     "__rl": true,
+     "value": "VOSRECEIPT00001",
+     "mode": "id"
+    },
+    "options": {}
+   },
+   "id": "d8d5a0a3-2920-4b95-b8a1-734b8eb3fdfc",
+   "name": "Queue provider-confirmed receipt",
+   "type": "n8n-nodes-base.executeWorkflow",
+   "typeVersion": 1.3,
+   "position": [
+    240,
+    0
+   ],
+   "alwaysOutputData": true
+  },
+  {
+   "parameters": {
+    "jsCode": "const src=$('Resolve execution claim').item.json||{};\n// Gmail errors are conservatively ambiguous: the provider may have accepted the\n// message before the transport failed. Leave the claim in-flight/ambiguous and\n// never auto-resend. This prevents duplicate task emails after a crash/timeout.\nthrow new Error(`VIRYA team email Gmail outcome ambiguous for action ${src.action_id}; manual reconcile required before retry`);"
+   },
+   "id": "bc6bc841-5651-4a69-9a27-7ff92501487e",
+   "name": "Fail closed on ambiguous Gmail error",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    0,
+    208
+   ]
+  }
+ ],
+ "connections": {
+  "Called by verified ingress": {
+   "main": [
+    [
+     {
+      "node": "Validate and build friendly team email",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Validate and build friendly team email": {
+   "main": [
+    [
+     {
+      "node": "CrowdRelay \u2014 claim Gmail execution",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "CrowdRelay \u2014 claim Gmail execution": {
+   "main": [
+    [
+     {
+      "node": "Resolve execution claim",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Resolve execution claim": {
+   "main": [
+    [
+     {
+      "node": "Gmail \u2014 send team task",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Gmail \u2014 send team task": {
+   "main": [
+    [
+     {
+      "node": "Prepare provider-confirmed success receipt",
+      "type": "main",
+      "index": 0
+     }
+    ],
+    [
+     {
+      "node": "Fail closed on ambiguous Gmail error",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Prepare provider-confirmed success receipt": {
+   "main": [
+    [
+     {
+      "node": "Queue provider-confirmed receipt",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  }
+ },
+ "settings": {
+  "executionOrder": "v1",
+  "binaryMode": "separate",
+  "availableInMCP": false,
+  "saveDataErrorExecution": "none",
+  "saveDataSuccessExecution": "none",
+  "saveManualExecutions": false,
+  "saveExecutionProgress": false
+ },
+ "staticData": null,
+ "meta": null,
+ "nodeGroups": [],
+ "pinData": {},
+ "versionId": "2ea23bff-3f2b-445f-89ca-a2c05ac67039",
+ "activeVersionId": "2ea23bff-3f2b-445f-89ca-a2c05ac67039",
+ "versionCounter": 2,
+ "triggerCount": 0,
+ "sourceWorkflowId": null,
+ "shared": [
+  {
+   "updatedAt": "2026-08-18T21:03:56.002Z",
+   "createdAt": "2026-08-18T21:03:56.002Z",
+   "role": "workflow:owner",
+   "workflowId": "VOSTEAMEMAIL001",
+   "projectId": "e2rPVcUBR4DTE3mO",
+   "project": {
+    "updatedAt": "2026-07-24T09:45:30.763Z",
+    "createdAt": "2026-07-24T09:45:07.113Z",
+    "id": "e2rPVcUBR4DTE3mO",
+    "name": "Virya Crew <virya.crew@gmail.com>",
+    "type": "personal",
+    "icon": null,
+    "description": null,
+    "customTelemetryTags": [],
+    "creatorId": "89259ec0-46eb-41d3-a04e-eb12f52f6342"
+   }
+  }
+ ],
+ "tags": [],
+ "activeVersion": {
+  "updatedAt": "2026-08-21T09:17:36.557Z",
+  "createdAt": "2026-08-18T21:03:56.002Z",
+  "versionId": "2ea23bff-3f2b-445f-89ca-a2c05ac67039",
+  "workflowId": "VOSTEAMEMAIL001",
+  "nodes": [
+   {
+    "parameters": {
+     "inputSource": "passthrough"
+    },
+    "id": "868d96f3-2ee2-42b9-b6df-10e65d2d83e5",
+    "name": "Called by verified ingress",
+    "type": "n8n-nodes-base.executeWorkflowTrigger",
+    "typeVersion": 1.1,
+    "position": [
+     -1248,
+     112
+    ]
+   },
+   {
+    "parameters": {
+     "jsCode": "const e=$json||{};\nif(e.version!==1||String(e.type)!=='viryaos.team.assignment_email_requested') throw new Error('Unsupported VIRYA team email event');\nconst d=e.data||{}; const clean=v=>String(v??'').replace(/[\\r\\n\\t]+/g,' ').trim();\nconst action_id=clean(d.action_id); const assignment_id=clean(d.assignment_id); const to=clean(d.recipient_email).toLowerCase();\nif(!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(to)||!action_id||!assignment_id) throw new Error('Invalid VIRYA team email payload');\nconst reminder=Math.max(0,Math.min(12,Number(d.reminder_number||0)||0));\nconst title=clean(d.task_title).slice(0,180)||'Zadanie w VIRYA OS'; const detail=String(d.task_detail||'').trim().slice(0,1800);\nconst rawName=clean(d.recipient_name); const name=/^Team Member \\d+$/i.test(rawName)?'':rawName.split(/\\s+/)[0];\nlet deadline=''; if(d.due_at){ const dt=new Date(d.due_at); if(!Number.isNaN(dt.getTime())) deadline=dt.toLocaleString('pl-PL',{timeZone:'Europe/Warsaw',dateStyle:'medium',timeStyle:'short'}); }\nconst path=String(d.action_url_path||'/staff/control/'); if(!path.startsWith('/')||path.includes('://')) throw new Error('Invalid action path');\nconst link='https://virya.music'+path; const hi=name?`Cze\u015b\u0107 ${name}!`:'Cze\u015b\u0107!';\nconst subject=reminder>0?`VIRYA \u2014 przypomnienie: ${title}`:`VIRYA \u2014 nowe zadanie: ${title}`;\nconst lead=reminder>0?'Ma\u0142e przypomnienie \u2014 to zadanie nadal czeka na domkni\u0119cie.':'Wpad\u0142o do Ciebie nowe zadanie od VIRYA OS.';\nconst due=deadline?`\\nTermin: ${deadline}`:'';\nconst body=`${hi}\\n\\n${lead}\\n\\n${title}\\n${detail}${due}\\n\\nSzczeg\u00f3\u0142y / domkni\u0119cie:\\n${link}\\n\\nJe\u015bli co\u015b blokuje wykonanie, po prostu daj zna\u0107 ekipie \u2014 bez spiny.\\n\\nVIRYA`;\nreturn [{json:{event_id:String(e.id||''),action_id,assignment_id,SendTo:to,SendSubject:subject.slice(0,180),SendBody:body,reminder_number:reminder}}];"
+    },
+    "id": "9fc804ae-3d57-4035-9546-073e3f959ee8",
+    "name": "Validate and build friendly team email",
+    "type": "n8n-nodes-base.code",
+    "typeVersion": 2,
+    "position": [
+     -1008,
+     112
+    ]
+   },
+   {
+    "parameters": {
+     "method": "POST",
+     "url": "={{ 'https://signal-api.virya.music/v1/internal/autopilot/actions/' + $json.action_id + '/execution-claim' }}",
+     "sendHeaders": true,
+     "headerParameters": {
+      "parameters": [
+       {
+        "name": "Authorization",
+        "value": "={{ 'Bearer ' + $env.CROWDRELAY_COMMERCE_API_KEY }}"
+       }
+      ]
+     },
+     "sendBody": true,
+     "specifyBody": "json",
+     "jsonBody": "={{ ({executor_id:String($env.VIRYAOS_EXECUTOR_ID||'virya-n8n-primary').trim(),occurred_at:new Date().toISOString()}) }}",
+     "options": {
+      "timeout": 30000
+     }
+    },
+    "id": "cc316a4d-9058-4801-9c87-3425c16c792c",
+    "name": "CrowdRelay \u2014 claim Gmail execution",
+    "type": "n8n-nodes-base.httpRequest",
+    "typeVersion": 4.4,
+    "position": [
+     -768,
+     112
+    ]
+   },
+   {
+    "parameters": {
+     "jsCode": "const src=$('Validate and build friendly team email').item.json||{}; const r=$json||{};\nconst disposition=String(r.disposition||'');\nif(disposition==='already_succeeded') return [];\nif(disposition!=='claimed'||!r.claim_token) throw new Error(`VIRYA team email execution is ${disposition||'unclaimed'}; fail closed to avoid duplicate provider side effects`);\nreturn [{json:{...src,claim_token:String(r.claim_token),attempt_number:Number(r.attempt_number||1)}}];"
+    },
+    "id": "c0b34c6b-b3b6-4a4a-b49a-8cf6ab2259f8",
+    "name": "Resolve execution claim",
+    "type": "n8n-nodes-base.code",
+    "typeVersion": 2,
+    "position": [
+     -528,
+     112
+    ]
+   },
+   {
+    "parameters": {
+     "sendTo": "={{ $json.SendTo }}",
+     "subject": "={{ $json.SendSubject }}",
+     "emailType": "text",
+     "message": "={{ $json.SendBody }}",
+     "options": {
+      "appendAttribution": false,
+      "senderName": "VIRYA"
+     }
+    },
+    "id": "1f02452c-ec15-4fec-80f7-44264cdeb569",
+    "name": "Gmail \u2014 send team task",
+    "type": "n8n-nodes-base.gmail",
+    "typeVersion": 2.1,
+    "position": [
+     -256,
+     112
+    ],
+    "webhookId": "bfb7a678-e21e-46de-b86e-33e288cd51f7",
+    "credentials": {
+     "gmailOAuth2": {
+      "id": "BJg5tKEWMNRw0GA1",
+      "name": "Gmail account"
+     }
+    },
+    "onError": "continueErrorOutput"
+   },
+   {
+    "parameters": {
+     "jsCode": "const src=$('Resolve execution claim').item.json||{}; const sent=$('Gmail \u2014 send team task').item.json||{};\nconst provider=String(sent.threadId||sent.thread_id||sent.id||sent.messageId||'').trim(); if(!provider) throw new Error('Gmail success missing provider reference');\nreturn [{json:{action_id:src.action_id,claim_token:src.claim_token,status:'succeeded',provider_reference:provider.slice(0,240),metadata:{event_id:src.event_id,assignment_id:src.assignment_id,provider:'gmail',attempt_number:src.attempt_number,kind:'team_task_email'},occurred_at:new Date().toISOString()}}];"
+    },
+    "id": "f6c98c34-9636-4ce1-90e2-f47b4fada00e",
+    "name": "Prepare provider-confirmed success receipt",
+    "type": "n8n-nodes-base.code",
+    "typeVersion": 2,
+    "position": [
+     0,
+     0
+    ]
+   },
+   {
+    "parameters": {
+     "workflowId": {
+      "__rl": true,
+      "value": "VOSRECEIPT00001",
+      "mode": "id"
+     },
+     "options": {}
+    },
+    "id": "d8d5a0a3-2920-4b95-b8a1-734b8eb3fdfc",
+    "name": "Queue provider-confirmed receipt",
+    "type": "n8n-nodes-base.executeWorkflow",
+    "typeVersion": 1.3,
+    "position": [
+     240,
+     0
+    ],
+    "alwaysOutputData": true
+   },
+   {
+    "parameters": {
+     "jsCode": "const src=$('Resolve execution claim').item.json||{};\n// Gmail errors are conservatively ambiguous: the provider may have accepted the\n// message before the transport failed. Leave the claim in-flight/ambiguous and\n// never auto-resend. This prevents duplicate task emails after a crash/timeout.\nthrow new Error(`VIRYA team email Gmail outcome ambiguous for action ${src.action_id}; manual reconcile required before retry`);"
+    },
+    "id": "bc6bc841-5651-4a69-9a27-7ff92501487e",
+    "name": "Fail closed on ambiguous Gmail error",
+    "type": "n8n-nodes-base.code",
+    "typeVersion": 2,
+    "position": [
+     0,
+     208
+    ]
+   }
+  ],
+  "connections": {
+   "Called by verified ingress": {
+    "main": [
+     [
+      {
+       "node": "Validate and build friendly team email",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "Validate and build friendly team email": {
+    "main": [
+     [
+      {
+       "node": "CrowdRelay \u2014 claim Gmail execution",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "CrowdRelay \u2014 claim Gmail execution": {
+    "main": [
+     [
+      {
+       "node": "Resolve execution claim",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "Resolve execution claim": {
+    "main": [
+     [
+      {
+       "node": "Gmail \u2014 send team task",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "Gmail \u2014 send team task": {
+    "main": [
+     [
+      {
+       "node": "Prepare provider-confirmed success receipt",
+       "type": "main",
+       "index": 0
+      }
+     ],
+     [
+      {
+       "node": "Fail closed on ambiguous Gmail error",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "Prepare provider-confirmed success receipt": {
+    "main": [
+     [
+      {
+       "node": "Queue provider-confirmed receipt",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   }
+  },
+  "nodeGroups": [],
+  "authors": "import",
+  "name": "Version c8bc2dd6",
+  "description": "",
+  "autosaved": false,
+  "workflowPublishHistory": [
+   {
+    "createdAt": "2026-08-21T09:17:36.553Z",
+    "id": 619,
+    "workflowId": "VOSTEAMEMAIL001",
+    "versionId": "2ea23bff-3f2b-445f-89ca-a2c05ac67039",
+    "event": "activated",
+    "userId": "89259ec0-46eb-41d3-a04e-eb12f52f6342"
+   }
+  ]
+ }
+}

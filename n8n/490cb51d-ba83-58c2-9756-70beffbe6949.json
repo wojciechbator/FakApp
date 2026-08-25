@@ -1,0 +1,679 @@
+{
+ "updatedAt": "2026-08-15T20:51:13.711Z",
+ "createdAt": "2026-08-02T20:04:04.166Z",
+ "id": "490cb51d-ba83-58c2-9756-70beffbe6949",
+ "name": "VIRYA 98 \u2014 CrowdRelay Queue Watchdog",
+ "description": null,
+ "active": true,
+ "isArchived": false,
+ "nodes": [
+  {
+   "id": "91e92ff0-e93f-4fed-8b9a-6f3fd9199bad",
+   "name": "Manual check",
+   "type": "n8n-nodes-base.manualTrigger",
+   "position": [
+    -496,
+    208
+   ],
+   "parameters": {},
+   "typeVersion": 1
+  },
+  {
+   "id": "860f5935-7793-46dd-adb6-9cb82bd9a5f5",
+   "name": "Hourly \u2014 minute 47",
+   "type": "n8n-nodes-base.scheduleTrigger",
+   "notes": "Light runtime cadence: 0 47 * * * * (Europe/Warsaw). Workflow logic and data mappings unchanged.",
+   "position": [
+    -496,
+    448
+   ],
+   "parameters": {
+    "rule": {
+     "interval": [
+      {
+       "field": "cronExpression",
+       "expression": "0 47 * * * *"
+      }
+     ]
+    }
+   },
+   "notesInFlow": true,
+   "typeVersion": 1.2
+  },
+  {
+   "id": "f894028e-43e6-437d-8898-caf08b43ebc6",
+   "name": "Resolve CrowdRelay endpoints",
+   "type": "n8n-nodes-base.code",
+   "position": [
+    -256,
+    320
+   ],
+   "parameters": {
+    "jsCode": "const base = \"https://signal-api.virya.music\";\n\nreturn [{\n  json: {\n    ready_url: `${base}/v1/health/ready`,\n    metrics_url: `${base}/metrics`,\n  },\n}];"
+   },
+   "typeVersion": 2
+  },
+  {
+   "id": "b5d446fb-ff54-4d77-8cc2-893b2145a6e4",
+   "name": "CrowdRelay \u2014 readiness",
+   "type": "n8n-nodes-base.httpRequest",
+   "maxTries": 2,
+   "position": [
+    0,
+    320
+   ],
+   "parameters": {
+    "url": "={{ $json.ready_url }}",
+    "options": {
+     "timeout": 6000,
+     "response": {
+      "response": {
+       "neverError": true,
+       "fullResponse": true,
+       "responseFormat": "json"
+      }
+     }
+    }
+   },
+   "retryOnFail": true,
+   "typeVersion": 4.4,
+   "waitBetweenTries": 1500
+  },
+  {
+   "id": "a97c4822-b79f-458d-9215-411b45e71f65",
+   "name": "CrowdRelay \u2014 metrics",
+   "type": "n8n-nodes-base.httpRequest",
+   "maxTries": 2,
+   "position": [
+    272,
+    320
+   ],
+   "parameters": {
+    "url": "={{ $('Resolve CrowdRelay endpoints').first().json.metrics_url }}",
+    "options": {
+     "timeout": 6000,
+     "response": {
+      "response": {
+       "neverError": true,
+       "fullResponse": true,
+       "responseFormat": "text"
+      }
+     }
+    }
+   },
+   "retryOnFail": true,
+   "typeVersion": 4.4,
+   "waitBetweenTries": 1500
+  },
+  {
+   "id": "2baf493a-1aad-4021-a590-88e03c1d6867",
+   "name": "Evaluate and deduplicate health",
+   "type": "n8n-nodes-base.code",
+   "position": [
+    1040,
+    320
+   ],
+   "parameters": {
+    "jsCode": "function responseOf(value) {\n  const source = value && typeof value === 'object' ? value : {};\n  const statusCode = Number(source.statusCode ?? source.status ?? 0);\n  const body = source.body ?? source.data ?? source;\n\n  return { statusCode, body };\n}\n\nfunction metric(text, name) {\n  const escaped = name.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&');\n  const match = String(text || '').match(\n    new RegExp(`(?:^|\\\\n)${escaped}\\\\s+(-?\\\\d+(?:\\\\.\\\\d+)?)\\\\s*(?:\\\\n|$)`),\n  );\n\n  return match ? Number(match[1]) : null;\n}\n\nconst readyResponse = responseOf(\n  $('CrowdRelay \u2014 readiness').first().json,\n);\n\nconst metricsResponse = responseOf(\n  $('CrowdRelay \u2014 metrics').first().json,\n);\nconst viryaResponse = responseOf(\n  $('Virya \u2014 public surface').first().json,\n);\nconst synesthesiaResponse = responseOf(\n  $('Synesthesia \u2014 public surface').first().json,\n);\n\nlet readyBody = readyResponse.body;\n\nif (typeof readyBody === 'string') {\n  try {\n    readyBody = JSON.parse(readyBody);\n  } catch {\n    // The response may be plain text.\n  }\n}\n\nconst ready =\n  readyResponse.statusCode >= 200 &&\n  readyResponse.statusCode < 300 &&\n  String(readyBody?.status ?? readyBody ?? '').toLowerCase() === 'ready';\n\nconst metricsText =\n  typeof metricsResponse.body === 'string'\n    ? metricsResponse.body\n    : typeof metricsResponse.body?.data === 'string'\n      ? metricsResponse.body.data\n      : '';\n\nconst metricsReachable =\n  metricsResponse.statusCode >= 200 &&\n  metricsResponse.statusCode < 300 &&\n  metricsText.length > 20;\n\nconst surfaceHealthy = response => {\n  const body = typeof response.body === 'string'\n    ? response.body\n    : JSON.stringify(response.body ?? '');\n  return response.statusCode >= 200 && response.statusCode < 400 && body.length > 120;\n};\nconst viryaHealthy = surfaceHealthy(viryaResponse);\nconst synesthesiaHealthy = surfaceHealthy(synesthesiaResponse);\n\nconst values = {\n  outbox_dead: metric(\n    metricsText,\n    'crowdrelay_outbox_dead',\n  ),\n  delivery_dead: metric(\n    metricsText,\n    'crowdrelay_webhook_delivery_dead',\n  ),\n  outbox_oldest: metric(\n    metricsText,\n    'crowdrelay_outbox_oldest_pending_seconds',\n  ),\n  delivery_oldest: metric(\n    metricsText,\n    'crowdrelay_webhook_delivery_oldest_pending_seconds',\n  ),\n};\n\nconst missingMetrics = Object.entries(values)\n  .filter(([, value]) => value === null)\n  .map(([name]) => name);\n\nconst currentOutboxDead = Math.max(\n  0,\n  Number(values.outbox_dead ?? 0),\n);\n\nconst currentDeliveryDead = Math.max(\n  0,\n  Number(values.delivery_dead ?? 0),\n);\n\nconst state = $getWorkflowStaticData('global');\nconst now = Date.now();\n\nconst initialized = state.watchdog_v2_initialized === true;\n\nlet acknowledgedOutboxDead = Number(\n  state.watchdog_v2_ack_outbox_dead,\n);\n\nlet acknowledgedDeliveryDead = Number(\n  state.watchdog_v2_ack_delivery_dead,\n);\n\nif (!initialized || !Number.isFinite(acknowledgedOutboxDead)) {\n  acknowledgedOutboxDead = currentOutboxDead;\n}\n\nif (!initialized || !Number.isFinite(acknowledgedDeliveryDead)) {\n  acknowledgedDeliveryDead = currentDeliveryDead;\n}\n\nacknowledgedOutboxDead = Math.min(\n  acknowledgedOutboxDead,\n  currentOutboxDead,\n);\n\nacknowledgedDeliveryDead = Math.min(\n  acknowledgedDeliveryDead,\n  currentDeliveryDead,\n);\n\nconst newOutboxDead = initialized\n  ? Math.max(0, currentOutboxDead - acknowledgedOutboxDead)\n  : 0;\n\nconst newDeliveryDead = initialized\n  ? Math.max(0, currentDeliveryDead - acknowledgedDeliveryDead)\n  : 0;\n\nconst activeReasons = [];\n\nif (!ready) {\n  activeReasons.push(\n    `readiness=${readyResponse.statusCode || 'unreachable'}`,\n  );\n}\n\nif (!metricsReachable) {\n  activeReasons.push(\n    `metrics=${metricsResponse.statusCode || 'unreachable'}`,\n  );\n}\n\nif (!viryaHealthy) {\n  activeReasons.push(\n    `virya.music=${viryaResponse.statusCode || 'unreachable'}`,\n  );\n}\n\nif (!synesthesiaHealthy) {\n  activeReasons.push(\n    `synesthesia=${synesthesiaResponse.statusCode || 'unreachable'}`,\n  );\n}\n\nif ((values.outbox_oldest ?? 0) > 900) {\n  activeReasons.push(\n    `oldest outbox=${Math.round(values.outbox_oldest)}s`,\n  );\n}\n\nif ((values.delivery_oldest ?? 0) > 900) {\n  activeReasons.push(\n    `oldest delivery=${Math.round(values.delivery_oldest)}s`,\n  );\n}\n\nconst newDeadReasons = [];\n\nif (newOutboxDead > 0) {\n  newDeadReasons.push(\n    `new dead outbox=${newOutboxDead}`,\n  );\n}\n\nif (newDeliveryDead > 0) {\n  newDeadReasons.push(\n    `new dead deliveries=${newDeliveryDead}`,\n  );\n}\n\nconst activeUnhealthy = activeReasons.length > 0;\nconst newDeadDetected = newDeadReasons.length > 0;\n\nconst activeSnapshot = {\n  unhealthy: activeUnhealthy,\n  reasons: activeReasons,\n  ready_status: readyResponse.statusCode || 0,\n  metrics_status: metricsResponse.statusCode || 0,\n  virya_status: viryaResponse.statusCode || 0,\n  synesthesia_status: synesthesiaResponse.statusCode || 0,\n  outbox_oldest: values.outbox_oldest,\n  delivery_oldest: values.delivery_oldest,\n};\n\nconst activeFingerprint = JSON.stringify(activeSnapshot);\nconst previousActiveFingerprint = String(\n  state.watchdog_v2_active_fingerprint || '',\n);\n\nconst wasActiveUnhealthy =\n  state.watchdog_v2_active_unhealthy === true;\n\nconst lastActiveSentAt = Number(\n  state.watchdog_v2_last_active_sent_at || 0,\n);\n\nconst activeChanged =\n  activeFingerprint !== previousActiveFingerprint;\n\nconst reminderDue =\n  activeUnhealthy &&\n  now - lastActiveSentAt >= 6 * 60 * 60 * 1000;\n\nconst recovered =\n  !activeUnhealthy &&\n  wasActiveUnhealthy;\n\nconst activeNotification =\n  activeUnhealthy &&\n  (activeChanged || reminderDue);\n\nconst shouldNotify =\n  newDeadDetected ||\n  activeNotification ||\n  recovered;\n\nstate.watchdog_v2_initialized = true;\nstate.watchdog_v2_ack_outbox_dead = currentOutboxDead;\nstate.watchdog_v2_ack_delivery_dead = currentDeliveryDead;\nstate.watchdog_v2_active_fingerprint = activeFingerprint;\nstate.watchdog_v2_active_unhealthy = activeUnhealthy;\nstate.watchdog_v2_last_checked_at = new Date(now).toISOString();\n\nif (activeNotification || recovered) {\n  state.watchdog_v2_last_active_sent_at = now;\n}\n\nif (!shouldNotify) {\n  return [];\n}\n\nconst lines = [];\n\nif (recovered && !newDeadDetected) {\n  lines.push('\u2705 **ViryaOS recovered**');\n  lines.push('CrowdRelay i publiczne powierzchnie wr\u00f3ci\u0142y do zdrowego stanu.');\n} else {\n  lines.push('\ud83d\udea8 **ViryaOS health watchdog**');\n\n  const reasons = [\n    ...activeReasons,\n    ...newDeadReasons,\n  ];\n\n  lines.push(`**Problem:** ${reasons.join(', ')}`);\n}\n\nlines.push(\n  `**Outbox:** pending-oldest ${\n    values.outbox_oldest ?? 'n/a'\n  }s \u00b7 dead ${currentOutboxDead}`,\n);\n\nlines.push(\n  `**Webhook deliveries:** pending-oldest ${\n    values.delivery_oldest ?? 'n/a'\n  }s \u00b7 dead ${currentDeliveryDead}`,\n);\n\nlines.push(\n  `**Surfaces:** virya.music ${viryaResponse.statusCode || 'down'} \u00b7 synesthesia ${synesthesiaResponse.statusCode || 'down'}`,\n);\n\nif (missingMetrics.length) {\n  lines.push(\n    `**Info:** brak metryk ${missingMetrics.join(', ')}.`,\n  );\n}\n\nlines.push(\n  `**Checked:** ${new Date(now).toISOString()}`,\n);\n\nreturn [{\n  json: {\n    content: lines.join('\\n').slice(0, 1900),\n    unhealthy: activeUnhealthy || newDeadDetected,\n    fingerprint: JSON.stringify({\n      active: activeSnapshot,\n      new_outbox_dead: newOutboxDead,\n      new_delivery_dead: newDeliveryDead,\n    }),\n    snapshot: {\n      active: activeSnapshot,\n      historical_dead: {\n        outbox: currentOutboxDead,\n        deliveries: currentDeliveryDead,\n      },\n      newly_detected_dead: {\n        outbox: newOutboxDead,\n        deliveries: newDeliveryDead,\n      },\n    },\n  },\n}];"
+   },
+   "typeVersion": 2
+  },
+  {
+   "id": "79e165f3-0942-4452-9713-0e4d3ee7e6c3",
+   "name": "Alert automation channel",
+   "type": "n8n-nodes-base.httpRequest",
+   "position": [
+    1312,
+    320
+   ],
+   "parameters": {
+    "url": "https://discord.com/api/v10/channels/1529482376458276964/messages",
+    "method": "POST",
+    "options": {
+     "timeout": 30000
+    },
+    "jsonBody": "={{ ({ content: $json.content, allowed_mentions: { parse: [] } }) }}",
+    "sendBody": true,
+    "sendHeaders": true,
+    "specifyBody": "json",
+    "authentication": "genericCredentialType",
+    "genericAuthType": "httpHeaderAuth",
+    "headerParameters": {
+     "parameters": [
+      {
+       "name": "User-Agent",
+       "value": "Virya-n8n/1.0 (https://virya.music)"
+      }
+     ]
+    }
+   },
+   "credentials": {
+    "httpHeaderAuth": {
+     "id": "FB7ONYMUsZFfObWB",
+     "name": "Discord Bot HTTP"
+    }
+   },
+   "typeVersion": 4.2
+  },
+  {
+   "id": "09b0e058-43f5-4cc2-8a85-cbf35752f94e",
+   "name": "WATCHDOG POLICY",
+   "type": "n8n-nodes-base.stickyNote",
+   "position": [
+    0,
+    0
+   ],
+   "parameters": {
+    "width": 600,
+    "height": 300,
+    "content": "## CrowdRelay queue + public-surface watchdog\n\n- Co godzin\u0119, o :47, sprawdza CrowdRelay `/v1/health/ready` i `/metrics` oraz publiczne `virya.music` i `synesthesia.virya.music`.\n- Ka\u017cdy bezpieczny GET ma kr\u00f3tki timeout i najwy\u017cej jedn\u0105 pr\u00f3b\u0119 ponown\u0105; ca\u0142y canary pozostaje wyra\u017anie poni\u017cej limitu execution.\n- Alarmuje dopiero przy dead-letterach, readiness failure, kolejce starszej ni\u017c 15 minut albo niedost\u0119pnej publicznej powierzchni.\n- Deduplikuje stan i przypomina najwy\u017cej raz na 6 godzin; wysy\u0142a osobny komunikat recovery.\n- Nie pobiera payload\u00f3w fan\u00f3w ani sekret\u00f3w. Discord POST nie ma blind retry, wi\u0119c timeout po remote commit nie mo\u017ce sam z siebie wygenerowa\u0107 duplikatu alertu.\n"
+   },
+   "typeVersion": 1
+  },
+  {
+   "id": "0ee56a57-5208-4c9f-b79c-e2d795543138",
+   "name": "Virya \u2014 public surface",
+   "type": "n8n-nodes-base.httpRequest",
+   "maxTries": 2,
+   "position": [
+    528,
+    320
+   ],
+   "parameters": {
+    "url": "https://virya.music/pl/",
+    "options": {
+     "timeout": 6000,
+     "response": {
+      "response": {
+       "neverError": true,
+       "fullResponse": true,
+       "responseFormat": "text"
+      }
+     }
+    }
+   },
+   "retryOnFail": true,
+   "typeVersion": 4.4,
+   "waitBetweenTries": 1500
+  },
+  {
+   "id": "c4749ff7-fa02-4332-b33e-1991f0c4a38a",
+   "name": "Synesthesia \u2014 public surface",
+   "type": "n8n-nodes-base.httpRequest",
+   "maxTries": 2,
+   "position": [
+    784,
+    320
+   ],
+   "parameters": {
+    "url": "https://synesthesia.virya.music/",
+    "options": {
+     "timeout": 6000,
+     "response": {
+      "response": {
+       "neverError": true,
+       "fullResponse": true,
+       "responseFormat": "text"
+      }
+     }
+    }
+   },
+   "retryOnFail": true,
+   "typeVersion": 4.4,
+   "waitBetweenTries": 1500
+  }
+ ],
+ "connections": {
+  "Manual check": {
+   "main": [
+    [
+     {
+      "node": "Resolve CrowdRelay endpoints",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Hourly \u2014 minute 47": {
+   "main": [
+    [
+     {
+      "node": "Resolve CrowdRelay endpoints",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Resolve CrowdRelay endpoints": {
+   "main": [
+    [
+     {
+      "node": "CrowdRelay \u2014 readiness",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "CrowdRelay \u2014 readiness": {
+   "main": [
+    [
+     {
+      "node": "CrowdRelay \u2014 metrics",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "CrowdRelay \u2014 metrics": {
+   "main": [
+    [
+     {
+      "node": "Virya \u2014 public surface",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Evaluate and deduplicate health": {
+   "main": [
+    [
+     {
+      "node": "Alert automation channel",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Virya \u2014 public surface": {
+   "main": [
+    [
+     {
+      "node": "Synesthesia \u2014 public surface",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Synesthesia \u2014 public surface": {
+   "main": [
+    [
+     {
+      "node": "Evaluate and deduplicate health",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  }
+ },
+ "settings": {
+  "executionOrder": "v1",
+  "saveDataErrorExecution": "none",
+  "saveDataSuccessExecution": "none",
+  "saveManualExecutions": false,
+  "timezone": "Europe/Warsaw",
+  "availableInMCP": false,
+  "errorWorkflow": "98d5e1a4-2dba-5e5a-9be1-2e5d9220859d",
+  "executionTimeout": 180,
+  "saveExecutionProgress": false,
+  "binaryMode": "separate"
+ },
+ "staticData": null,
+ "meta": {
+  "templateCredsSetupCompleted": true
+ },
+ "nodeGroups": [],
+ "pinData": {},
+ "versionId": "7b0f7eb5-6516-43e4-831e-8cf072e6c5df",
+ "activeVersionId": "7b0f7eb5-6516-43e4-831e-8cf072e6c5df",
+ "versionCounter": 16,
+ "triggerCount": 1,
+ "sourceWorkflowId": null,
+ "shared": [
+  {
+   "updatedAt": "2026-08-02T20:04:04.166Z",
+   "createdAt": "2026-08-02T20:04:04.166Z",
+   "role": "workflow:owner",
+   "workflowId": "490cb51d-ba83-58c2-9756-70beffbe6949",
+   "projectId": "e2rPVcUBR4DTE3mO",
+   "project": {
+    "updatedAt": "2026-07-24T09:45:30.763Z",
+    "createdAt": "2026-07-24T09:45:07.113Z",
+    "id": "e2rPVcUBR4DTE3mO",
+    "name": "Virya Crew <virya.crew@gmail.com>",
+    "type": "personal",
+    "icon": null,
+    "description": null,
+    "customTelemetryTags": [],
+    "creatorId": "89259ec0-46eb-41d3-a04e-eb12f52f6342"
+   }
+  }
+ ],
+ "tags": [],
+ "activeVersion": {
+  "updatedAt": "2026-08-25T12:20:51.980Z",
+  "createdAt": "2026-08-12T17:01:41.269Z",
+  "versionId": "7b0f7eb5-6516-43e4-831e-8cf072e6c5df",
+  "workflowId": "490cb51d-ba83-58c2-9756-70beffbe6949",
+  "nodes": [
+   {
+    "id": "91e92ff0-e93f-4fed-8b9a-6f3fd9199bad",
+    "name": "Manual check",
+    "type": "n8n-nodes-base.manualTrigger",
+    "position": [
+     -496,
+     208
+    ],
+    "parameters": {},
+    "typeVersion": 1
+   },
+   {
+    "id": "860f5935-7793-46dd-adb6-9cb82bd9a5f5",
+    "name": "Hourly \u2014 minute 47",
+    "type": "n8n-nodes-base.scheduleTrigger",
+    "notes": "Light runtime cadence: 0 47 * * * * (Europe/Warsaw). Workflow logic and data mappings unchanged.",
+    "position": [
+     -496,
+     448
+    ],
+    "parameters": {
+     "rule": {
+      "interval": [
+       {
+        "field": "cronExpression",
+        "expression": "0 47 * * * *"
+       }
+      ]
+     }
+    },
+    "notesInFlow": true,
+    "typeVersion": 1.2
+   },
+   {
+    "id": "f894028e-43e6-437d-8898-caf08b43ebc6",
+    "name": "Resolve CrowdRelay endpoints",
+    "type": "n8n-nodes-base.code",
+    "position": [
+     -256,
+     320
+    ],
+    "parameters": {
+     "jsCode": "const base = \"https://signal-api.virya.music\";\n\nreturn [{\n  json: {\n    ready_url: `${base}/v1/health/ready`,\n    metrics_url: `${base}/metrics`,\n  },\n}];"
+    },
+    "typeVersion": 2
+   },
+   {
+    "id": "b5d446fb-ff54-4d77-8cc2-893b2145a6e4",
+    "name": "CrowdRelay \u2014 readiness",
+    "type": "n8n-nodes-base.httpRequest",
+    "maxTries": 2,
+    "position": [
+     0,
+     320
+    ],
+    "parameters": {
+     "url": "={{ $json.ready_url }}",
+     "options": {
+      "timeout": 6000,
+      "response": {
+       "response": {
+        "neverError": true,
+        "fullResponse": true,
+        "responseFormat": "json"
+       }
+      }
+     }
+    },
+    "retryOnFail": true,
+    "typeVersion": 4.4,
+    "waitBetweenTries": 1500
+   },
+   {
+    "id": "a97c4822-b79f-458d-9215-411b45e71f65",
+    "name": "CrowdRelay \u2014 metrics",
+    "type": "n8n-nodes-base.httpRequest",
+    "maxTries": 2,
+    "position": [
+     272,
+     320
+    ],
+    "parameters": {
+     "url": "={{ $('Resolve CrowdRelay endpoints').first().json.metrics_url }}",
+     "options": {
+      "timeout": 6000,
+      "response": {
+       "response": {
+        "neverError": true,
+        "fullResponse": true,
+        "responseFormat": "text"
+       }
+      }
+     }
+    },
+    "retryOnFail": true,
+    "typeVersion": 4.4,
+    "waitBetweenTries": 1500
+   },
+   {
+    "id": "2baf493a-1aad-4021-a590-88e03c1d6867",
+    "name": "Evaluate and deduplicate health",
+    "type": "n8n-nodes-base.code",
+    "position": [
+     1040,
+     320
+    ],
+    "parameters": {
+     "jsCode": "function responseOf(value) {\n  const source = value && typeof value === 'object' ? value : {};\n  const statusCode = Number(source.statusCode ?? source.status ?? 0);\n  const body = source.body ?? source.data ?? source;\n\n  return { statusCode, body };\n}\n\nfunction metric(text, name) {\n  const escaped = name.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&');\n  const match = String(text || '').match(\n    new RegExp(`(?:^|\\\\n)${escaped}\\\\s+(-?\\\\d+(?:\\\\.\\\\d+)?)\\\\s*(?:\\\\n|$)`),\n  );\n\n  return match ? Number(match[1]) : null;\n}\n\nconst readyResponse = responseOf(\n  $('CrowdRelay \u2014 readiness').first().json,\n);\n\nconst metricsResponse = responseOf(\n  $('CrowdRelay \u2014 metrics').first().json,\n);\nconst viryaResponse = responseOf(\n  $('Virya \u2014 public surface').first().json,\n);\nconst synesthesiaResponse = responseOf(\n  $('Synesthesia \u2014 public surface').first().json,\n);\n\nlet readyBody = readyResponse.body;\n\nif (typeof readyBody === 'string') {\n  try {\n    readyBody = JSON.parse(readyBody);\n  } catch {\n    // The response may be plain text.\n  }\n}\n\nconst ready =\n  readyResponse.statusCode >= 200 &&\n  readyResponse.statusCode < 300 &&\n  String(readyBody?.status ?? readyBody ?? '').toLowerCase() === 'ready';\n\nconst metricsText =\n  typeof metricsResponse.body === 'string'\n    ? metricsResponse.body\n    : typeof metricsResponse.body?.data === 'string'\n      ? metricsResponse.body.data\n      : '';\n\nconst metricsReachable =\n  metricsResponse.statusCode >= 200 &&\n  metricsResponse.statusCode < 300 &&\n  metricsText.length > 20;\n\nconst surfaceHealthy = response => {\n  const body = typeof response.body === 'string'\n    ? response.body\n    : JSON.stringify(response.body ?? '');\n  return response.statusCode >= 200 && response.statusCode < 400 && body.length > 120;\n};\nconst viryaHealthy = surfaceHealthy(viryaResponse);\nconst synesthesiaHealthy = surfaceHealthy(synesthesiaResponse);\n\nconst values = {\n  outbox_dead: metric(\n    metricsText,\n    'crowdrelay_outbox_dead',\n  ),\n  delivery_dead: metric(\n    metricsText,\n    'crowdrelay_webhook_delivery_dead',\n  ),\n  outbox_oldest: metric(\n    metricsText,\n    'crowdrelay_outbox_oldest_pending_seconds',\n  ),\n  delivery_oldest: metric(\n    metricsText,\n    'crowdrelay_webhook_delivery_oldest_pending_seconds',\n  ),\n};\n\nconst missingMetrics = Object.entries(values)\n  .filter(([, value]) => value === null)\n  .map(([name]) => name);\n\nconst currentOutboxDead = Math.max(\n  0,\n  Number(values.outbox_dead ?? 0),\n);\n\nconst currentDeliveryDead = Math.max(\n  0,\n  Number(values.delivery_dead ?? 0),\n);\n\nconst state = $getWorkflowStaticData('global');\nconst now = Date.now();\n\nconst initialized = state.watchdog_v2_initialized === true;\n\nlet acknowledgedOutboxDead = Number(\n  state.watchdog_v2_ack_outbox_dead,\n);\n\nlet acknowledgedDeliveryDead = Number(\n  state.watchdog_v2_ack_delivery_dead,\n);\n\nif (!initialized || !Number.isFinite(acknowledgedOutboxDead)) {\n  acknowledgedOutboxDead = currentOutboxDead;\n}\n\nif (!initialized || !Number.isFinite(acknowledgedDeliveryDead)) {\n  acknowledgedDeliveryDead = currentDeliveryDead;\n}\n\nacknowledgedOutboxDead = Math.min(\n  acknowledgedOutboxDead,\n  currentOutboxDead,\n);\n\nacknowledgedDeliveryDead = Math.min(\n  acknowledgedDeliveryDead,\n  currentDeliveryDead,\n);\n\nconst newOutboxDead = initialized\n  ? Math.max(0, currentOutboxDead - acknowledgedOutboxDead)\n  : 0;\n\nconst newDeliveryDead = initialized\n  ? Math.max(0, currentDeliveryDead - acknowledgedDeliveryDead)\n  : 0;\n\nconst activeReasons = [];\n\nif (!ready) {\n  activeReasons.push(\n    `readiness=${readyResponse.statusCode || 'unreachable'}`,\n  );\n}\n\nif (!metricsReachable) {\n  activeReasons.push(\n    `metrics=${metricsResponse.statusCode || 'unreachable'}`,\n  );\n}\n\nif (!viryaHealthy) {\n  activeReasons.push(\n    `virya.music=${viryaResponse.statusCode || 'unreachable'}`,\n  );\n}\n\nif (!synesthesiaHealthy) {\n  activeReasons.push(\n    `synesthesia=${synesthesiaResponse.statusCode || 'unreachable'}`,\n  );\n}\n\nif ((values.outbox_oldest ?? 0) > 900) {\n  activeReasons.push(\n    `oldest outbox=${Math.round(values.outbox_oldest)}s`,\n  );\n}\n\nif ((values.delivery_oldest ?? 0) > 900) {\n  activeReasons.push(\n    `oldest delivery=${Math.round(values.delivery_oldest)}s`,\n  );\n}\n\nconst newDeadReasons = [];\n\nif (newOutboxDead > 0) {\n  newDeadReasons.push(\n    `new dead outbox=${newOutboxDead}`,\n  );\n}\n\nif (newDeliveryDead > 0) {\n  newDeadReasons.push(\n    `new dead deliveries=${newDeliveryDead}`,\n  );\n}\n\nconst activeUnhealthy = activeReasons.length > 0;\nconst newDeadDetected = newDeadReasons.length > 0;\n\nconst activeSnapshot = {\n  unhealthy: activeUnhealthy,\n  reasons: activeReasons,\n  ready_status: readyResponse.statusCode || 0,\n  metrics_status: metricsResponse.statusCode || 0,\n  virya_status: viryaResponse.statusCode || 0,\n  synesthesia_status: synesthesiaResponse.statusCode || 0,\n  outbox_oldest: values.outbox_oldest,\n  delivery_oldest: values.delivery_oldest,\n};\n\nconst activeFingerprint = JSON.stringify(activeSnapshot);\nconst previousActiveFingerprint = String(\n  state.watchdog_v2_active_fingerprint || '',\n);\n\nconst wasActiveUnhealthy =\n  state.watchdog_v2_active_unhealthy === true;\n\nconst lastActiveSentAt = Number(\n  state.watchdog_v2_last_active_sent_at || 0,\n);\n\nconst activeChanged =\n  activeFingerprint !== previousActiveFingerprint;\n\nconst reminderDue =\n  activeUnhealthy &&\n  now - lastActiveSentAt >= 6 * 60 * 60 * 1000;\n\nconst recovered =\n  !activeUnhealthy &&\n  wasActiveUnhealthy;\n\nconst activeNotification =\n  activeUnhealthy &&\n  (activeChanged || reminderDue);\n\nconst shouldNotify =\n  newDeadDetected ||\n  activeNotification ||\n  recovered;\n\nstate.watchdog_v2_initialized = true;\nstate.watchdog_v2_ack_outbox_dead = currentOutboxDead;\nstate.watchdog_v2_ack_delivery_dead = currentDeliveryDead;\nstate.watchdog_v2_active_fingerprint = activeFingerprint;\nstate.watchdog_v2_active_unhealthy = activeUnhealthy;\nstate.watchdog_v2_last_checked_at = new Date(now).toISOString();\n\nif (activeNotification || recovered) {\n  state.watchdog_v2_last_active_sent_at = now;\n}\n\nif (!shouldNotify) {\n  return [];\n}\n\nconst lines = [];\n\nif (recovered && !newDeadDetected) {\n  lines.push('\u2705 **ViryaOS recovered**');\n  lines.push('CrowdRelay i publiczne powierzchnie wr\u00f3ci\u0142y do zdrowego stanu.');\n} else {\n  lines.push('\ud83d\udea8 **ViryaOS health watchdog**');\n\n  const reasons = [\n    ...activeReasons,\n    ...newDeadReasons,\n  ];\n\n  lines.push(`**Problem:** ${reasons.join(', ')}`);\n}\n\nlines.push(\n  `**Outbox:** pending-oldest ${\n    values.outbox_oldest ?? 'n/a'\n  }s \u00b7 dead ${currentOutboxDead}`,\n);\n\nlines.push(\n  `**Webhook deliveries:** pending-oldest ${\n    values.delivery_oldest ?? 'n/a'\n  }s \u00b7 dead ${currentDeliveryDead}`,\n);\n\nlines.push(\n  `**Surfaces:** virya.music ${viryaResponse.statusCode || 'down'} \u00b7 synesthesia ${synesthesiaResponse.statusCode || 'down'}`,\n);\n\nif (missingMetrics.length) {\n  lines.push(\n    `**Info:** brak metryk ${missingMetrics.join(', ')}.`,\n  );\n}\n\nlines.push(\n  `**Checked:** ${new Date(now).toISOString()}`,\n);\n\nreturn [{\n  json: {\n    content: lines.join('\\n').slice(0, 1900),\n    unhealthy: activeUnhealthy || newDeadDetected,\n    fingerprint: JSON.stringify({\n      active: activeSnapshot,\n      new_outbox_dead: newOutboxDead,\n      new_delivery_dead: newDeliveryDead,\n    }),\n    snapshot: {\n      active: activeSnapshot,\n      historical_dead: {\n        outbox: currentOutboxDead,\n        deliveries: currentDeliveryDead,\n      },\n      newly_detected_dead: {\n        outbox: newOutboxDead,\n        deliveries: newDeliveryDead,\n      },\n    },\n  },\n}];"
+    },
+    "typeVersion": 2
+   },
+   {
+    "id": "79e165f3-0942-4452-9713-0e4d3ee7e6c3",
+    "name": "Alert automation channel",
+    "type": "n8n-nodes-base.httpRequest",
+    "position": [
+     1312,
+     320
+    ],
+    "parameters": {
+     "url": "https://discord.com/api/v10/channels/1529482376458276964/messages",
+     "method": "POST",
+     "options": {
+      "timeout": 30000
+     },
+     "jsonBody": "={{ ({ content: $json.content, allowed_mentions: { parse: [] } }) }}",
+     "sendBody": true,
+     "sendHeaders": true,
+     "specifyBody": "json",
+     "authentication": "genericCredentialType",
+     "genericAuthType": "httpHeaderAuth",
+     "headerParameters": {
+      "parameters": [
+       {
+        "name": "User-Agent",
+        "value": "Virya-n8n/1.0 (https://virya.music)"
+       }
+      ]
+     }
+    },
+    "credentials": {
+     "httpHeaderAuth": {
+      "id": "FB7ONYMUsZFfObWB",
+      "name": "Discord Bot HTTP"
+     }
+    },
+    "typeVersion": 4.2
+   },
+   {
+    "id": "09b0e058-43f5-4cc2-8a85-cbf35752f94e",
+    "name": "WATCHDOG POLICY",
+    "type": "n8n-nodes-base.stickyNote",
+    "position": [
+     0,
+     0
+    ],
+    "parameters": {
+     "width": 600,
+     "height": 300,
+     "content": "## CrowdRelay queue + public-surface watchdog\n\n- Co godzin\u0119, o :47, sprawdza CrowdRelay `/v1/health/ready` i `/metrics` oraz publiczne `virya.music` i `synesthesia.virya.music`.\n- Ka\u017cdy bezpieczny GET ma kr\u00f3tki timeout i najwy\u017cej jedn\u0105 pr\u00f3b\u0119 ponown\u0105; ca\u0142y canary pozostaje wyra\u017anie poni\u017cej limitu execution.\n- Alarmuje dopiero przy dead-letterach, readiness failure, kolejce starszej ni\u017c 15 minut albo niedost\u0119pnej publicznej powierzchni.\n- Deduplikuje stan i przypomina najwy\u017cej raz na 6 godzin; wysy\u0142a osobny komunikat recovery.\n- Nie pobiera payload\u00f3w fan\u00f3w ani sekret\u00f3w. Discord POST nie ma blind retry, wi\u0119c timeout po remote commit nie mo\u017ce sam z siebie wygenerowa\u0107 duplikatu alertu.\n"
+    },
+    "typeVersion": 1
+   },
+   {
+    "id": "0ee56a57-5208-4c9f-b79c-e2d795543138",
+    "name": "Virya \u2014 public surface",
+    "type": "n8n-nodes-base.httpRequest",
+    "maxTries": 2,
+    "position": [
+     528,
+     320
+    ],
+    "parameters": {
+     "url": "https://virya.music/pl/",
+     "options": {
+      "timeout": 6000,
+      "response": {
+       "response": {
+        "neverError": true,
+        "fullResponse": true,
+        "responseFormat": "text"
+       }
+      }
+     }
+    },
+    "retryOnFail": true,
+    "typeVersion": 4.4,
+    "waitBetweenTries": 1500
+   },
+   {
+    "id": "c4749ff7-fa02-4332-b33e-1991f0c4a38a",
+    "name": "Synesthesia \u2014 public surface",
+    "type": "n8n-nodes-base.httpRequest",
+    "maxTries": 2,
+    "position": [
+     784,
+     320
+    ],
+    "parameters": {
+     "url": "https://synesthesia.virya.music/",
+     "options": {
+      "timeout": 6000,
+      "response": {
+       "response": {
+        "neverError": true,
+        "fullResponse": true,
+        "responseFormat": "text"
+       }
+      }
+     }
+    },
+    "retryOnFail": true,
+    "typeVersion": 4.4,
+    "waitBetweenTries": 1500
+   }
+  ],
+  "connections": {
+   "Manual check": {
+    "main": [
+     [
+      {
+       "node": "Resolve CrowdRelay endpoints",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "Hourly \u2014 minute 47": {
+    "main": [
+     [
+      {
+       "node": "Resolve CrowdRelay endpoints",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "Resolve CrowdRelay endpoints": {
+    "main": [
+     [
+      {
+       "node": "CrowdRelay \u2014 readiness",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "CrowdRelay \u2014 readiness": {
+    "main": [
+     [
+      {
+       "node": "CrowdRelay \u2014 metrics",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "CrowdRelay \u2014 metrics": {
+    "main": [
+     [
+      {
+       "node": "Virya \u2014 public surface",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "Evaluate and deduplicate health": {
+    "main": [
+     [
+      {
+       "node": "Alert automation channel",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "Virya \u2014 public surface": {
+    "main": [
+     [
+      {
+       "node": "Synesthesia \u2014 public surface",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "Synesthesia \u2014 public surface": {
+    "main": [
+     [
+      {
+       "node": "Evaluate and deduplicate health",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   }
+  },
+  "nodeGroups": [],
+  "authors": "import",
+  "name": "Version 70cbdcce",
+  "description": "",
+  "autosaved": false,
+  "workflowPublishHistory": []
+ }
+}

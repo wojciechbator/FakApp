@@ -1,0 +1,2160 @@
+{
+ "updatedAt": "2026-08-15T20:54:11.142Z",
+ "createdAt": "2026-07-30T11:07:30.876Z",
+ "id": "mXcjqb3uODBK5wSu",
+ "name": "VIRYA 22 \u2014 AI Content Studio \u2014 Drive Fixed",
+ "description": null,
+ "active": true,
+ "isArchived": false,
+ "nodes": [
+  {
+   "id": "e5191700-41b7-4bb3-ad63-a1028fa45437",
+   "name": "README \u2014 AI Content Studio",
+   "type": "n8n-nodes-base.stickyNote",
+   "position": [
+    -1240,
+    -600
+   ],
+   "parameters": {
+    "width": 620,
+    "height": 420,
+    "content": "## VIRYA 22 \u2014 AI Content Studio\n\nPipeline:\n**Drive Inbox \u2192 selekcja \u2192 analiza Gemini \u2192 delikatna obr\u00f3bka obrazu \u2192 wpis do SOCIAL_QUEUE \u2192 alert Discord HTTP \u2192 r\u0119czne APPROVED / ARCHIVED**\n\nZasady:\n- nie publikuje bez akceptacji;\n- nie zmienia twarzy, tatua\u017cy, instrument\u00f3w ani logotyp\u00f3w;\n- nie tworzy fa\u0142szywych endorsement\u00f3w;\n- nie dokleja tekstu do obrazu;\n- zachowuje orygina\u0142;\n- Discord dzia\u0142a przez HTTP Bot API, bez direct Discord node;\n- akceptacj\u0119 wykonuje si\u0119 przez zmian\u0119 Status w SOCIAL_QUEUE;\n- istniej\u0105cy Publisher pobiera tylko wpisy ze statusem APPROVED."
+   },
+   "typeVersion": 1
+  },
+  {
+   "id": "e7bd325b-d03a-42d7-ba1a-d608532f6307",
+   "name": "Manual Test",
+   "type": "n8n-nodes-base.manualTrigger",
+   "position": [
+    -1060,
+    20
+   ],
+   "parameters": {},
+   "typeVersion": 1
+  },
+  {
+   "id": "72725fff-5b13-407f-960e-d87b411670b1",
+   "name": "Mon/Wed/Fri \u2014 content studio 13:30",
+   "type": "n8n-nodes-base.scheduleTrigger",
+   "notes": "Light runtime cadence: 0 30 13 * * 1,3,5 (Europe/Warsaw). Workflow logic and data mappings unchanged.",
+   "position": [
+    -1060,
+    180
+   ],
+   "parameters": {
+    "rule": {
+     "interval": [
+      {
+       "field": "cronExpression",
+       "expression": "0 30 13 * * 1,3,5"
+      }
+     ]
+    }
+   },
+   "notesInFlow": true,
+   "typeVersion": 1.2
+  },
+  {
+   "id": "9bf080c2-84be-43df-b550-262a5850baf2",
+   "name": "Config \u2014 Content Studio",
+   "type": "n8n-nodes-base.set",
+   "position": [
+    -820,
+    100
+   ],
+   "parameters": {
+    "options": {},
+    "assignments": {
+     "assignments": [
+      {
+       "id": "09eba42b-adab-463a-8df5-ffd5f9a6a02f",
+       "name": "spreadsheetId",
+       "type": "string",
+       "value": "1nav2ituUQ6MxY7NV6tds3AXTiPzqur1hS8Hg-wDjdl0"
+      },
+      {
+       "id": "050befca-5ccc-4c35-a23a-80b750bbe809",
+       "name": "queueSheet",
+       "type": "string",
+       "value": "QUEUE"
+      },
+      {
+       "id": "4f132d1b-2e77-4322-bd74-3e535aecc96e",
+       "name": "inboxFolderId",
+       "type": "string",
+       "value": "1R1TQ9u55K20PYoR05hogkUEYorgdJ3Tx"
+      },
+      {
+       "id": "357d9ae8-c157-4743-90ab-74982766a895",
+       "name": "processingFolderId",
+       "type": "string",
+       "value": "1wyUP1EByL8k858oQLAPaJKd_g-wivcLU"
+      },
+      {
+       "id": "4c1fb765-ddc2-40df-818c-6aa6df0384c9",
+       "name": "publishedFolderId",
+       "type": "string",
+       "value": "1bfFQE-e0Zz22HVEidkzy1c5AksH-JGiD"
+      },
+      {
+       "id": "8c042c70-a58c-425b-8c51-469f544afec9",
+       "name": "errorsFolderId",
+       "type": "string",
+       "value": "1x0DMgLPX1-n5CWuhLXdT2kWk9AgwzVV4"
+      },
+      {
+       "id": "e28a679c-586f-4341-8f44-8138280ef082",
+       "name": "analysisModel",
+       "type": "string",
+       "value": "gemini-3.1-flash-lite"
+      },
+      {
+       "id": "18ac7ac6-6e73-4705-9c47-0816c21c0c4b",
+       "name": "imageModel",
+       "type": "string",
+       "value": "gemini-3.1-flash-image"
+      },
+      {
+       "id": "970ebb90-7ba4-48b4-9035-6b804d6157c2",
+       "name": "timezone",
+       "type": "string",
+       "value": "Europe/Warsaw"
+      },
+      {
+       "id": "03afc366-e084-5e8c-a16f-b9adee7a34cf",
+       "name": "maxAssetBytes",
+       "type": "number",
+       "value": 8388608
+      },
+      {
+       "id": "a65a17af-b0d9-5256-93e7-593cd235616d",
+       "name": "maxGeneratedBytes",
+       "type": "number",
+       "value": 12582912
+      }
+     ]
+    }
+   },
+   "typeVersion": 3.4
+  },
+  {
+   "id": "574d0df0-e114-4f6f-8336-ac97dd4aaa53",
+   "name": "List Inbox Assets",
+   "type": "n8n-nodes-base.googleDrive",
+   "maxTries": 3,
+   "position": [
+    -580,
+    20
+   ],
+   "parameters": {
+    "filter": {
+     "driveId": {
+      "__rl": true,
+      "mode": "list",
+      "value": "My Drive",
+      "cachedResultName": "My Drive"
+     },
+     "folderId": {
+      "__rl": true,
+      "mode": "id",
+      "value": "={{ $('Config \u2014 Content Studio').first().json.inboxFolderId }}"
+     },
+     "whatToSearch": "files",
+     "includeTrashed": false
+    },
+    "options": {},
+    "resource": "fileFolder",
+    "returnAll": true,
+    "queryString": "trashed = false"
+   },
+   "credentials": {
+    "googleDriveOAuth2Api": {
+     "id": "cacSOsrP0NNmk6nu",
+     "name": "Google Drive account"
+    }
+   },
+   "retryOnFail": true,
+   "typeVersion": 3,
+   "alwaysOutputData": true,
+   "waitBetweenTries": 2000
+  },
+  {
+   "id": "2c40ec25-b367-4c37-ad9d-671515912f70",
+   "name": "Read Existing Queue",
+   "type": "n8n-nodes-base.googleSheets",
+   "position": [
+    -580,
+    200
+   ],
+   "parameters": {
+    "options": {},
+    "operation": "read",
+    "sheetName": {
+     "__rl": true,
+     "mode": "name",
+     "value": "QUEUE"
+    },
+    "documentId": {
+     "__rl": true,
+     "mode": "id",
+     "value": "1nav2ituUQ6MxY7NV6tds3AXTiPzqur1hS8Hg-wDjdl0"
+    }
+   },
+   "credentials": {
+    "googleSheetsOAuth2Api": {
+     "id": "bc2Y1XmIdyu5ySTa",
+     "name": "Google Sheets account"
+    }
+   },
+   "typeVersion": 4.7
+  },
+  {
+   "id": "31994fe4-be98-4e01-bfea-2c6dbf553018",
+   "name": "Wait for both reads",
+   "type": "n8n-nodes-base.merge",
+   "position": [
+    -340,
+    100
+   ],
+   "parameters": {
+    "mode": "append"
+   },
+   "typeVersion": 3
+  },
+  {
+   "id": "8e868901-b06f-4234-b7df-4aee9e7b78b2",
+   "name": "Select One New Image",
+   "type": "n8n-nodes-base.code",
+   "position": [
+    -100,
+    100
+   ],
+   "parameters": {
+    "jsCode": "const files = $items('List Inbox Assets')\n  .map(i => i.json || {})\n  .filter(f => f.id && f.name);\nconst queue = $items('Read Existing Queue').map(i => i.json || {});\nconst cfg = $('Config \u2014 Content Studio').first().json || {};\nconst maxAssetBytes = Number(cfg.maxAssetBytes || 8388608);\nconst used = new Set();\nconst driveIdPattern = /drive\\.google\\.com\\/file\\/d\\/([a-zA-Z0-9_-]{10,})/g;\nfor (const row of queue) {\n  for (const field of ['originalAssetId','Original_Asset_ID']) {\n    if (row[field]) used.add(String(row[field]));\n  }\n  for (const field of ['Source_URLs','Approval_Note','Notes']) {\n    const text = String(row[field] || '');\n    for (const match of text.matchAll(driveIdPattern)) used.add(match[1]);\n  }\n}\nconst supported = new Set(['image/jpeg','image/png','image/webp']);\nconst candidates = files\n  .filter(f => supported.has(String(f.mimeType || '').toLowerCase()))\n  .filter(f => !used.has(String(f.id)))\n  .sort((a,b)=>new Date(a.modifiedTime||0).getTime()-new Date(b.modifiedTime||0).getTime());\nif (!candidates.length) {\n  return [{json:{skip:true,reason:'Brak nowych JPG/PNG/WebP w folderze 01_INBOX \u2014 BRIEFY I ASSETY.'}}];\n}\nconst f = candidates[0];\nconst bytes = Number(f.size || 0);\nconst assetValid = !Number.isFinite(bytes) || bytes <= 0 || bytes <= maxAssetBytes;\nconst reason = assetValid ? '' : `Plik ${f.name} ma ${bytes} B i przekracza limit ${maxAssetBytes} B. Przeniesiono go do Errors.`;\nreturn [{json:{\n  skip:false,assetValid,invalidReason:reason,assetId:f.id,assetName:f.name,\n  mimeType:String(f.mimeType||'').toLowerCase(),\n  originalUrl:f.webViewLink||`https://drive.google.com/file/d/${f.id}/view`,\n  modifiedTime:f.modifiedTime||'',size:f.size||'',maxAssetBytes\n}}];"
+   },
+   "typeVersion": 2
+  },
+  {
+   "id": "afbe6d30-b236-4185-9258-36aea4c14d3f",
+   "name": "Image found?",
+   "type": "n8n-nodes-base.if",
+   "position": [
+    140,
+    100
+   ],
+   "parameters": {
+    "options": {},
+    "conditions": {
+     "options": {
+      "version": 2,
+      "leftValue": "",
+      "caseSensitive": true,
+      "typeValidation": "strict"
+     },
+     "combinator": "and",
+     "conditions": [
+      {
+       "id": "b2cebfbd-b5c6-471f-9282-10d19c650ab3",
+       "operator": {
+        "type": "boolean",
+        "operation": "false",
+        "singleValue": true
+       },
+       "leftValue": "={{ $json.skip }}",
+       "rightValue": false
+      }
+     ]
+    }
+   },
+   "typeVersion": 2.2
+  },
+  {
+   "id": "023c2fbe-37ba-4810-8a92-568e6d2f1455",
+   "name": "Discord \u2014 No New Asset",
+   "type": "n8n-nodes-base.httpRequest",
+   "maxTries": 5,
+   "position": [
+    380,
+    260
+   ],
+   "parameters": {
+    "url": "https://discord.com/api/v10/channels/1529482376458276964/messages",
+    "method": "POST",
+    "options": {
+     "timeout": 30000
+    },
+    "jsonBody": "={{ ({ content: String(('AI Content Studio: ' + ($json.reason || 'brak nowego materia\u0142u')) ?? '').slice(0, 2000), allowed_mentions: ($json.allowed_mentions && typeof $json.allowed_mentions === 'object') ? $json.allowed_mentions : { parse: [] } }) }}",
+    "sendBody": true,
+    "sendHeaders": true,
+    "specifyBody": "json",
+    "authentication": "genericCredentialType",
+    "genericAuthType": "httpHeaderAuth",
+    "headerParameters": {
+     "parameters": [
+      {
+       "name": "User-Agent",
+       "value": "Virya-n8n/1.0 (https://virya.music)"
+      }
+     ]
+    }
+   },
+   "credentials": {
+    "httpHeaderAuth": {
+     "id": "FB7ONYMUsZFfObWB",
+     "name": "Discord Bot HTTP"
+    }
+   },
+   "retryOnFail": true,
+   "typeVersion": 4.4,
+   "waitBetweenTries": 5000
+  },
+  {
+   "id": "0b15b255-00b6-4ed5-b64b-b471c4d67407",
+   "name": "Move Original to Processing",
+   "type": "n8n-nodes-base.googleDrive",
+   "maxTries": 3,
+   "position": [
+    3260,
+    -80
+   ],
+   "parameters": {
+    "fileId": {
+     "__rl": true,
+     "mode": "id",
+     "value": "={{ $('Select One New Image').first().json.assetId }}"
+    },
+    "driveId": {
+     "__rl": true,
+     "mode": "list",
+     "value": "My Drive",
+     "cachedResultName": "My Drive"
+    },
+    "folderId": {
+     "__rl": true,
+     "mode": "id",
+     "value": "={{ $('Config \u2014 Content Studio').first().json.processingFolderId }}"
+    },
+    "resource": "file",
+    "operation": "move"
+   },
+   "credentials": {
+    "googleDriveOAuth2Api": {
+     "id": "cacSOsrP0NNmk6nu",
+     "name": "Google Drive account"
+    }
+   },
+   "retryOnFail": true,
+   "typeVersion": 3,
+   "waitBetweenTries": 2000
+  },
+  {
+   "id": "e7997d26-db78-4b9b-a3d0-c2845f3fcbba",
+   "name": "Download Original",
+   "type": "n8n-nodes-base.googleDrive",
+   "maxTries": 3,
+   "position": [
+    620,
+    -80
+   ],
+   "parameters": {
+    "fileId": {
+     "__rl": true,
+     "mode": "id",
+     "value": "={{ $('Select One New Image').first().json.assetId }}"
+    },
+    "options": {
+     "binaryPropertyName": "data"
+    },
+    "operation": "download"
+   },
+   "credentials": {
+    "googleDriveOAuth2Api": {
+     "id": "cacSOsrP0NNmk6nu",
+     "name": "Google Drive account"
+    }
+   },
+   "retryOnFail": true,
+   "typeVersion": 3,
+   "waitBetweenTries": 2000
+  },
+  {
+   "id": "c24b8523-2e35-491b-87f1-f0678c32f833",
+   "name": "Binary \u2192 Base64",
+   "type": "n8n-nodes-base.code",
+   "onError": "continueErrorOutput",
+   "position": [
+    860,
+    -80
+   ],
+   "parameters": {
+    "jsCode": "const asset = $('Select One New Image').first().json || {};\nconst cfg = $('Config \u2014 Content Studio').first().json || {};\nconst maxAssetBytes = Number(cfg.maxAssetBytes || 8388608);\nconst buf = await this.helpers.getBinaryDataBuffer(0, 'data');\nif (!buf?.length) throw new Error('Downloaded image is empty.');\nif (buf.length > maxAssetBytes) {\n  throw new Error(`Downloaded image has ${buf.length} B and exceeds ${maxAssetBytes} B.`);\n}\nreturn [{json:{\n  ...asset,base64:buf.toString('base64'),sourceBytes:buf.length,\n  originalFileName:$binary.data.fileName||asset.assetName,\n  mimeType:String($binary.data.mimeType||asset.mimeType||'').toLowerCase()\n}}];"
+   },
+   "typeVersion": 2
+  },
+  {
+   "id": "99a7dcf6-9910-40c5-8f03-5098dd8f6bdf",
+   "name": "Build Gemini Analysis Request",
+   "type": "n8n-nodes-base.code",
+   "position": [
+    1100,
+    -80
+   ],
+   "parameters": {
+    "jsCode": "const a = $json;\nconst analysisPrompt = `You are the senior social creative director for VIRYA, a Polish modern/alternative metal band.\nAnalyze this ORIGINAL image and prepare one publishable social concept.\nReturn ONLY strict JSON with exactly these fields:\n{\"asset_summary\":\"...\",\"quality_score\":0,\"content_type\":\"POST\",\"topic\":\"...\",\"hook\":\"...\",\"on_screen_text\":\"\",\"caption_pl\":\"...\",\"cta\":\"...\",\"hashtags\":\"#...\",\"channels\":\"INSTAGRAM+FACEBOOK\",\"suggested_publish_at\":\"YYYY-MM-DD HH:mm\",\"alt_text\":\"...\",\"edit_prompt\":\"...\"}\nConstraints:\n- caption in natural Polish, max 900 characters;\n- no invented achievements, dates, releases, people or endorsements;\n- on_screen_text must remain empty;\n- edit_prompt may request only conservative photographic processing;\n- preserve every face, body, tattoo, instrument, product, logo, clothing detail and background identity;\n- never add people, objects, text, logos, flames, smoke, blood or fake stage elements;\n- output crop: Instagram portrait 4:5;\n- suggested_publish_at: next 14 days in Europe/Warsaw, 18:00-21:00 weekdays or 11:00-20:00 weekends.\nFilename: ${a.assetName}`;\nreturn [{json:{...a,analysisPrompt}}];"
+   },
+   "typeVersion": 2
+  },
+  {
+   "id": "f8c23373-c050-4f45-a5f4-e05eee3c15b3",
+   "name": "Gemini \u2014 Analyze Asset",
+   "type": "n8n-nodes-base.httpRequest",
+   "maxTries": 3,
+   "position": [
+    1340,
+    -80
+   ],
+   "parameters": {
+    "url": "={{ 'https://generativelanguage.googleapis.com/v1beta/models/' + $('Config \u2014 Content Studio').first().json.analysisModel + ':generateContent' }}",
+    "method": "POST",
+    "options": {
+     "response": {
+      "response": {
+       "responseFormat": "json"
+      }
+     }
+    },
+    "jsonBody": "={{ JSON.stringify({ contents: [{ role: 'user', parts: [{ text: $json.analysisPrompt }, { inlineData: { mimeType: $json.mimeType, data: $json.base64 } }] }], generationConfig: { temperature: 0.35, responseMimeType: 'application/json' } }) }}",
+    "sendBody": true,
+    "specifyBody": "json",
+    "authentication": "genericCredentialType",
+    "genericAuthType": "httpHeaderAuth"
+   },
+   "credentials": {
+    "httpHeaderAuth": {
+     "id": "8LSEwbWubxhnFYYB",
+     "name": "Header Auth account"
+    }
+   },
+   "retryOnFail": true,
+   "typeVersion": 4.2,
+   "waitBetweenTries": 10000
+  },
+  {
+   "id": "4a3451c9-5617-4e9a-8790-7d0d4b534039",
+   "name": "Parse + Validate Plan",
+   "type": "n8n-nodes-base.code",
+   "position": [
+    1580,
+    -80
+   ],
+   "parameters": {
+    "jsCode": "const src = $('Build Gemini Analysis Request').first().json;\nconst resp = items[0]?.json || {};\nconst text = resp.candidates?.[0]?.content?.parts?.map(p=>p.text||'').join('') || '{}';\nlet plan;\ntry {\n  plan = JSON.parse(text.replace(/^```json\\s*/i,'').replace(/```$/,'').trim());\n} catch (e) {\n  throw new Error(`Gemini analysis JSON invalid: ${text.slice(0,600)}`);\n}\nconst required = ['topic','hook','caption_pl','cta','hashtags','channels','suggested_publish_at','alt_text','edit_prompt'];\nfor (const k of required) if (typeof plan[k] !== 'string') throw new Error(`Missing analysis field: ${k}`);\nreturn [{json:{...src, plan}}];"
+   },
+   "typeVersion": 2
+  },
+  {
+   "id": "c04a65eb-e574-40b0-9db3-9ead15653cc5",
+   "name": "Build Conservative Image Edit",
+   "type": "n8n-nodes-base.code",
+   "position": [
+    1820,
+    -80
+   ],
+   "parameters": {
+    "jsCode": "const p = $json.plan;\nconst immutable = `IMPORTANT IMMUTABILITY RULES:\nPreserve exact identities and anatomy of all people.\nPreserve exact tattoos, facial features, hands, fingers, instruments, cables, clothes, brand marks and existing logos.\nDo not add, remove or replace any person, object, text, logo, symbol, endorsement or scenery.\nDo not create new typography.\nMake only photographic finishing changes.`;\nconst imagePrompt = `${immutable}\\n\\nRequested edit:\\n${p.edit_prompt}\\n\\nOutput:\\n- 4:5 portrait composition\\n- 1K PNG\\n- realistic professional music photography\\n- no text overlays`;\nreturn [{json:{...$json,imagePrompt}}];"
+   },
+   "typeVersion": 2
+  },
+  {
+   "id": "ea4b347c-2d78-4f5b-a7ed-b1982eb8867a",
+   "name": "Gemini \u2014 Process Image",
+   "type": "n8n-nodes-base.httpRequest",
+   "maxTries": 3,
+   "position": [
+    2060,
+    -80
+   ],
+   "parameters": {
+    "url": "={{ 'https://generativelanguage.googleapis.com/v1beta/models/' + $('Config \u2014 Content Studio').first().json.imageModel + ':generateContent' }}",
+    "method": "POST",
+    "options": {
+     "response": {
+      "response": {
+       "responseFormat": "json"
+      }
+     }
+    },
+    "jsonBody": "={{ JSON.stringify({ contents: [{ role: 'user', parts: [{ text: $json.imagePrompt }, { inlineData: { mimeType: $json.mimeType, data: $json.base64 } }] }], generationConfig: { responseModalities: ['TEXT','IMAGE'], imageConfig: { aspectRatio: '4:5', imageSize: '1K' } } }) }}",
+    "sendBody": true,
+    "specifyBody": "json",
+    "authentication": "genericCredentialType",
+    "genericAuthType": "httpHeaderAuth"
+   },
+   "credentials": {
+    "httpHeaderAuth": {
+     "id": "8LSEwbWubxhnFYYB",
+     "name": "Header Auth account"
+    }
+   },
+   "retryOnFail": true,
+   "typeVersion": 4.2,
+   "waitBetweenTries": 10000
+  },
+  {
+   "id": "9cf5b52e-a3d5-4d8a-90d9-f12cd548c2e9",
+   "name": "Extract Processed Image",
+   "type": "n8n-nodes-base.code",
+   "position": [
+    2300,
+    -80
+   ],
+   "parameters": {
+    "jsCode": "const src = $('Build Conservative Image Edit').first().json;\nconst cfg = $('Config \u2014 Content Studio').first().json || {};\nconst maxGeneratedBytes = Number(cfg.maxGeneratedBytes || 12582912);\nconst resp = items[0]?.json || {};\nconst parts = resp.candidates?.[0]?.content?.parts || [];\nconst img = parts.find(p => p.inlineData?.data || p.inline_data?.data);\nconst data = img?.inlineData?.data || img?.inline_data?.data;\nconst mimeType = img?.inlineData?.mimeType || img?.inline_data?.mime_type || 'image/png';\nif (!data) throw new Error(`Gemini returned no image. Parts: ${JSON.stringify(parts).slice(0,700)}`);\nconst generatedBytes = Buffer.from(data, 'base64').length;\nif (!generatedBytes || generatedBytes > maxGeneratedBytes) {\n  throw new Error(`Generated image has ${generatedBytes} B; allowed maximum is ${maxGeneratedBytes} B.`);\n}\nconst stem = String(src.assetName || 'virya_asset').replace(/\\.[^.]+$/,'').replace(/[^a-zA-Z0-9_-]+/g,'_');\nconst fileName = `${stem}_AI_4x5.png`;\nconst {base64,analysisPrompt,imagePrompt,...safeSrc}=src;\nreturn [{json:{...safeSrc,derivativeFileName:fileName,generatedBytes},binary:{data:{data,mimeType,fileName,fileExtension:'png'}}}];"
+   },
+   "typeVersion": 2
+  },
+  {
+   "id": "21f03603-a0f8-480d-921e-2a6713986778",
+   "name": "Upload Derivative to Processing",
+   "type": "n8n-nodes-base.googleDrive",
+   "maxTries": 3,
+   "position": [
+    2540,
+    -80
+   ],
+   "parameters": {
+    "name": "={{ $json.derivativeFileName }}",
+    "driveId": {
+     "__rl": true,
+     "mode": "list",
+     "value": "My Drive",
+     "cachedResultName": "My Drive"
+    },
+    "options": {
+     "simplifyOutput": true
+    },
+    "folderId": {
+     "__rl": true,
+     "mode": "id",
+     "value": "={{ $('Config \u2014 Content Studio').first().json.processingFolderId }}"
+    },
+    "operation": "upload",
+    "binaryPropertyName": "data"
+   },
+   "credentials": {
+    "googleDriveOAuth2Api": {
+     "id": "cacSOsrP0NNmk6nu",
+     "name": "Google Drive account"
+    }
+   },
+   "retryOnFail": true,
+   "typeVersion": 3,
+   "waitBetweenTries": 2000
+  },
+  {
+   "id": "645f3766-f710-4eae-8219-885f861e9f56",
+   "name": "Build QUEUE Row",
+   "type": "n8n-nodes-base.code",
+   "position": [
+    2780,
+    -80
+   ],
+   "parameters": {
+    "jsCode": "const src = $('Extract Processed Image').first().json;\nconst uploaded = items[0]?.json || {};\nconst plan = src.plan;\nconst now = new Date();\nconst itemId = `SOC-${now.toISOString().replace(/[-:.TZ]/g,'').slice(0,14)}-${String(src.assetId).slice(-4)}`;\nconst derivativeId = uploaded.id || uploaded.fileId || uploaded.data?.id || '';\nconst derivativeUrl = uploaded.webViewLink || (derivativeId ? `https://drive.google.com/file/d/${derivativeId}/view` : '');\nreturn [{json:{\n  Item_ID:itemId,\n  Created_At:now.toISOString(),\n  Source:'AI_CONTENT_STUDIO',\n  Asset_Name:src.derivativeFileName,\n  Asset_URL:derivativeUrl,\n  Asset_Drive_ID:derivativeId,\n  Content_Type:plan.content_type || 'POST',\n  Topic:plan.topic,\n  Hook:plan.hook,\n  On_Screen_Text:'',\n  Caption_PL:plan.caption_pl,\n  CTA:plan.cta,\n  Hashtags:plan.hashtags,\n  Suggested_Publish_At:plan.suggested_publish_at,\n  Channels:plan.channels || 'INSTAGRAM+FACEBOOK',\n  Status:'READY_FOR_APPROVAL',\n  Approval_Note:`AI quality score: ${plan.quality_score ?? ''}. Original: ${src.originalUrl}`,\n  Published_At:'',\n  IG_Media_ID:'',\n  FB_Post_ID:'',\n  Error:'',\n  Source_URLs:src.originalUrl,\n  skipWrite:'FALSE',\n  altText:plan.alt_text,\n  originalAssetId:src.assetId,\n  derivativeId,\n  derivativeUrl\n}}];"
+   },
+   "typeVersion": 2
+  },
+  {
+   "id": "76aab08f-9b83-49e8-8b47-6e3ca9dd15d0",
+   "name": "Append to SOCIAL_QUEUE",
+   "type": "n8n-nodes-base.googleSheets",
+   "position": [
+    3020,
+    -80
+   ],
+   "parameters": {
+    "columns": {
+     "value": {
+      "CTA": "={{ $json.CTA }}",
+      "Hook": "={{ $json.Hook }}",
+      "Error": "",
+      "Topic": "={{ $json.Topic }}",
+      "Source": "={{ $json.Source }}",
+      "Status": "={{ $json.Status }}",
+      "Item_ID": "={{ $json.Item_ID }}",
+      "Channels": "={{ $json.Channels }}",
+      "Hashtags": "={{ $json.Hashtags }}",
+      "Asset_URL": "={{ $json.Asset_URL }}",
+      "skipWrite": "FALSE",
+      "Asset_Name": "={{ $json.Asset_Name }}",
+      "Caption_PL": "={{ $json.Caption_PL }}",
+      "Created_At": "={{ $json.Created_At }}",
+      "FB_Post_ID": "",
+      "IG_Media_ID": "",
+      "Source_URLs": "={{ $json.Source_URLs }}",
+      "Content_Type": "={{ $json.Content_Type }}",
+      "Published_At": "",
+      "Approval_Note": "={{ $json.Approval_Note }}",
+      "Asset_Drive_ID": "={{ $json.Asset_Drive_ID }}",
+      "On_Screen_Text": "={{ $json.On_Screen_Text }}",
+      "Suggested_Publish_At": "={{ $json.Suggested_Publish_At }}"
+     },
+     "schema": [],
+     "mappingMode": "defineBelow",
+     "matchingColumns": []
+    },
+    "options": {},
+    "operation": "append",
+    "sheetName": {
+     "__rl": true,
+     "mode": "name",
+     "value": "QUEUE"
+    },
+    "documentId": {
+     "__rl": true,
+     "mode": "id",
+     "value": "1nav2ituUQ6MxY7NV6tds3AXTiPzqur1hS8Hg-wDjdl0"
+    }
+   },
+   "credentials": {
+    "googleSheetsOAuth2Api": {
+     "id": "bc2Y1XmIdyu5ySTa",
+     "name": "Google Sheets account"
+    }
+   },
+   "typeVersion": 4.7
+  },
+  {
+   "id": "35820857-005c-4e60-b77d-069c383c732c",
+   "name": "Discord \u2014 Approval Required",
+   "type": "n8n-nodes-base.httpRequest",
+   "maxTries": 5,
+   "position": [
+    3500,
+    -80
+   ],
+   "parameters": {
+    "url": "https://discord.com/api/v10/channels/1529482376458276964/messages",
+    "method": "POST",
+    "options": {
+     "timeout": 30000
+    },
+    "jsonBody": "={{ ({ content: String((`## AI Content Studio \u2014 materia\u0142 do akceptacji\\n**${$('Build QUEUE Row').first().json.Topic}**\\n\\n${$('Build QUEUE Row').first().json.Hook}\\n\\n${$('Build QUEUE Row').first().json.Caption_PL}\\n\\n${$('Build QUEUE Row').first().json.CTA}\\n${$('Build QUEUE Row').first().json.Hashtags}\\n\\n\ud83d\udcc5 ${$('Build QUEUE Row').first().json.Suggested_Publish_At}\\n\ud83d\uddbc\ufe0f ${$('Build QUEUE Row').first().json.derivativeUrl}\\n\ud83c\udd94 ${$('Build QUEUE Row').first().json.Item_ID}\\n\\nUstaw w SOCIAL_QUEUE status APPROVED, aby Publisher opublikowa\u0142 materia\u0142, albo ARCHIVED, aby go odrzuci\u0107.\\nhttps://docs.google.com/spreadsheets/d/1nav2ituUQ6MxY7NV6tds3AXTiPzqur1hS8Hg-wDjdl0/edit`) ?? '').slice(0, 2000), allowed_mentions: ($json.allowed_mentions && typeof $json.allowed_mentions === 'object') ? $json.allowed_mentions : { parse: [] } }) }}",
+    "sendBody": true,
+    "sendHeaders": true,
+    "specifyBody": "json",
+    "authentication": "genericCredentialType",
+    "genericAuthType": "httpHeaderAuth",
+    "headerParameters": {
+     "parameters": [
+      {
+       "name": "User-Agent",
+       "value": "Virya-n8n/1.0 (https://virya.music)"
+      }
+     ]
+    }
+   },
+   "credentials": {
+    "httpHeaderAuth": {
+     "id": "FB7ONYMUsZFfObWB",
+     "name": "Discord Bot HTTP"
+    }
+   },
+   "retryOnFail": true,
+   "typeVersion": 4.4,
+   "waitBetweenTries": 5000
+  },
+  {
+   "id": "cebf14dd-e300-5139-ad15-5cce7ef0dc34",
+   "name": "Asset within limits?",
+   "type": "n8n-nodes-base.if",
+   "position": [
+    380,
+    -80
+   ],
+   "parameters": {
+    "options": {},
+    "conditions": {
+     "options": {
+      "version": 2,
+      "leftValue": "",
+      "caseSensitive": true,
+      "typeValidation": "strict"
+     },
+     "combinator": "and",
+     "conditions": [
+      {
+       "id": "451d7a95-82dc-5f80-9e0e-02e2b9014f5a",
+       "operator": {
+        "type": "boolean",
+        "operation": "true",
+        "singleValue": true
+       },
+       "leftValue": "={{ $json.assetValid }}",
+       "rightValue": true
+      }
+     ]
+    }
+   },
+   "typeVersion": 2.2
+  },
+  {
+   "id": "b3cc4714-6706-5ea7-a8be-f5c6020425af",
+   "name": "Move Invalid Asset to Errors",
+   "type": "n8n-nodes-base.googleDrive",
+   "maxTries": 3,
+   "position": [
+    620,
+    220
+   ],
+   "parameters": {
+    "fileId": {
+     "__rl": true,
+     "mode": "id",
+     "value": "={{ $('Select One New Image').first().json.assetId }}"
+    },
+    "driveId": {
+     "__rl": true,
+     "mode": "list",
+     "value": "My Drive",
+     "cachedResultName": "My Drive"
+    },
+    "folderId": {
+     "__rl": true,
+     "mode": "id",
+     "value": "={{ $('Config \u2014 Content Studio').first().json.errorsFolderId }}"
+    },
+    "resource": "file",
+    "operation": "move"
+   },
+   "credentials": {
+    "googleDriveOAuth2Api": {
+     "id": "cacSOsrP0NNmk6nu",
+     "name": "Google Drive account"
+    }
+   },
+   "retryOnFail": true,
+   "typeVersion": 3,
+   "waitBetweenTries": 2000
+  },
+  {
+   "id": "5a05bf3a-62ff-597f-894e-ace1b566a845",
+   "name": "Code \u2014 Rejected Asset Alert",
+   "type": "n8n-nodes-base.code",
+   "position": [
+    860,
+    220
+   ],
+   "parameters": {
+    "jsCode": "const selected = $('Select One New Image').first().json || {};\nconst incoming = $input.first()?.json || {};\nconst nodeError = incoming.error?.message || incoming.error || incoming.message || '';\nconst reason = selected.invalidReason || String(nodeError || 'Asset failed validation or binary size check.');\nreturn [{json:{reason:`Odrzucony asset ${selected.assetName || selected.assetId}: ${reason}`}}];"
+   },
+   "typeVersion": 2
+  }
+ ],
+ "connections": {
+  "Manual Test": {
+   "main": [
+    [
+     {
+      "node": "Config \u2014 Content Studio",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Mon/Wed/Fri \u2014 content studio 13:30": {
+   "main": [
+    [
+     {
+      "node": "Config \u2014 Content Studio",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Config \u2014 Content Studio": {
+   "main": [
+    [
+     {
+      "node": "List Inbox Assets",
+      "type": "main",
+      "index": 0
+     },
+     {
+      "node": "Read Existing Queue",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "List Inbox Assets": {
+   "main": [
+    [
+     {
+      "node": "Wait for both reads",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Read Existing Queue": {
+   "main": [
+    [
+     {
+      "node": "Wait for both reads",
+      "type": "main",
+      "index": 1
+     }
+    ]
+   ]
+  },
+  "Wait for both reads": {
+   "main": [
+    [
+     {
+      "node": "Select One New Image",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Select One New Image": {
+   "main": [
+    [
+     {
+      "node": "Image found?",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Image found?": {
+   "main": [
+    [
+     {
+      "node": "Asset within limits?",
+      "type": "main",
+      "index": 0
+     }
+    ],
+    [
+     {
+      "node": "Discord \u2014 No New Asset",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Download Original": {
+   "main": [
+    [
+     {
+      "node": "Binary \u2192 Base64",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Binary \u2192 Base64": {
+   "main": [
+    [
+     {
+      "node": "Build Gemini Analysis Request",
+      "type": "main",
+      "index": 0
+     }
+    ],
+    [
+     {
+      "node": "Move Invalid Asset to Errors",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Build Gemini Analysis Request": {
+   "main": [
+    [
+     {
+      "node": "Gemini \u2014 Analyze Asset",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Gemini \u2014 Analyze Asset": {
+   "main": [
+    [
+     {
+      "node": "Parse + Validate Plan",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Parse + Validate Plan": {
+   "main": [
+    [
+     {
+      "node": "Build Conservative Image Edit",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Build Conservative Image Edit": {
+   "main": [
+    [
+     {
+      "node": "Gemini \u2014 Process Image",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Gemini \u2014 Process Image": {
+   "main": [
+    [
+     {
+      "node": "Extract Processed Image",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Extract Processed Image": {
+   "main": [
+    [
+     {
+      "node": "Upload Derivative to Processing",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Upload Derivative to Processing": {
+   "main": [
+    [
+     {
+      "node": "Build QUEUE Row",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Build QUEUE Row": {
+   "main": [
+    [
+     {
+      "node": "Append to SOCIAL_QUEUE",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Append to SOCIAL_QUEUE": {
+   "main": [
+    [
+     {
+      "node": "Move Original to Processing",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Asset within limits?": {
+   "main": [
+    [
+     {
+      "node": "Download Original",
+      "type": "main",
+      "index": 0
+     }
+    ],
+    [
+     {
+      "node": "Move Invalid Asset to Errors",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Move Invalid Asset to Errors": {
+   "main": [
+    [
+     {
+      "node": "Code \u2014 Rejected Asset Alert",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Code \u2014 Rejected Asset Alert": {
+   "main": [
+    [
+     {
+      "node": "Discord \u2014 No New Asset",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Move Original to Processing": {
+   "main": [
+    [
+     {
+      "node": "Discord \u2014 Approval Required",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  }
+ },
+ "settings": {
+  "executionOrder": "v1",
+  "timezone": "Europe/Warsaw",
+  "saveManualExecutions": false,
+  "callerPolicy": "workflowsFromSameOwner",
+  "errorWorkflow": "98d5e1a4-2dba-5e5a-9be1-2e5d9220859d",
+  "binaryMode": "separate",
+  "saveDataSuccessExecution": "none",
+  "saveDataErrorExecution": "none",
+  "saveExecutionProgress": false,
+  "executionTimeout": 900
+ },
+ "staticData": {
+  "node:Pon / \u015ar / Pt 09:15": {
+   "recurrenceRules": [
+    null
+   ],
+   "recurrenceRuleSignatures": [
+    null
+   ]
+  },
+  "node:Mon/Wed/Fri \u2014 content studio 13:30": {
+   "recurrenceRules": [
+    null
+   ],
+   "recurrenceRuleSignatures": [
+    null
+   ]
+  }
+ },
+ "meta": {
+  "templateCredsSetupCompleted": false,
+  "viryaDiscordTransport": "HTTP Bot API",
+  "viryaDiscordChannelId": "1529482376458276964",
+  "approvalMode": "SOCIAL_QUEUE status",
+  "listInboxAssetsFix": "Google Drive v3 folder filter",
+  "inboxFolderId": "1R1TQ9u55K20PYoR05hogkUEYorgdJ3Tx"
+ },
+ "nodeGroups": [],
+ "pinData": {},
+ "versionId": "d0c5eaa2-29d3-42a2-bb97-80eec783e82b",
+ "activeVersionId": "d0c5eaa2-29d3-42a2-bb97-80eec783e82b",
+ "versionCounter": 17,
+ "triggerCount": 1,
+ "sourceWorkflowId": null,
+ "shared": [
+  {
+   "updatedAt": "2026-07-30T11:07:30.876Z",
+   "createdAt": "2026-07-30T11:07:30.876Z",
+   "role": "workflow:owner",
+   "workflowId": "mXcjqb3uODBK5wSu",
+   "projectId": "e2rPVcUBR4DTE3mO",
+   "project": {
+    "updatedAt": "2026-07-24T09:45:30.763Z",
+    "createdAt": "2026-07-24T09:45:07.113Z",
+    "id": "e2rPVcUBR4DTE3mO",
+    "name": "Virya Crew <virya.crew@gmail.com>",
+    "type": "personal",
+    "icon": null,
+    "description": null,
+    "customTelemetryTags": [],
+    "creatorId": "89259ec0-46eb-41d3-a04e-eb12f52f6342"
+   }
+  }
+ ],
+ "tags": [
+  {
+   "updatedAt": "2026-07-30T11:07:29.177Z",
+   "createdAt": "2026-07-30T11:07:29.177Z",
+   "id": "DENZJuvM48H8WaBk",
+   "name": "CONTENT"
+  },
+  {
+   "updatedAt": "2026-07-30T11:07:29.163Z",
+   "createdAt": "2026-07-30T11:07:29.163Z",
+   "id": "MjGYNuobINoJWHVP",
+   "name": "AI"
+  },
+  {
+   "updatedAt": "2026-07-30T10:19:47.858Z",
+   "createdAt": "2026-07-30T10:19:47.858Z",
+   "id": "lX80HWMKABY92lyx",
+   "name": "VIRYA"
+  }
+ ],
+ "activeVersion": {
+  "updatedAt": "2026-08-25T12:20:51.980Z",
+  "createdAt": "2026-08-12T17:01:41.269Z",
+  "versionId": "d0c5eaa2-29d3-42a2-bb97-80eec783e82b",
+  "workflowId": "mXcjqb3uODBK5wSu",
+  "nodes": [
+   {
+    "id": "e5191700-41b7-4bb3-ad63-a1028fa45437",
+    "name": "README \u2014 AI Content Studio",
+    "type": "n8n-nodes-base.stickyNote",
+    "position": [
+     -1240,
+     -600
+    ],
+    "parameters": {
+     "width": 620,
+     "height": 420,
+     "content": "## VIRYA 22 \u2014 AI Content Studio\n\nPipeline:\n**Drive Inbox \u2192 selekcja \u2192 analiza Gemini \u2192 delikatna obr\u00f3bka obrazu \u2192 wpis do SOCIAL_QUEUE \u2192 alert Discord HTTP \u2192 r\u0119czne APPROVED / ARCHIVED**\n\nZasady:\n- nie publikuje bez akceptacji;\n- nie zmienia twarzy, tatua\u017cy, instrument\u00f3w ani logotyp\u00f3w;\n- nie tworzy fa\u0142szywych endorsement\u00f3w;\n- nie dokleja tekstu do obrazu;\n- zachowuje orygina\u0142;\n- Discord dzia\u0142a przez HTTP Bot API, bez direct Discord node;\n- akceptacj\u0119 wykonuje si\u0119 przez zmian\u0119 Status w SOCIAL_QUEUE;\n- istniej\u0105cy Publisher pobiera tylko wpisy ze statusem APPROVED."
+    },
+    "typeVersion": 1
+   },
+   {
+    "id": "e7bd325b-d03a-42d7-ba1a-d608532f6307",
+    "name": "Manual Test",
+    "type": "n8n-nodes-base.manualTrigger",
+    "position": [
+     -1060,
+     20
+    ],
+    "parameters": {},
+    "typeVersion": 1
+   },
+   {
+    "id": "72725fff-5b13-407f-960e-d87b411670b1",
+    "name": "Mon/Wed/Fri \u2014 content studio 13:30",
+    "type": "n8n-nodes-base.scheduleTrigger",
+    "notes": "Light runtime cadence: 0 30 13 * * 1,3,5 (Europe/Warsaw). Workflow logic and data mappings unchanged.",
+    "position": [
+     -1060,
+     180
+    ],
+    "parameters": {
+     "rule": {
+      "interval": [
+       {
+        "field": "cronExpression",
+        "expression": "0 30 13 * * 1,3,5"
+       }
+      ]
+     }
+    },
+    "notesInFlow": true,
+    "typeVersion": 1.2
+   },
+   {
+    "id": "9bf080c2-84be-43df-b550-262a5850baf2",
+    "name": "Config \u2014 Content Studio",
+    "type": "n8n-nodes-base.set",
+    "position": [
+     -820,
+     100
+    ],
+    "parameters": {
+     "options": {},
+     "assignments": {
+      "assignments": [
+       {
+        "id": "09eba42b-adab-463a-8df5-ffd5f9a6a02f",
+        "name": "spreadsheetId",
+        "type": "string",
+        "value": "1nav2ituUQ6MxY7NV6tds3AXTiPzqur1hS8Hg-wDjdl0"
+       },
+       {
+        "id": "050befca-5ccc-4c35-a23a-80b750bbe809",
+        "name": "queueSheet",
+        "type": "string",
+        "value": "QUEUE"
+       },
+       {
+        "id": "4f132d1b-2e77-4322-bd74-3e535aecc96e",
+        "name": "inboxFolderId",
+        "type": "string",
+        "value": "1R1TQ9u55K20PYoR05hogkUEYorgdJ3Tx"
+       },
+       {
+        "id": "357d9ae8-c157-4743-90ab-74982766a895",
+        "name": "processingFolderId",
+        "type": "string",
+        "value": "1wyUP1EByL8k858oQLAPaJKd_g-wivcLU"
+       },
+       {
+        "id": "4c1fb765-ddc2-40df-818c-6aa6df0384c9",
+        "name": "publishedFolderId",
+        "type": "string",
+        "value": "1bfFQE-e0Zz22HVEidkzy1c5AksH-JGiD"
+       },
+       {
+        "id": "8c042c70-a58c-425b-8c51-469f544afec9",
+        "name": "errorsFolderId",
+        "type": "string",
+        "value": "1x0DMgLPX1-n5CWuhLXdT2kWk9AgwzVV4"
+       },
+       {
+        "id": "e28a679c-586f-4341-8f44-8138280ef082",
+        "name": "analysisModel",
+        "type": "string",
+        "value": "gemini-3.1-flash-lite"
+       },
+       {
+        "id": "18ac7ac6-6e73-4705-9c47-0816c21c0c4b",
+        "name": "imageModel",
+        "type": "string",
+        "value": "gemini-3.1-flash-image"
+       },
+       {
+        "id": "970ebb90-7ba4-48b4-9035-6b804d6157c2",
+        "name": "timezone",
+        "type": "string",
+        "value": "Europe/Warsaw"
+       },
+       {
+        "id": "03afc366-e084-5e8c-a16f-b9adee7a34cf",
+        "name": "maxAssetBytes",
+        "type": "number",
+        "value": 8388608
+       },
+       {
+        "id": "a65a17af-b0d9-5256-93e7-593cd235616d",
+        "name": "maxGeneratedBytes",
+        "type": "number",
+        "value": 12582912
+       }
+      ]
+     }
+    },
+    "typeVersion": 3.4
+   },
+   {
+    "id": "574d0df0-e114-4f6f-8336-ac97dd4aaa53",
+    "name": "List Inbox Assets",
+    "type": "n8n-nodes-base.googleDrive",
+    "maxTries": 3,
+    "position": [
+     -580,
+     20
+    ],
+    "parameters": {
+     "filter": {
+      "driveId": {
+       "__rl": true,
+       "mode": "list",
+       "value": "My Drive",
+       "cachedResultName": "My Drive"
+      },
+      "folderId": {
+       "__rl": true,
+       "mode": "id",
+       "value": "={{ $('Config \u2014 Content Studio').first().json.inboxFolderId }}"
+      },
+      "whatToSearch": "files",
+      "includeTrashed": false
+     },
+     "options": {},
+     "resource": "fileFolder",
+     "returnAll": true,
+     "queryString": "trashed = false"
+    },
+    "credentials": {
+     "googleDriveOAuth2Api": {
+      "id": "cacSOsrP0NNmk6nu",
+      "name": "Google Drive account"
+     }
+    },
+    "retryOnFail": true,
+    "typeVersion": 3,
+    "alwaysOutputData": true,
+    "waitBetweenTries": 2000
+   },
+   {
+    "id": "2c40ec25-b367-4c37-ad9d-671515912f70",
+    "name": "Read Existing Queue",
+    "type": "n8n-nodes-base.googleSheets",
+    "position": [
+     -580,
+     200
+    ],
+    "parameters": {
+     "options": {},
+     "operation": "read",
+     "sheetName": {
+      "__rl": true,
+      "mode": "name",
+      "value": "QUEUE"
+     },
+     "documentId": {
+      "__rl": true,
+      "mode": "id",
+      "value": "1nav2ituUQ6MxY7NV6tds3AXTiPzqur1hS8Hg-wDjdl0"
+     }
+    },
+    "credentials": {
+     "googleSheetsOAuth2Api": {
+      "id": "bc2Y1XmIdyu5ySTa",
+      "name": "Google Sheets account"
+     }
+    },
+    "typeVersion": 4.7
+   },
+   {
+    "id": "31994fe4-be98-4e01-bfea-2c6dbf553018",
+    "name": "Wait for both reads",
+    "type": "n8n-nodes-base.merge",
+    "position": [
+     -340,
+     100
+    ],
+    "parameters": {
+     "mode": "append"
+    },
+    "typeVersion": 3
+   },
+   {
+    "id": "8e868901-b06f-4234-b7df-4aee9e7b78b2",
+    "name": "Select One New Image",
+    "type": "n8n-nodes-base.code",
+    "position": [
+     -100,
+     100
+    ],
+    "parameters": {
+     "jsCode": "const files = $items('List Inbox Assets')\n  .map(i => i.json || {})\n  .filter(f => f.id && f.name);\nconst queue = $items('Read Existing Queue').map(i => i.json || {});\nconst cfg = $('Config \u2014 Content Studio').first().json || {};\nconst maxAssetBytes = Number(cfg.maxAssetBytes || 8388608);\nconst used = new Set();\nconst driveIdPattern = /drive\\.google\\.com\\/file\\/d\\/([a-zA-Z0-9_-]{10,})/g;\nfor (const row of queue) {\n  for (const field of ['originalAssetId','Original_Asset_ID']) {\n    if (row[field]) used.add(String(row[field]));\n  }\n  for (const field of ['Source_URLs','Approval_Note','Notes']) {\n    const text = String(row[field] || '');\n    for (const match of text.matchAll(driveIdPattern)) used.add(match[1]);\n  }\n}\nconst supported = new Set(['image/jpeg','image/png','image/webp']);\nconst candidates = files\n  .filter(f => supported.has(String(f.mimeType || '').toLowerCase()))\n  .filter(f => !used.has(String(f.id)))\n  .sort((a,b)=>new Date(a.modifiedTime||0).getTime()-new Date(b.modifiedTime||0).getTime());\nif (!candidates.length) {\n  return [{json:{skip:true,reason:'Brak nowych JPG/PNG/WebP w folderze 01_INBOX \u2014 BRIEFY I ASSETY.'}}];\n}\nconst f = candidates[0];\nconst bytes = Number(f.size || 0);\nconst assetValid = !Number.isFinite(bytes) || bytes <= 0 || bytes <= maxAssetBytes;\nconst reason = assetValid ? '' : `Plik ${f.name} ma ${bytes} B i przekracza limit ${maxAssetBytes} B. Przeniesiono go do Errors.`;\nreturn [{json:{\n  skip:false,assetValid,invalidReason:reason,assetId:f.id,assetName:f.name,\n  mimeType:String(f.mimeType||'').toLowerCase(),\n  originalUrl:f.webViewLink||`https://drive.google.com/file/d/${f.id}/view`,\n  modifiedTime:f.modifiedTime||'',size:f.size||'',maxAssetBytes\n}}];"
+    },
+    "typeVersion": 2
+   },
+   {
+    "id": "afbe6d30-b236-4185-9258-36aea4c14d3f",
+    "name": "Image found?",
+    "type": "n8n-nodes-base.if",
+    "position": [
+     140,
+     100
+    ],
+    "parameters": {
+     "options": {},
+     "conditions": {
+      "options": {
+       "version": 2,
+       "leftValue": "",
+       "caseSensitive": true,
+       "typeValidation": "strict"
+      },
+      "combinator": "and",
+      "conditions": [
+       {
+        "id": "b2cebfbd-b5c6-471f-9282-10d19c650ab3",
+        "operator": {
+         "type": "boolean",
+         "operation": "false",
+         "singleValue": true
+        },
+        "leftValue": "={{ $json.skip }}",
+        "rightValue": false
+       }
+      ]
+     }
+    },
+    "typeVersion": 2.2
+   },
+   {
+    "id": "023c2fbe-37ba-4810-8a92-568e6d2f1455",
+    "name": "Discord \u2014 No New Asset",
+    "type": "n8n-nodes-base.httpRequest",
+    "maxTries": 5,
+    "position": [
+     380,
+     260
+    ],
+    "parameters": {
+     "url": "https://discord.com/api/v10/channels/1529482376458276964/messages",
+     "method": "POST",
+     "options": {
+      "timeout": 30000
+     },
+     "jsonBody": "={{ ({ content: String(('AI Content Studio: ' + ($json.reason || 'brak nowego materia\u0142u')) ?? '').slice(0, 2000), allowed_mentions: ($json.allowed_mentions && typeof $json.allowed_mentions === 'object') ? $json.allowed_mentions : { parse: [] } }) }}",
+     "sendBody": true,
+     "sendHeaders": true,
+     "specifyBody": "json",
+     "authentication": "genericCredentialType",
+     "genericAuthType": "httpHeaderAuth",
+     "headerParameters": {
+      "parameters": [
+       {
+        "name": "User-Agent",
+        "value": "Virya-n8n/1.0 (https://virya.music)"
+       }
+      ]
+     }
+    },
+    "credentials": {
+     "httpHeaderAuth": {
+      "id": "FB7ONYMUsZFfObWB",
+      "name": "Discord Bot HTTP"
+     }
+    },
+    "retryOnFail": true,
+    "typeVersion": 4.4,
+    "waitBetweenTries": 5000
+   },
+   {
+    "id": "0b15b255-00b6-4ed5-b64b-b471c4d67407",
+    "name": "Move Original to Processing",
+    "type": "n8n-nodes-base.googleDrive",
+    "maxTries": 3,
+    "position": [
+     3260,
+     -80
+    ],
+    "parameters": {
+     "fileId": {
+      "__rl": true,
+      "mode": "id",
+      "value": "={{ $('Select One New Image').first().json.assetId }}"
+     },
+     "driveId": {
+      "__rl": true,
+      "mode": "list",
+      "value": "My Drive",
+      "cachedResultName": "My Drive"
+     },
+     "folderId": {
+      "__rl": true,
+      "mode": "id",
+      "value": "={{ $('Config \u2014 Content Studio').first().json.processingFolderId }}"
+     },
+     "resource": "file",
+     "operation": "move"
+    },
+    "credentials": {
+     "googleDriveOAuth2Api": {
+      "id": "cacSOsrP0NNmk6nu",
+      "name": "Google Drive account"
+     }
+    },
+    "retryOnFail": true,
+    "typeVersion": 3,
+    "waitBetweenTries": 2000
+   },
+   {
+    "id": "e7997d26-db78-4b9b-a3d0-c2845f3fcbba",
+    "name": "Download Original",
+    "type": "n8n-nodes-base.googleDrive",
+    "maxTries": 3,
+    "position": [
+     620,
+     -80
+    ],
+    "parameters": {
+     "fileId": {
+      "__rl": true,
+      "mode": "id",
+      "value": "={{ $('Select One New Image').first().json.assetId }}"
+     },
+     "options": {
+      "binaryPropertyName": "data"
+     },
+     "operation": "download"
+    },
+    "credentials": {
+     "googleDriveOAuth2Api": {
+      "id": "cacSOsrP0NNmk6nu",
+      "name": "Google Drive account"
+     }
+    },
+    "retryOnFail": true,
+    "typeVersion": 3,
+    "waitBetweenTries": 2000
+   },
+   {
+    "id": "c24b8523-2e35-491b-87f1-f0678c32f833",
+    "name": "Binary \u2192 Base64",
+    "type": "n8n-nodes-base.code",
+    "onError": "continueErrorOutput",
+    "position": [
+     860,
+     -80
+    ],
+    "parameters": {
+     "jsCode": "const asset = $('Select One New Image').first().json || {};\nconst cfg = $('Config \u2014 Content Studio').first().json || {};\nconst maxAssetBytes = Number(cfg.maxAssetBytes || 8388608);\nconst buf = await this.helpers.getBinaryDataBuffer(0, 'data');\nif (!buf?.length) throw new Error('Downloaded image is empty.');\nif (buf.length > maxAssetBytes) {\n  throw new Error(`Downloaded image has ${buf.length} B and exceeds ${maxAssetBytes} B.`);\n}\nreturn [{json:{\n  ...asset,base64:buf.toString('base64'),sourceBytes:buf.length,\n  originalFileName:$binary.data.fileName||asset.assetName,\n  mimeType:String($binary.data.mimeType||asset.mimeType||'').toLowerCase()\n}}];"
+    },
+    "typeVersion": 2
+   },
+   {
+    "id": "99a7dcf6-9910-40c5-8f03-5098dd8f6bdf",
+    "name": "Build Gemini Analysis Request",
+    "type": "n8n-nodes-base.code",
+    "position": [
+     1100,
+     -80
+    ],
+    "parameters": {
+     "jsCode": "const a = $json;\nconst analysisPrompt = `You are the senior social creative director for VIRYA, a Polish modern/alternative metal band.\nAnalyze this ORIGINAL image and prepare one publishable social concept.\nReturn ONLY strict JSON with exactly these fields:\n{\"asset_summary\":\"...\",\"quality_score\":0,\"content_type\":\"POST\",\"topic\":\"...\",\"hook\":\"...\",\"on_screen_text\":\"\",\"caption_pl\":\"...\",\"cta\":\"...\",\"hashtags\":\"#...\",\"channels\":\"INSTAGRAM+FACEBOOK\",\"suggested_publish_at\":\"YYYY-MM-DD HH:mm\",\"alt_text\":\"...\",\"edit_prompt\":\"...\"}\nConstraints:\n- caption in natural Polish, max 900 characters;\n- no invented achievements, dates, releases, people or endorsements;\n- on_screen_text must remain empty;\n- edit_prompt may request only conservative photographic processing;\n- preserve every face, body, tattoo, instrument, product, logo, clothing detail and background identity;\n- never add people, objects, text, logos, flames, smoke, blood or fake stage elements;\n- output crop: Instagram portrait 4:5;\n- suggested_publish_at: next 14 days in Europe/Warsaw, 18:00-21:00 weekdays or 11:00-20:00 weekends.\nFilename: ${a.assetName}`;\nreturn [{json:{...a,analysisPrompt}}];"
+    },
+    "typeVersion": 2
+   },
+   {
+    "id": "f8c23373-c050-4f45-a5f4-e05eee3c15b3",
+    "name": "Gemini \u2014 Analyze Asset",
+    "type": "n8n-nodes-base.httpRequest",
+    "maxTries": 3,
+    "position": [
+     1340,
+     -80
+    ],
+    "parameters": {
+     "url": "={{ 'https://generativelanguage.googleapis.com/v1beta/models/' + $('Config \u2014 Content Studio').first().json.analysisModel + ':generateContent' }}",
+     "method": "POST",
+     "options": {
+      "response": {
+       "response": {
+        "responseFormat": "json"
+       }
+      }
+     },
+     "jsonBody": "={{ JSON.stringify({ contents: [{ role: 'user', parts: [{ text: $json.analysisPrompt }, { inlineData: { mimeType: $json.mimeType, data: $json.base64 } }] }], generationConfig: { temperature: 0.35, responseMimeType: 'application/json' } }) }}",
+     "sendBody": true,
+     "specifyBody": "json",
+     "authentication": "genericCredentialType",
+     "genericAuthType": "httpHeaderAuth"
+    },
+    "credentials": {
+     "httpHeaderAuth": {
+      "id": "8LSEwbWubxhnFYYB",
+      "name": "Header Auth account"
+     }
+    },
+    "retryOnFail": true,
+    "typeVersion": 4.2,
+    "waitBetweenTries": 10000
+   },
+   {
+    "id": "4a3451c9-5617-4e9a-8790-7d0d4b534039",
+    "name": "Parse + Validate Plan",
+    "type": "n8n-nodes-base.code",
+    "position": [
+     1580,
+     -80
+    ],
+    "parameters": {
+     "jsCode": "const src = $('Build Gemini Analysis Request').first().json;\nconst resp = items[0]?.json || {};\nconst text = resp.candidates?.[0]?.content?.parts?.map(p=>p.text||'').join('') || '{}';\nlet plan;\ntry {\n  plan = JSON.parse(text.replace(/^```json\\s*/i,'').replace(/```$/,'').trim());\n} catch (e) {\n  throw new Error(`Gemini analysis JSON invalid: ${text.slice(0,600)}`);\n}\nconst required = ['topic','hook','caption_pl','cta','hashtags','channels','suggested_publish_at','alt_text','edit_prompt'];\nfor (const k of required) if (typeof plan[k] !== 'string') throw new Error(`Missing analysis field: ${k}`);\nreturn [{json:{...src, plan}}];"
+    },
+    "typeVersion": 2
+   },
+   {
+    "id": "c04a65eb-e574-40b0-9db3-9ead15653cc5",
+    "name": "Build Conservative Image Edit",
+    "type": "n8n-nodes-base.code",
+    "position": [
+     1820,
+     -80
+    ],
+    "parameters": {
+     "jsCode": "const p = $json.plan;\nconst immutable = `IMPORTANT IMMUTABILITY RULES:\nPreserve exact identities and anatomy of all people.\nPreserve exact tattoos, facial features, hands, fingers, instruments, cables, clothes, brand marks and existing logos.\nDo not add, remove or replace any person, object, text, logo, symbol, endorsement or scenery.\nDo not create new typography.\nMake only photographic finishing changes.`;\nconst imagePrompt = `${immutable}\\n\\nRequested edit:\\n${p.edit_prompt}\\n\\nOutput:\\n- 4:5 portrait composition\\n- 1K PNG\\n- realistic professional music photography\\n- no text overlays`;\nreturn [{json:{...$json,imagePrompt}}];"
+    },
+    "typeVersion": 2
+   },
+   {
+    "id": "ea4b347c-2d78-4f5b-a7ed-b1982eb8867a",
+    "name": "Gemini \u2014 Process Image",
+    "type": "n8n-nodes-base.httpRequest",
+    "maxTries": 3,
+    "position": [
+     2060,
+     -80
+    ],
+    "parameters": {
+     "url": "={{ 'https://generativelanguage.googleapis.com/v1beta/models/' + $('Config \u2014 Content Studio').first().json.imageModel + ':generateContent' }}",
+     "method": "POST",
+     "options": {
+      "response": {
+       "response": {
+        "responseFormat": "json"
+       }
+      }
+     },
+     "jsonBody": "={{ JSON.stringify({ contents: [{ role: 'user', parts: [{ text: $json.imagePrompt }, { inlineData: { mimeType: $json.mimeType, data: $json.base64 } }] }], generationConfig: { responseModalities: ['TEXT','IMAGE'], imageConfig: { aspectRatio: '4:5', imageSize: '1K' } } }) }}",
+     "sendBody": true,
+     "specifyBody": "json",
+     "authentication": "genericCredentialType",
+     "genericAuthType": "httpHeaderAuth"
+    },
+    "credentials": {
+     "httpHeaderAuth": {
+      "id": "8LSEwbWubxhnFYYB",
+      "name": "Header Auth account"
+     }
+    },
+    "retryOnFail": true,
+    "typeVersion": 4.2,
+    "waitBetweenTries": 10000
+   },
+   {
+    "id": "9cf5b52e-a3d5-4d8a-90d9-f12cd548c2e9",
+    "name": "Extract Processed Image",
+    "type": "n8n-nodes-base.code",
+    "position": [
+     2300,
+     -80
+    ],
+    "parameters": {
+     "jsCode": "const src = $('Build Conservative Image Edit').first().json;\nconst cfg = $('Config \u2014 Content Studio').first().json || {};\nconst maxGeneratedBytes = Number(cfg.maxGeneratedBytes || 12582912);\nconst resp = items[0]?.json || {};\nconst parts = resp.candidates?.[0]?.content?.parts || [];\nconst img = parts.find(p => p.inlineData?.data || p.inline_data?.data);\nconst data = img?.inlineData?.data || img?.inline_data?.data;\nconst mimeType = img?.inlineData?.mimeType || img?.inline_data?.mime_type || 'image/png';\nif (!data) throw new Error(`Gemini returned no image. Parts: ${JSON.stringify(parts).slice(0,700)}`);\nconst generatedBytes = Buffer.from(data, 'base64').length;\nif (!generatedBytes || generatedBytes > maxGeneratedBytes) {\n  throw new Error(`Generated image has ${generatedBytes} B; allowed maximum is ${maxGeneratedBytes} B.`);\n}\nconst stem = String(src.assetName || 'virya_asset').replace(/\\.[^.]+$/,'').replace(/[^a-zA-Z0-9_-]+/g,'_');\nconst fileName = `${stem}_AI_4x5.png`;\nconst {base64,analysisPrompt,imagePrompt,...safeSrc}=src;\nreturn [{json:{...safeSrc,derivativeFileName:fileName,generatedBytes},binary:{data:{data,mimeType,fileName,fileExtension:'png'}}}];"
+    },
+    "typeVersion": 2
+   },
+   {
+    "id": "21f03603-a0f8-480d-921e-2a6713986778",
+    "name": "Upload Derivative to Processing",
+    "type": "n8n-nodes-base.googleDrive",
+    "maxTries": 3,
+    "position": [
+     2540,
+     -80
+    ],
+    "parameters": {
+     "name": "={{ $json.derivativeFileName }}",
+     "driveId": {
+      "__rl": true,
+      "mode": "list",
+      "value": "My Drive",
+      "cachedResultName": "My Drive"
+     },
+     "options": {
+      "simplifyOutput": true
+     },
+     "folderId": {
+      "__rl": true,
+      "mode": "id",
+      "value": "={{ $('Config \u2014 Content Studio').first().json.processingFolderId }}"
+     },
+     "operation": "upload",
+     "binaryPropertyName": "data"
+    },
+    "credentials": {
+     "googleDriveOAuth2Api": {
+      "id": "cacSOsrP0NNmk6nu",
+      "name": "Google Drive account"
+     }
+    },
+    "retryOnFail": true,
+    "typeVersion": 3,
+    "waitBetweenTries": 2000
+   },
+   {
+    "id": "645f3766-f710-4eae-8219-885f861e9f56",
+    "name": "Build QUEUE Row",
+    "type": "n8n-nodes-base.code",
+    "position": [
+     2780,
+     -80
+    ],
+    "parameters": {
+     "jsCode": "const src = $('Extract Processed Image').first().json;\nconst uploaded = items[0]?.json || {};\nconst plan = src.plan;\nconst now = new Date();\nconst itemId = `SOC-${now.toISOString().replace(/[-:.TZ]/g,'').slice(0,14)}-${String(src.assetId).slice(-4)}`;\nconst derivativeId = uploaded.id || uploaded.fileId || uploaded.data?.id || '';\nconst derivativeUrl = uploaded.webViewLink || (derivativeId ? `https://drive.google.com/file/d/${derivativeId}/view` : '');\nreturn [{json:{\n  Item_ID:itemId,\n  Created_At:now.toISOString(),\n  Source:'AI_CONTENT_STUDIO',\n  Asset_Name:src.derivativeFileName,\n  Asset_URL:derivativeUrl,\n  Asset_Drive_ID:derivativeId,\n  Content_Type:plan.content_type || 'POST',\n  Topic:plan.topic,\n  Hook:plan.hook,\n  On_Screen_Text:'',\n  Caption_PL:plan.caption_pl,\n  CTA:plan.cta,\n  Hashtags:plan.hashtags,\n  Suggested_Publish_At:plan.suggested_publish_at,\n  Channels:plan.channels || 'INSTAGRAM+FACEBOOK',\n  Status:'READY_FOR_APPROVAL',\n  Approval_Note:`AI quality score: ${plan.quality_score ?? ''}. Original: ${src.originalUrl}`,\n  Published_At:'',\n  IG_Media_ID:'',\n  FB_Post_ID:'',\n  Error:'',\n  Source_URLs:src.originalUrl,\n  skipWrite:'FALSE',\n  altText:plan.alt_text,\n  originalAssetId:src.assetId,\n  derivativeId,\n  derivativeUrl\n}}];"
+    },
+    "typeVersion": 2
+   },
+   {
+    "id": "76aab08f-9b83-49e8-8b47-6e3ca9dd15d0",
+    "name": "Append to SOCIAL_QUEUE",
+    "type": "n8n-nodes-base.googleSheets",
+    "position": [
+     3020,
+     -80
+    ],
+    "parameters": {
+     "columns": {
+      "value": {
+       "CTA": "={{ $json.CTA }}",
+       "Hook": "={{ $json.Hook }}",
+       "Error": "",
+       "Topic": "={{ $json.Topic }}",
+       "Source": "={{ $json.Source }}",
+       "Status": "={{ $json.Status }}",
+       "Item_ID": "={{ $json.Item_ID }}",
+       "Channels": "={{ $json.Channels }}",
+       "Hashtags": "={{ $json.Hashtags }}",
+       "Asset_URL": "={{ $json.Asset_URL }}",
+       "skipWrite": "FALSE",
+       "Asset_Name": "={{ $json.Asset_Name }}",
+       "Caption_PL": "={{ $json.Caption_PL }}",
+       "Created_At": "={{ $json.Created_At }}",
+       "FB_Post_ID": "",
+       "IG_Media_ID": "",
+       "Source_URLs": "={{ $json.Source_URLs }}",
+       "Content_Type": "={{ $json.Content_Type }}",
+       "Published_At": "",
+       "Approval_Note": "={{ $json.Approval_Note }}",
+       "Asset_Drive_ID": "={{ $json.Asset_Drive_ID }}",
+       "On_Screen_Text": "={{ $json.On_Screen_Text }}",
+       "Suggested_Publish_At": "={{ $json.Suggested_Publish_At }}"
+      },
+      "schema": [],
+      "mappingMode": "defineBelow",
+      "matchingColumns": []
+     },
+     "options": {},
+     "operation": "append",
+     "sheetName": {
+      "__rl": true,
+      "mode": "name",
+      "value": "QUEUE"
+     },
+     "documentId": {
+      "__rl": true,
+      "mode": "id",
+      "value": "1nav2ituUQ6MxY7NV6tds3AXTiPzqur1hS8Hg-wDjdl0"
+     }
+    },
+    "credentials": {
+     "googleSheetsOAuth2Api": {
+      "id": "bc2Y1XmIdyu5ySTa",
+      "name": "Google Sheets account"
+     }
+    },
+    "typeVersion": 4.7
+   },
+   {
+    "id": "35820857-005c-4e60-b77d-069c383c732c",
+    "name": "Discord \u2014 Approval Required",
+    "type": "n8n-nodes-base.httpRequest",
+    "maxTries": 5,
+    "position": [
+     3500,
+     -80
+    ],
+    "parameters": {
+     "url": "https://discord.com/api/v10/channels/1529482376458276964/messages",
+     "method": "POST",
+     "options": {
+      "timeout": 30000
+     },
+     "jsonBody": "={{ ({ content: String((`## AI Content Studio \u2014 materia\u0142 do akceptacji\\n**${$('Build QUEUE Row').first().json.Topic}**\\n\\n${$('Build QUEUE Row').first().json.Hook}\\n\\n${$('Build QUEUE Row').first().json.Caption_PL}\\n\\n${$('Build QUEUE Row').first().json.CTA}\\n${$('Build QUEUE Row').first().json.Hashtags}\\n\\n\ud83d\udcc5 ${$('Build QUEUE Row').first().json.Suggested_Publish_At}\\n\ud83d\uddbc\ufe0f ${$('Build QUEUE Row').first().json.derivativeUrl}\\n\ud83c\udd94 ${$('Build QUEUE Row').first().json.Item_ID}\\n\\nUstaw w SOCIAL_QUEUE status APPROVED, aby Publisher opublikowa\u0142 materia\u0142, albo ARCHIVED, aby go odrzuci\u0107.\\nhttps://docs.google.com/spreadsheets/d/1nav2ituUQ6MxY7NV6tds3AXTiPzqur1hS8Hg-wDjdl0/edit`) ?? '').slice(0, 2000), allowed_mentions: ($json.allowed_mentions && typeof $json.allowed_mentions === 'object') ? $json.allowed_mentions : { parse: [] } }) }}",
+     "sendBody": true,
+     "sendHeaders": true,
+     "specifyBody": "json",
+     "authentication": "genericCredentialType",
+     "genericAuthType": "httpHeaderAuth",
+     "headerParameters": {
+      "parameters": [
+       {
+        "name": "User-Agent",
+        "value": "Virya-n8n/1.0 (https://virya.music)"
+       }
+      ]
+     }
+    },
+    "credentials": {
+     "httpHeaderAuth": {
+      "id": "FB7ONYMUsZFfObWB",
+      "name": "Discord Bot HTTP"
+     }
+    },
+    "retryOnFail": true,
+    "typeVersion": 4.4,
+    "waitBetweenTries": 5000
+   },
+   {
+    "id": "cebf14dd-e300-5139-ad15-5cce7ef0dc34",
+    "name": "Asset within limits?",
+    "type": "n8n-nodes-base.if",
+    "position": [
+     380,
+     -80
+    ],
+    "parameters": {
+     "options": {},
+     "conditions": {
+      "options": {
+       "version": 2,
+       "leftValue": "",
+       "caseSensitive": true,
+       "typeValidation": "strict"
+      },
+      "combinator": "and",
+      "conditions": [
+       {
+        "id": "451d7a95-82dc-5f80-9e0e-02e2b9014f5a",
+        "operator": {
+         "type": "boolean",
+         "operation": "true",
+         "singleValue": true
+        },
+        "leftValue": "={{ $json.assetValid }}",
+        "rightValue": true
+       }
+      ]
+     }
+    },
+    "typeVersion": 2.2
+   },
+   {
+    "id": "b3cc4714-6706-5ea7-a8be-f5c6020425af",
+    "name": "Move Invalid Asset to Errors",
+    "type": "n8n-nodes-base.googleDrive",
+    "maxTries": 3,
+    "position": [
+     620,
+     220
+    ],
+    "parameters": {
+     "fileId": {
+      "__rl": true,
+      "mode": "id",
+      "value": "={{ $('Select One New Image').first().json.assetId }}"
+     },
+     "driveId": {
+      "__rl": true,
+      "mode": "list",
+      "value": "My Drive",
+      "cachedResultName": "My Drive"
+     },
+     "folderId": {
+      "__rl": true,
+      "mode": "id",
+      "value": "={{ $('Config \u2014 Content Studio').first().json.errorsFolderId }}"
+     },
+     "resource": "file",
+     "operation": "move"
+    },
+    "credentials": {
+     "googleDriveOAuth2Api": {
+      "id": "cacSOsrP0NNmk6nu",
+      "name": "Google Drive account"
+     }
+    },
+    "retryOnFail": true,
+    "typeVersion": 3,
+    "waitBetweenTries": 2000
+   },
+   {
+    "id": "5a05bf3a-62ff-597f-894e-ace1b566a845",
+    "name": "Code \u2014 Rejected Asset Alert",
+    "type": "n8n-nodes-base.code",
+    "position": [
+     860,
+     220
+    ],
+    "parameters": {
+     "jsCode": "const selected = $('Select One New Image').first().json || {};\nconst incoming = $input.first()?.json || {};\nconst nodeError = incoming.error?.message || incoming.error || incoming.message || '';\nconst reason = selected.invalidReason || String(nodeError || 'Asset failed validation or binary size check.');\nreturn [{json:{reason:`Odrzucony asset ${selected.assetName || selected.assetId}: ${reason}`}}];"
+    },
+    "typeVersion": 2
+   }
+  ],
+  "connections": {
+   "Manual Test": {
+    "main": [
+     [
+      {
+       "node": "Config \u2014 Content Studio",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "Mon/Wed/Fri \u2014 content studio 13:30": {
+    "main": [
+     [
+      {
+       "node": "Config \u2014 Content Studio",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "Config \u2014 Content Studio": {
+    "main": [
+     [
+      {
+       "node": "List Inbox Assets",
+       "type": "main",
+       "index": 0
+      },
+      {
+       "node": "Read Existing Queue",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "List Inbox Assets": {
+    "main": [
+     [
+      {
+       "node": "Wait for both reads",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "Read Existing Queue": {
+    "main": [
+     [
+      {
+       "node": "Wait for both reads",
+       "type": "main",
+       "index": 1
+      }
+     ]
+    ]
+   },
+   "Wait for both reads": {
+    "main": [
+     [
+      {
+       "node": "Select One New Image",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "Select One New Image": {
+    "main": [
+     [
+      {
+       "node": "Image found?",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "Image found?": {
+    "main": [
+     [
+      {
+       "node": "Asset within limits?",
+       "type": "main",
+       "index": 0
+      }
+     ],
+     [
+      {
+       "node": "Discord \u2014 No New Asset",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "Download Original": {
+    "main": [
+     [
+      {
+       "node": "Binary \u2192 Base64",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "Binary \u2192 Base64": {
+    "main": [
+     [
+      {
+       "node": "Build Gemini Analysis Request",
+       "type": "main",
+       "index": 0
+      }
+     ],
+     [
+      {
+       "node": "Move Invalid Asset to Errors",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "Build Gemini Analysis Request": {
+    "main": [
+     [
+      {
+       "node": "Gemini \u2014 Analyze Asset",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "Gemini \u2014 Analyze Asset": {
+    "main": [
+     [
+      {
+       "node": "Parse + Validate Plan",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "Parse + Validate Plan": {
+    "main": [
+     [
+      {
+       "node": "Build Conservative Image Edit",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "Build Conservative Image Edit": {
+    "main": [
+     [
+      {
+       "node": "Gemini \u2014 Process Image",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "Gemini \u2014 Process Image": {
+    "main": [
+     [
+      {
+       "node": "Extract Processed Image",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "Extract Processed Image": {
+    "main": [
+     [
+      {
+       "node": "Upload Derivative to Processing",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "Upload Derivative to Processing": {
+    "main": [
+     [
+      {
+       "node": "Build QUEUE Row",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "Build QUEUE Row": {
+    "main": [
+     [
+      {
+       "node": "Append to SOCIAL_QUEUE",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "Append to SOCIAL_QUEUE": {
+    "main": [
+     [
+      {
+       "node": "Move Original to Processing",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "Asset within limits?": {
+    "main": [
+     [
+      {
+       "node": "Download Original",
+       "type": "main",
+       "index": 0
+      }
+     ],
+     [
+      {
+       "node": "Move Invalid Asset to Errors",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "Move Invalid Asset to Errors": {
+    "main": [
+     [
+      {
+       "node": "Code \u2014 Rejected Asset Alert",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "Code \u2014 Rejected Asset Alert": {
+    "main": [
+     [
+      {
+       "node": "Discord \u2014 No New Asset",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "Move Original to Processing": {
+    "main": [
+     [
+      {
+       "node": "Discord \u2014 Approval Required",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   }
+  },
+  "nodeGroups": [],
+  "authors": "import",
+  "name": null,
+  "description": null,
+  "autosaved": false,
+  "workflowPublishHistory": []
+ }
+}

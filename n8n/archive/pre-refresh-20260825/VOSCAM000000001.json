@@ -1,0 +1,345 @@
+{
+  "updatedAt": "2026-08-11T18:07:04.363Z",
+  "createdAt": "2026-08-11T09:00:00.000Z",
+  "id": "VOSCAM000000001",
+  "name": "CrowdRelay — VIRYA OS communication campaign executor",
+  "description": "Executes first-party email campaigns planned by CrowdRelay. No scoring and no copy generation outside deterministic templates.",
+  "active": true,
+  "isArchived": false,
+  "nodes": [
+    {
+      "id": "9b05d2b0-f667-461e-b116-f6b1bc6f40ae",
+      "name": "Called by verified ingress",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {}
+    },
+    {
+      "id": "f0d7852e-93ab-4e5d-8bc2-62066dfeae4c",
+      "name": "Validate campaign",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        220,
+        0
+      ],
+      "parameters": {
+        "jsCode": "const e=$json;if(!e||e.type!=='communication.campaign_due'||e.version!==1) throw new Error('Unsupported campaign event');const d=e.data??{};if(!d.campaign_id||d.channel!=='email'||!d.template_key) throw new Error('Invalid campaign payload');return [{json:{event_id:e.id,campaign_id:d.campaign_id,template_key:String(d.template_key),campaign_slug:String(d.campaign_slug||'')}}];"
+      }
+    },
+    {
+      "id": "e69b1891-9d94-499a-a02a-06915d188cec",
+      "name": "Load delivery plan",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        460,
+        0
+      ],
+      "parameters": {
+        "method": "GET",
+        "url": "={{ 'https://signal-api.virya.music/v1/internal/communications/campaigns/' + $json.campaign_id + '/delivery-plan?limit=500' }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + $env.CROWDRELAY_COMMERCE_API_KEY }}"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          },
+          "timeout": 30000
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000
+    },
+    {
+      "id": "3367253c-fc51-4d64-ab70-d819344c35ff",
+      "name": "Any recipients?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        700,
+        0
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "d5662b66-9ce7-463b-ab1d-95e004e2830c",
+              "leftValue": "={{ Array.isArray($json.recipients) ? $json.recipients.length : 0 }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "68caef6a-75f6-495f-9d7c-e8e146d17ce0",
+      "name": "Build deterministic campaign messages",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        940,
+        -120
+      ],
+      "parameters": {
+        "jsCode": "const plan=$json; const src=$('Validate campaign').first().json;if(plan.next_after_fan_id) throw new Error('Campaign >500 recipients: pagination intentionally requires follow-up implementation before auto-send');const rec=Array.isArray(plan.recipients)?plan.recipients:[];const key=src.template_key;const copy=(r)=>{const pl=String(r.locale||'pl').toLowerCase().startsWith('pl');const name=String(r.display_name||'').trim();const hi=pl?(name?`Cześć ${name}!`:'Cześć!'):(name?`Hi ${name}!`:'Hi!');const map={\n'release.announcement.v1':['Nowa premiera VIRYA nadchodzi','A new VIRYA release is coming'],\n'release.fan_warmup.v1':['VIRYA — premiera coraz bliżej','VIRYA — release incoming'],\n'release.countdown.v1':['VIRYA — już za chwilę','VIRYA — almost there'],\n'release.release_day.v1':['Nowa premiera VIRYA — dziś','New VIRYA release — today'],\n'release.sustain.v1':['Słyszeliście już nową VIRYA?','Have you heard the new VIRYA release?'],\n'release.wrap.v1':['Dzięki za premierę z VIRYA','Thanks for joining the VIRYA release'],\n'event.announcement.v1':['VIRYA — nowy koncert','VIRYA — new show'],\n'event.interest_reminder.v1':['VIRYA — przypomnienie o koncercie','VIRYA — show reminder'],\n'event.last_call.v1':['VIRYA — ostatni moment przed koncertem','VIRYA — last call before the show'],\n'event.day_of.v1':['VIRYA — widzimy się dziś','VIRYA — see you today'],\n'event.thank_you.v1':['Dzięki za koncert z VIRYA','Thanks for the show with VIRYA']};const sub=(map[key]||['VIRYA — nowy sygnał','VIRYA — new signal'])[pl?0:1];let body=pl?`${hi}\\n\\nMamy dla Ciebie aktualny sygnał VIRYA. Szczegóły, muzyka i koncerty:\\nhttps://virya.music/pl/signal/\\n\\nDo zobaczenia,\\nVIRYA`:`${hi}\\n\\nHere is the latest VIRYA signal. Music, releases and shows:\\nhttps://virya.music/signal/\\n\\nSee you,\\nVIRYA`;return {SendTo:r.email,SendSubject:sub,SendBody:body,fan_id:r.fan_id};};return rec.map(r=>({json:{...copy(r),campaign_id:src.campaign_id,event_id:src.event_id}}));"
+      }
+    },
+    {
+      "id": "77c38738-59c2-435b-89ac-37e1ae03f82f",
+      "name": "Gmail — campaign SEND",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        1200,
+        -120
+      ],
+      "parameters": {
+        "sendTo": "={{ $json.SendTo }}",
+        "message": "={{ $json.SendBody }}",
+        "options": {
+          "senderName": "Wojciech Bator / Virya",
+          "appendAttribution": false
+        },
+        "subject": "={{ $json.SendSubject }}",
+        "emailType": "text"
+      },
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "BJg5tKEWMNRw0GA1",
+          "name": "Gmail account"
+        }
+      },
+      "continueOnFail": true,
+      "alwaysOutputData": true
+    },
+    {
+      "id": "3c4ef2f6-819e-4fc8-9347-bbe0febf4490",
+      "name": "Aggregate delivery",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1460,
+        -120
+      ],
+      "parameters": {
+        "jsCode": "const sent=$input.all();const src=$('Validate campaign').first().json;const failed=sent.filter(i=>i.json?.error||i.json?.message?.toLowerCase?.().includes('error')).length;return [{json:{campaign_id:src.campaign_id,recipient_count:sent.length,delivered_count:sent.length-failed,failed_count:failed}}];"
+      }
+    },
+    {
+      "id": "40f6be19-d811-4b48-a683-a62a3c23dd12",
+      "name": "Zero delivery",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        940,
+        160
+      ],
+      "parameters": {
+        "jsCode": "const src=$('Validate campaign').first().json;return [{json:{campaign_id:src.campaign_id,recipient_count:0,delivered_count:0,failed_count:0}}];"
+      }
+    },
+    {
+      "id": "2cefc726-c6c0-4cb9-a0a6-f223b8aeb4e0",
+      "name": "Complete campaign",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1720,
+        20
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ 'https://signal-api.virya.music/v1/internal/communications/campaigns/' + $json.campaign_id + '/complete' }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + $env.CROWDRELAY_COMMERCE_API_KEY }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ JSON.stringify({recipient_count:$json.recipient_count,delivered_count:$json.delivered_count,failed_count:$json.failed_count}) }}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000
+    }
+  ],
+  "connections": {
+    "Called by verified ingress": {
+      "main": [
+        [
+          {
+            "node": "Validate campaign",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate campaign": {
+      "main": [
+        [
+          {
+            "node": "Load delivery plan",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Load delivery plan": {
+      "main": [
+        [
+          {
+            "node": "Any recipients?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Any recipients?": {
+      "main": [
+        [
+          {
+            "node": "Build deterministic campaign messages",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Zero delivery",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build deterministic campaign messages": {
+      "main": [
+        [
+          {
+            "node": "Gmail — campaign SEND",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gmail — campaign SEND": {
+      "main": [
+        [
+          {
+            "node": "Aggregate delivery",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate delivery": {
+      "main": [
+        [
+          {
+            "node": "Complete campaign",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Zero delivery": {
+      "main": [
+        [
+          {
+            "node": "Complete campaign",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveDataErrorExecution": "none",
+    "saveDataSuccessExecution": "none",
+    "saveManualExecutions": false,
+    "errorWorkflow": "98d5e1a4-2dba-5e5a-9be1-2e5d9220859d",
+    "saveExecutionProgress": false,
+    "executionTimeout": 180,
+    "binaryMode": "separate"
+  },
+  "staticData": null,
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "nodeGroups": [],
+  "pinData": {},
+  "versionId": "c46f08a9-0cf2-4f4e-ad70-90dfe6edb73c",
+  "activeVersionId": "c46f08a9-0cf2-4f4e-ad70-90dfe6edb73c",
+  "versionCounter": 1,
+  "triggerCount": 0,
+  "sourceWorkflowId": null,
+  "tags": [],
+  "shared": [
+    {
+      "updatedAt": "2026-08-11T12:52:18.476Z",
+      "createdAt": "2026-08-11T12:52:18.476Z",
+      "role": "workflow:owner",
+      "workflowId": "VOSCAM000000001",
+      "projectId": "e2rPVcUBR4DTE3mO",
+      "project": {
+        "updatedAt": "2026-07-24T09:45:30.763Z",
+        "createdAt": "2026-07-24T09:45:07.113Z",
+        "id": "e2rPVcUBR4DTE3mO",
+        "name": "Virya Crew <virya.crew@gmail.com>",
+        "type": "personal",
+        "icon": null,
+        "description": null,
+        "customTelemetryTags": [],
+        "creatorId": "89259ec0-46eb-41d3-a04e-eb12f52f6342"
+      }
+    }
+  ],
+  "versionMetadata": {
+    "name": null,
+    "description": null
+  }
+}

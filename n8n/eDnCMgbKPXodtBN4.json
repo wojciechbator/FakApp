@@ -1,0 +1,495 @@
+{
+ "updatedAt": "2026-08-21T11:30:37.148Z",
+ "createdAt": "2026-08-18T18:34:07.867Z",
+ "id": "eDnCMgbKPXodtBN4",
+ "name": "CrowdRelay \u2014 CrowdRelayOS Latarnik invitation executor",
+ "description": null,
+ "active": true,
+ "isArchived": false,
+ "nodes": [
+  {
+   "id": "f1c2b72e-57f4-4048-ab24-dcbc68b2f1dc",
+   "name": "Called by verified ingress",
+   "type": "n8n-nodes-base.executeWorkflowTrigger",
+   "position": [
+    1024,
+    -288
+   ],
+   "parameters": {
+    "inputSource": "passthrough"
+   },
+   "typeVersion": 1.1
+  },
+  {
+   "id": "9f81748e-25ff-4810-bf76-7a2f17f77b26",
+   "name": "Validate invitation job",
+   "type": "n8n-nodes-base.code",
+   "position": [
+    1264,
+    -288
+   ],
+   "parameters": {
+    "jsCode": "const e=$json; if(!e||e.type!=='crowdrelay.beacon.invite_delivery_requested'||e.version!==1||!e.data?.job_id) throw new Error('Unsupported event: got type='+((e&&e.type)||'(none)')+' version='+((e&&e.version)||'(none)')+' expected crowdrelay.beacon.invite_delivery_requested v1'); return [{json:{event_id:e.id,job_id:e.data.job_id}}];"
+   },
+   "typeVersion": 2
+  },
+  {
+   "id": "767aa800-235e-49f6-9809-4cf40cee2f22",
+   "name": "Claim once and mint response-only invites",
+   "type": "n8n-nodes-base.httpRequest",
+   "position": [
+    1536,
+    -288
+   ],
+   "parameters": {
+    "url": "={{ 'https://signal-api.virya.music' + '/v1/internal/beacon/invite-delivery-jobs/' + $json.job_id + '/claim' }}",
+    "body": "={{ JSON.stringify({workerId:$env.VIRYA_N8N_EXECUTOR_ID}) }}",
+    "method": "POST",
+    "options": {
+     "timeout": 10000
+    },
+    "sendBody": true,
+    "contentType": "raw",
+    "sendHeaders": true,
+    "rawContentType": "application/json",
+    "headerParameters": {
+     "parameters": [
+      {
+       "name": "Authorization",
+       "value": "={{ 'Bearer ' + $env.CROWDRELAY_COMMERCE_API_KEY }}"
+      }
+     ]
+    }
+   },
+   "typeVersion": 4.2
+  },
+  {
+   "id": "634437a3-a3d4-4589-905d-915e03639259",
+   "name": "Split server-owned invitation copy",
+   "type": "n8n-nodes-base.code",
+   "position": [
+    1792,
+    -288
+   ],
+   "parameters": {
+    "jsCode": "const claim=$json; const inv=claim.batch?.invitations??[]; return inv.map(x=>({json:{job_id:claim.jobId,claim_token:claim.claimToken,to:x.contactEmail,subject:x.delivery.subject,text:x.delivery.text}}));"
+   },
+   "typeVersion": 2
+  },
+  {
+   "id": "c412a144-af03-4a44-ad2c-b261bbfd73da",
+   "name": "Send invitation \u2014 no automatic retry",
+   "type": "n8n-nodes-base.httpRequest",
+   "position": [
+    2048,
+    -288
+   ],
+   "parameters": {
+    "url": "={{ $env.VIRYA_MAIL_DELIVERY_URL }}",
+    "body": "={{ JSON.stringify({to:$json.to,subject:$json.subject,text:$json.text}) }}",
+    "method": "POST",
+    "options": {
+     "timeout": 15000
+    },
+    "sendBody": true,
+    "contentType": "raw",
+    "sendHeaders": true,
+    "rawContentType": "application/json",
+    "headerParameters": {
+     "parameters": [
+      {
+       "name": "Authorization",
+       "value": "={{ 'Bearer ' + $env.VIRYA_MAIL_DELIVERY_TOKEN }}"
+      }
+     ]
+    }
+   },
+   "retryOnFail": false,
+   "typeVersion": 4.2
+  },
+  {
+   "id": "4693ca0a-a9fc-47bf-b0c3-00b7a8aa0133",
+   "name": "Build terminal receipt",
+   "type": "n8n-nodes-base.code",
+   "position": [
+    2304,
+    -288
+   ],
+   "parameters": {
+    "jsCode": "const claim=$('Claim once and mint response-only invites').first().json; return [{json:{job_id:claim.jobId,claim_token:claim.claimToken,status:'completed',provider_summary:{delivered:$input.all().length}}}];"
+   },
+   "typeVersion": 2
+  },
+  {
+   "id": "b3a5e77c-8607-448a-b774-679cbebab0d8",
+   "name": "Report terminal delivery",
+   "type": "n8n-nodes-base.httpRequest",
+   "position": [
+    2576,
+    -288
+   ],
+   "parameters": {
+    "url": "={{ 'https://signal-api.virya.music' + '/v1/internal/beacon/invite-delivery-jobs/' + $json.job_id + '/report' }}",
+    "body": "={{ JSON.stringify({claimToken:$json.claim_token,status:$json.status,providerSummary:$json.provider_summary}) }}",
+    "method": "POST",
+    "options": {
+     "timeout": 10000
+    },
+    "sendBody": true,
+    "contentType": "raw",
+    "sendHeaders": true,
+    "rawContentType": "application/json",
+    "headerParameters": {
+     "parameters": [
+      {
+       "name": "Authorization",
+       "value": "={{ 'Bearer ' + $env.CROWDRELAY_COMMERCE_API_KEY }}"
+      }
+     ]
+    }
+   },
+   "typeVersion": 4.2
+  }
+ ],
+ "connections": {
+  "Called by verified ingress": {
+   "main": [
+    [
+     {
+      "node": "Validate invitation job",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Validate invitation job": {
+   "main": [
+    [
+     {
+      "node": "Claim once and mint response-only invites",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Claim once and mint response-only invites": {
+   "main": [
+    [
+     {
+      "node": "Split server-owned invitation copy",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Split server-owned invitation copy": {
+   "main": [
+    [
+     {
+      "node": "Send invitation \u2014 no automatic retry",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Send invitation \u2014 no automatic retry": {
+   "main": [
+    [
+     {
+      "node": "Build terminal receipt",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Build terminal receipt": {
+   "main": [
+    [
+     {
+      "node": "Report terminal delivery",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  }
+ },
+ "settings": {
+  "executionOrder": "v1",
+  "binaryMode": "separate",
+  "availableInMCP": false,
+  "saveDataErrorExecution": "none",
+  "saveDataSuccessExecution": "none",
+  "saveManualExecutions": false,
+  "saveExecutionProgress": false
+ },
+ "staticData": null,
+ "meta": null,
+ "nodeGroups": [],
+ "pinData": {},
+ "versionId": "6c926876-73d3-44a5-9f4b-6fb21bde78e5",
+ "activeVersionId": "6c926876-73d3-44a5-9f4b-6fb21bde78e5",
+ "versionCounter": 7,
+ "triggerCount": 0,
+ "sourceWorkflowId": null,
+ "shared": [
+  {
+   "updatedAt": "2026-08-18T18:34:07.867Z",
+   "createdAt": "2026-08-18T18:34:07.867Z",
+   "role": "workflow:owner",
+   "workflowId": "eDnCMgbKPXodtBN4",
+   "projectId": "e2rPVcUBR4DTE3mO",
+   "project": {
+    "updatedAt": "2026-07-24T09:45:30.763Z",
+    "createdAt": "2026-07-24T09:45:07.113Z",
+    "id": "e2rPVcUBR4DTE3mO",
+    "name": "Virya Crew <virya.crew@gmail.com>",
+    "type": "personal",
+    "icon": null,
+    "description": null,
+    "customTelemetryTags": [],
+    "creatorId": "89259ec0-46eb-41d3-a04e-eb12f52f6342"
+   }
+  }
+ ],
+ "tags": [],
+ "activeVersion": {
+  "updatedAt": "2026-08-25T12:20:51.980Z",
+  "createdAt": "2026-08-21T11:30:37.150Z",
+  "versionId": "6c926876-73d3-44a5-9f4b-6fb21bde78e5",
+  "workflowId": "eDnCMgbKPXodtBN4",
+  "nodes": [
+   {
+    "id": "f1c2b72e-57f4-4048-ab24-dcbc68b2f1dc",
+    "name": "Called by verified ingress",
+    "type": "n8n-nodes-base.executeWorkflowTrigger",
+    "position": [
+     1024,
+     -288
+    ],
+    "parameters": {
+     "inputSource": "passthrough"
+    },
+    "typeVersion": 1.1
+   },
+   {
+    "id": "9f81748e-25ff-4810-bf76-7a2f17f77b26",
+    "name": "Validate invitation job",
+    "type": "n8n-nodes-base.code",
+    "position": [
+     1264,
+     -288
+    ],
+    "parameters": {
+     "jsCode": "const e=$json; if(!e||e.type!=='crowdrelay.beacon.invite_delivery_requested'||e.version!==1||!e.data?.job_id) throw new Error('Unsupported event: got type='+((e&&e.type)||'(none)')+' version='+((e&&e.version)||'(none)')+' expected crowdrelay.beacon.invite_delivery_requested v1'); return [{json:{event_id:e.id,job_id:e.data.job_id}}];"
+    },
+    "typeVersion": 2
+   },
+   {
+    "id": "767aa800-235e-49f6-9809-4cf40cee2f22",
+    "name": "Claim once and mint response-only invites",
+    "type": "n8n-nodes-base.httpRequest",
+    "position": [
+     1536,
+     -288
+    ],
+    "parameters": {
+     "url": "={{ 'https://signal-api.virya.music' + '/v1/internal/beacon/invite-delivery-jobs/' + $json.job_id + '/claim' }}",
+     "body": "={{ JSON.stringify({workerId:$env.VIRYA_N8N_EXECUTOR_ID}) }}",
+     "method": "POST",
+     "options": {
+      "timeout": 10000
+     },
+     "sendBody": true,
+     "contentType": "raw",
+     "sendHeaders": true,
+     "rawContentType": "application/json",
+     "headerParameters": {
+      "parameters": [
+       {
+        "name": "Authorization",
+        "value": "={{ 'Bearer ' + $env.CROWDRELAY_COMMERCE_API_KEY }}"
+       }
+      ]
+     }
+    },
+    "typeVersion": 4.2
+   },
+   {
+    "id": "634437a3-a3d4-4589-905d-915e03639259",
+    "name": "Split server-owned invitation copy",
+    "type": "n8n-nodes-base.code",
+    "position": [
+     1792,
+     -288
+    ],
+    "parameters": {
+     "jsCode": "const claim=$json; const inv=claim.batch?.invitations??[]; return inv.map(x=>({json:{job_id:claim.jobId,claim_token:claim.claimToken,to:x.contactEmail,subject:x.delivery.subject,text:x.delivery.text}}));"
+    },
+    "typeVersion": 2
+   },
+   {
+    "id": "c412a144-af03-4a44-ad2c-b261bbfd73da",
+    "name": "Send invitation \u2014 no automatic retry",
+    "type": "n8n-nodes-base.httpRequest",
+    "position": [
+     2048,
+     -288
+    ],
+    "parameters": {
+     "url": "={{ $env.VIRYA_MAIL_DELIVERY_URL }}",
+     "body": "={{ JSON.stringify({to:$json.to,subject:$json.subject,text:$json.text}) }}",
+     "method": "POST",
+     "options": {
+      "timeout": 15000
+     },
+     "sendBody": true,
+     "contentType": "raw",
+     "sendHeaders": true,
+     "rawContentType": "application/json",
+     "headerParameters": {
+      "parameters": [
+       {
+        "name": "Authorization",
+        "value": "={{ 'Bearer ' + $env.VIRYA_MAIL_DELIVERY_TOKEN }}"
+       }
+      ]
+     }
+    },
+    "retryOnFail": false,
+    "typeVersion": 4.2
+   },
+   {
+    "id": "4693ca0a-a9fc-47bf-b0c3-00b7a8aa0133",
+    "name": "Build terminal receipt",
+    "type": "n8n-nodes-base.code",
+    "position": [
+     2304,
+     -288
+    ],
+    "parameters": {
+     "jsCode": "const claim=$('Claim once and mint response-only invites').first().json; return [{json:{job_id:claim.jobId,claim_token:claim.claimToken,status:'completed',provider_summary:{delivered:$input.all().length}}}];"
+    },
+    "typeVersion": 2
+   },
+   {
+    "id": "b3a5e77c-8607-448a-b774-679cbebab0d8",
+    "name": "Report terminal delivery",
+    "type": "n8n-nodes-base.httpRequest",
+    "position": [
+     2576,
+     -288
+    ],
+    "parameters": {
+     "url": "={{ 'https://signal-api.virya.music' + '/v1/internal/beacon/invite-delivery-jobs/' + $json.job_id + '/report' }}",
+     "body": "={{ JSON.stringify({claimToken:$json.claim_token,status:$json.status,providerSummary:$json.provider_summary}) }}",
+     "method": "POST",
+     "options": {
+      "timeout": 10000
+     },
+     "sendBody": true,
+     "contentType": "raw",
+     "sendHeaders": true,
+     "rawContentType": "application/json",
+     "headerParameters": {
+      "parameters": [
+       {
+        "name": "Authorization",
+        "value": "={{ 'Bearer ' + $env.CROWDRELAY_COMMERCE_API_KEY }}"
+       }
+      ]
+     }
+    },
+    "typeVersion": 4.2
+   }
+  ],
+  "connections": {
+   "Called by verified ingress": {
+    "main": [
+     [
+      {
+       "node": "Validate invitation job",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "Validate invitation job": {
+    "main": [
+     [
+      {
+       "node": "Claim once and mint response-only invites",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "Claim once and mint response-only invites": {
+    "main": [
+     [
+      {
+       "node": "Split server-owned invitation copy",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "Split server-owned invitation copy": {
+    "main": [
+     [
+      {
+       "node": "Send invitation \u2014 no automatic retry",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "Send invitation \u2014 no automatic retry": {
+    "main": [
+     [
+      {
+       "node": "Build terminal receipt",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "Build terminal receipt": {
+    "main": [
+     [
+      {
+       "node": "Report terminal delivery",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   }
+  },
+  "nodeGroups": [],
+  "authors": "Virya Crew",
+  "name": "Version 6c926876",
+  "description": "",
+  "autosaved": false,
+  "workflowPublishHistory": [
+   {
+    "createdAt": "2026-08-21T11:30:38.163Z",
+    "id": 629,
+    "workflowId": "eDnCMgbKPXodtBN4",
+    "versionId": "6c926876-73d3-44a5-9f4b-6fb21bde78e5",
+    "event": "activated",
+    "userId": "89259ec0-46eb-41d3-a04e-eb12f52f6342"
+   }
+  ]
+ }
+}

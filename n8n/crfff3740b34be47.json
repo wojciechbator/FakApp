@@ -1,0 +1,250 @@
+{
+ "updatedAt": "2026-08-15T20:53:44.663Z",
+ "createdAt": "2026-07-31T12:11:10.091Z",
+ "id": "crfff3740b34be47",
+ "name": "CrowdRelay \u2014 event.reminder_due branch",
+ "description": null,
+ "active": true,
+ "isArchived": false,
+ "nodes": [
+  {
+   "parameters": {
+    "inputSource": "passthrough"
+   },
+   "id": "e19d1509-99da-45e8-9044-758ad54cfcda",
+   "name": "Called by verified ingress",
+   "type": "n8n-nodes-base.executeWorkflowTrigger",
+   "typeVersion": 1.1,
+   "position": [
+    0,
+    0
+   ]
+  },
+  {
+   "parameters": {
+    "jsCode": "const envelope = $json;\nif (!envelope || envelope.type !== 'event.reminder_due' || envelope.version !== 1) throw new Error('Unsupported CrowdRelay event');\nconst data = envelope.data ?? {};\nif (!data.fan?.email || !data.event?.slug || !data.event?.title || !data.event?.starts_at) throw new Error('Missing reminder fields');\nconst base = (\"https://virya.music\" || '').replace(/\\/$/, '');\nif (!base) throw new Error('Missing CROWDRELAY_PUBLIC_SITE_URL');\nreturn [{ json: { event_id: envelope.id, mail: {\n  template: 'crowdrelay-event-reminder', to: data.fan.email,\n  variables: { display_name: data.fan.display_name ?? null, locale: data.fan.locale ?? 'pl-PL', reminder_kind: data.reminder_kind, event_title: data.event.title, starts_at: data.event.starts_at, doors_at: data.event.doors_at ?? null, venue: data.event.venue ?? null, venue_address: data.event.venue_address ?? null, event_url: `${base}/live/${encodeURIComponent(data.event.slug)}`, ticket_url: data.event.ticket_url ?? `${base}/live/${encodeURIComponent(data.event.slug)}` },\n  idempotency_key: envelope.id\n}} }];"
+   },
+   "id": "70a68b88-6cbb-45d7-891c-4d2b265423cb",
+   "name": "Validate and build mail",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    260,
+    0
+   ]
+  },
+  {
+   "parameters": {
+    "method": "POST",
+    "url": "http://virya-crowdrelay-n8n-bridge:8080/mailer",
+    "sendHeaders": true,
+    "headerParameters": {
+     "parameters": [
+      {
+       "name": "Idempotency-Key",
+       "value": "={{ $json.event_id }}"
+      }
+     ]
+    },
+    "sendBody": true,
+    "contentType": "raw",
+    "rawContentType": "application/json",
+    "body": "={{ JSON.stringify($json.mail) }}",
+    "options": {
+     "timeout": 40000
+    },
+    "authentication": "genericCredentialType",
+    "genericAuthType": "httpHeaderAuth"
+   },
+   "id": "79c50863-5c19-4e7f-ab4b-41bceee69f3d",
+   "name": "Send through Virya mailer",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.2,
+   "position": [
+    540,
+    0
+   ],
+   "retryOnFail": true,
+   "maxTries": 3,
+   "waitBetweenTries": 10000,
+   "credentials": {
+    "httpHeaderAuth": {
+     "id": "viryaBridgeHeaderAuthV10",
+     "name": "Virya CrowdRelay control-plane bridge"
+    }
+   },
+   "notesInFlow": true,
+   "notes": "Sekrety mailera s\u0105 wy\u0142\u0105cznie w prywatnym bridge; workflow przekazuje tylko payload i idempotency key."
+  }
+ ],
+ "connections": {
+  "Called by verified ingress": {
+   "main": [
+    [
+     {
+      "node": "Validate and build mail",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Validate and build mail": {
+   "main": [
+    [
+     {
+      "node": "Send through Virya mailer",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  }
+ },
+ "settings": {
+  "executionOrder": "v1",
+  "saveDataErrorExecution": "none",
+  "saveDataSuccessExecution": "none",
+  "saveManualExecutions": false,
+  "errorWorkflow": "98d5e1a4-2dba-5e5a-9be1-2e5d9220859d"
+ },
+ "staticData": null,
+ "meta": {
+  "templateCredsSetupCompleted": false
+ },
+ "nodeGroups": [],
+ "pinData": {},
+ "versionId": "9f0737cf-0b77-4cdb-be9b-627c276924e4",
+ "activeVersionId": "9f0737cf-0b77-4cdb-be9b-627c276924e4",
+ "versionCounter": 11,
+ "triggerCount": 0,
+ "sourceWorkflowId": null,
+ "shared": [
+  {
+   "updatedAt": "2026-07-31T12:11:10.091Z",
+   "createdAt": "2026-07-31T12:11:10.091Z",
+   "role": "workflow:owner",
+   "workflowId": "crfff3740b34be47",
+   "projectId": "e2rPVcUBR4DTE3mO",
+   "project": {
+    "updatedAt": "2026-07-24T09:45:30.763Z",
+    "createdAt": "2026-07-24T09:45:07.113Z",
+    "id": "e2rPVcUBR4DTE3mO",
+    "name": "Virya Crew <virya.crew@gmail.com>",
+    "type": "personal",
+    "icon": null,
+    "description": null,
+    "customTelemetryTags": [],
+    "creatorId": "89259ec0-46eb-41d3-a04e-eb12f52f6342"
+   }
+  }
+ ],
+ "tags": [],
+ "activeVersion": {
+  "updatedAt": "2026-08-12T17:01:41.269Z",
+  "createdAt": "2026-08-12T17:01:41.269Z",
+  "versionId": "9f0737cf-0b77-4cdb-be9b-627c276924e4",
+  "workflowId": "crfff3740b34be47",
+  "nodes": [
+   {
+    "parameters": {
+     "inputSource": "passthrough"
+    },
+    "id": "e19d1509-99da-45e8-9044-758ad54cfcda",
+    "name": "Called by verified ingress",
+    "type": "n8n-nodes-base.executeWorkflowTrigger",
+    "typeVersion": 1.1,
+    "position": [
+     0,
+     0
+    ]
+   },
+   {
+    "parameters": {
+     "jsCode": "const envelope = $json;\nif (!envelope || envelope.type !== 'event.reminder_due' || envelope.version !== 1) throw new Error('Unsupported CrowdRelay event');\nconst data = envelope.data ?? {};\nif (!data.fan?.email || !data.event?.slug || !data.event?.title || !data.event?.starts_at) throw new Error('Missing reminder fields');\nconst base = (\"https://virya.music\" || '').replace(/\\/$/, '');\nif (!base) throw new Error('Missing CROWDRELAY_PUBLIC_SITE_URL');\nreturn [{ json: { event_id: envelope.id, mail: {\n  template: 'crowdrelay-event-reminder', to: data.fan.email,\n  variables: { display_name: data.fan.display_name ?? null, locale: data.fan.locale ?? 'pl-PL', reminder_kind: data.reminder_kind, event_title: data.event.title, starts_at: data.event.starts_at, doors_at: data.event.doors_at ?? null, venue: data.event.venue ?? null, venue_address: data.event.venue_address ?? null, event_url: `${base}/live/${encodeURIComponent(data.event.slug)}`, ticket_url: data.event.ticket_url ?? `${base}/live/${encodeURIComponent(data.event.slug)}` },\n  idempotency_key: envelope.id\n}} }];"
+    },
+    "id": "70a68b88-6cbb-45d7-891c-4d2b265423cb",
+    "name": "Validate and build mail",
+    "type": "n8n-nodes-base.code",
+    "typeVersion": 2,
+    "position": [
+     260,
+     0
+    ]
+   },
+   {
+    "parameters": {
+     "method": "POST",
+     "url": "http://virya-crowdrelay-n8n-bridge:8080/mailer",
+     "sendHeaders": true,
+     "headerParameters": {
+      "parameters": [
+       {
+        "name": "Idempotency-Key",
+        "value": "={{ $json.event_id }}"
+       }
+      ]
+     },
+     "sendBody": true,
+     "contentType": "raw",
+     "rawContentType": "application/json",
+     "body": "={{ JSON.stringify($json.mail) }}",
+     "options": {
+      "timeout": 40000
+     },
+     "authentication": "genericCredentialType",
+     "genericAuthType": "httpHeaderAuth"
+    },
+    "id": "79c50863-5c19-4e7f-ab4b-41bceee69f3d",
+    "name": "Send through Virya mailer",
+    "type": "n8n-nodes-base.httpRequest",
+    "typeVersion": 4.2,
+    "position": [
+     540,
+     0
+    ],
+    "retryOnFail": true,
+    "maxTries": 3,
+    "waitBetweenTries": 10000,
+    "credentials": {
+     "httpHeaderAuth": {
+      "id": "viryaBridgeHeaderAuthV10",
+      "name": "Virya CrowdRelay control-plane bridge"
+     }
+    },
+    "notesInFlow": true,
+    "notes": "Sekrety mailera s\u0105 wy\u0142\u0105cznie w prywatnym bridge; workflow przekazuje tylko payload i idempotency key."
+   }
+  ],
+  "connections": {
+   "Called by verified ingress": {
+    "main": [
+     [
+      {
+       "node": "Validate and build mail",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "Validate and build mail": {
+    "main": [
+     [
+      {
+       "node": "Send through Virya mailer",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   }
+  },
+  "nodeGroups": [],
+  "authors": "import",
+  "name": null,
+  "description": null,
+  "autosaved": false,
+  "workflowPublishHistory": []
+ }
+}

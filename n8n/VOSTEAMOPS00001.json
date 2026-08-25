@@ -1,0 +1,529 @@
+{
+ "updatedAt": "2026-08-15T20:52:44.384Z",
+ "createdAt": "2026-08-11T09:00:00.000Z",
+ "id": "VOSTEAMOPS00001",
+ "name": "CrowdRelay \u2014 CrowdRelayOS team action executor",
+ "description": "Thin Discord execution adapter for merch actions, deterministic content artifacts and show-task escalations.",
+ "active": true,
+ "isArchived": false,
+ "nodes": [
+  {
+   "id": "6bb2d8b7-ccfa-4e5e-a28b-c71362186a2a",
+   "name": "Called by verified ingress",
+   "type": "n8n-nodes-base.executeWorkflowTrigger",
+   "position": [
+    320,
+    -96
+   ],
+   "parameters": {
+    "inputSource": "passthrough"
+   },
+   "typeVersion": 1.1
+  },
+  {
+   "id": "b966c75e-8e16-4b83-ae25-e777cf80d21f",
+   "name": "Build deterministic team action",
+   "type": "n8n-nodes-base.code",
+   "position": [
+    576,
+    -96
+   ],
+   "parameters": {
+    "jsCode": "const e=$json||{}; const supported=new Set(['crowdrelay.merch.reorder_requested','crowdrelay.merch.bundle_requested','crowdrelay.content.artifact_requested','crowdrelay.show.task_attention_required','crowdrelay.ops.status_changed']);\nif(e.version!==1||!supported.has(String(e.type||''))) throw new Error('Unsupported VIRYA OS team action');\nconst d=e.data||{}; const action_id=String(d.action_id||'').trim(); if(!action_id) throw new Error('Missing action_id');\nconst clean=v=>String(v??'').replace(/[\\r\\n\\t]+/g,' ').trim(); let content='';\nif(e.type==='crowdrelay.merch.reorder_requested'){\n  content=`\ud83d\udce6 **VIRYA OS \u00b7 RESTOCK**\\nWariant: \\`${clean(d.variant_id)}\\`\\nIlo\u015b\u0107: **${Number(d.quantity||0)} szt.**\\n\\nTo jest gotowe zadanie operacyjne \u2014 potwierd\u017a zam\u00f3wienie/uzupe\u0142nienie u dostawcy.`;\n}else if(e.type==='crowdrelay.merch.bundle_requested'){\n  const price=(Number(d.bundle_price_minor||0)/100).toFixed(2); const affinity=(Number(d.affinity_basis_points||0)/100).toFixed(1);\n  content=`\ud83e\udde9 **VIRYA OS \u00b7 BUNDLE DO WDRO\u017bENIA**\\nProdukt A: \\`${clean(d.product_a)}\\`\\nProdukt B: \\`${clean(d.product_b)}\\`\\nCena bundle: **${price} PLN**\\nAffinity: **${affinity}%**\\n\\nParametry s\u0105 ju\u017c policzone przez CrowdRelay \u2014 executor ich nie zmienia.`;\n}else if(e.type==='crowdrelay.show.task_attention_required'){\n  content=`\ud83d\udea8 **VIRYA OS \u00b7 SHOW OPS \u2014 WYMAGA UWAGI**\\nEvent: \\`${clean(d.event_id)}\\`\\nZadanie: **${clean(d.task).replace(/_/g,' ')}**\\n\\nSprawd\u017a i domknij przed kolejnym cyklem operacyjnym.`;\n}else{\n  const title=clean(d.source_title)||'VIRYA'; const artifact=clean(d.artifact)||'content'; const m=(d.source_metadata&&typeof d.source_metadata==='object')?d.source_metadata:{};\n  const preferred=['city','venue','starts_at','release_at','date','url','ticket_url','destination_url']; const facts=[];\n  for(const key of preferred){if(m[key]!=null&&typeof m[key]!=='object'){const v=clean(m[key]);if(v)facts.push(`${key.replace(/_/g,' ')}: ${v}`)}}\n  if(!facts.length){for(const [k,v] of Object.entries(m).sort(([a],[b])=>a.localeCompare(b))){if(facts.length>=4)break;if(v!=null&&typeof v!=='object'){const cv=clean(v);if(cv)facts.push(`${k.replace(/_/g,' ')}: ${cv}`)}}}\n  const factline=facts.slice(0,4).join(' \u00b7 '); let draft='';\n  if(artifact==='social_story') draft=`${title}${factline?`\\n${factline}`:''}\\n\\nVIRYA \u00b7 z\u0142ap sygna\u0142: https://virya.music/`;\n  else if(artifact==='social_feed') draft=`VIRYA \u00b7 ${title}${factline?`\\n\\n${factline}`:''}\\n\\nWi\u0119cej: https://virya.music/`;\n  else if(artifact==='signal_push') draft=`VIRYA \u00b7 ${title}${factline?` \u2014 ${factline}`:''}`;\n  else if(artifact==='newsletter_block') draft=`**${title}**${factline?`\\n${factline}`:''}\\n\\nAktualny sygna\u0142: https://virya.music/`;\n  else if(artifact==='press_hook') draft=`VIRYA \u2014 ${title}.${factline?` ${factline}.`:''} Materia\u0142y prasowe: https://virya.music/pl/epk/`;\n  else if(artifact==='post_show_recap') draft=`VIRYA \u00b7 ${title}${factline?`\\n${factline}`:''}\\n\\nDzi\u0119ki za wsp\u00f3lny sygna\u0142.`;\n  else draft=`VIRYA \u00b7 ${title}${factline?`\\n${factline}`:''}`;\n  content=`\u270d\ufe0f **VIRYA OS \u00b7 GOTOWY ARTIFACT: ${artifact.replace(/_/g,' ').toUpperCase()}**\\nTemplate: \\`${clean(d.template_key)}\\`\\n\\n${draft}`;\n}\nreturn [{json:{event_id:String(e.id||''),event_type:String(e.type),action_id,discord_message:content.slice(0,1950)}}];"
+   },
+   "typeVersion": 2
+  },
+  {
+   "id": "e1fa7882-e750-4dce-8a7f-98c7ddc1595e",
+   "name": "Discord \u2014 execute team action",
+   "type": "n8n-nodes-base.httpRequest",
+   "onError": "continueErrorOutput",
+   "position": [
+    1072,
+    -96
+   ],
+   "parameters": {
+    "url": "https://discord.com/api/v10/channels/1529482376458276964/messages",
+    "method": "POST",
+    "options": {
+     "timeout": 30000
+    },
+    "jsonBody": "={{ ({content:String($json.discord_message||'').slice(0,2000),allowed_mentions:{parse:[]},flags:4096}) }}",
+    "sendBody": true,
+    "sendHeaders": true,
+    "specifyBody": "json",
+    "authentication": "genericCredentialType",
+    "genericAuthType": "httpHeaderAuth",
+    "headerParameters": {
+     "parameters": [
+      {
+       "name": "User-Agent",
+       "value": "Virya-n8n/1.0 (https://virya.music)"
+      }
+     ]
+    }
+   },
+   "credentials": {
+    "httpHeaderAuth": {
+     "id": "FB7ONYMUsZFfObWB",
+     "name": "Discord Bot HTTP"
+    }
+   },
+   "typeVersion": 4.4
+  },
+  {
+   "id": "c480a287-a924-416c-8b3c-0d559890089e",
+   "name": "Prepare success receipt",
+   "type": "n8n-nodes-base.code",
+   "position": [
+    1120,
+    -192
+   ],
+   "parameters": {
+    "jsCode": "const src=$('Build deterministic team action').item.json||{};const sent=$json||{};return [{json:{action_id:src.action_id,claim_token:$('Resolve provider execution claim').item.json.claim_token,status:'succeeded',provider_reference:String(sent.id||sent.message_id||'discord').slice(0,240),metadata:{event_id:src.event_id,event_type:src.event_type,provider:'discord'},occurred_at:new Date().toISOString()}}];"
+   },
+   "typeVersion": 2
+  },
+  {
+   "id": "2b7c0336-e4a0-454c-bfde-85c2f4a24e84",
+   "name": "Fail closed on ambiguous provider error",
+   "type": "n8n-nodes-base.code",
+   "position": [
+    1120,
+    16
+   ],
+   "parameters": {
+    "jsCode": "const src=$('Resolve provider execution claim').item.json||{}; throw new Error(`Provider outcome ambiguous for action ${src.action_id||'unknown'}; claim retained to prevent automatic duplicate`);"
+   },
+   "typeVersion": 2
+  },
+  {
+   "id": "5fa9ad61-378a-4016-861a-87c21630870f",
+   "name": "Queue success receipt",
+   "type": "n8n-nodes-base.executeWorkflow",
+   "position": [
+    1376,
+    -192
+   ],
+   "parameters": {
+    "options": {},
+    "workflowId": {
+     "__rl": true,
+     "mode": "id",
+     "value": "VOSRECEIPT00001"
+    }
+   },
+   "typeVersion": 1.3,
+   "alwaysOutputData": true
+  },
+  {
+   "id": "681b469d-d734-4add-8081-8407d773c021",
+   "name": "Provider execution claim",
+   "type": "n8n-nodes-base.httpRequest",
+   "position": [
+    736,
+    -96
+   ],
+   "parameters": {
+    "url": "={{ 'https://signal-api.virya.music/v1/internal/autopilot/actions/' + $json.action_id + '/execution-claim' }}",
+    "method": "POST",
+    "options": {
+     "timeout": 30000
+    },
+    "jsonBody": "={{ ({executor_id:String($env.VIRYAOS_EXECUTOR_ID||'virya-n8n-primary').trim(),occurred_at:new Date().toISOString()}) }}",
+    "sendBody": true,
+    "sendHeaders": true,
+    "specifyBody": "json",
+    "headerParameters": {
+     "parameters": [
+      {
+       "name": "Authorization",
+       "value": "={{ 'Bearer ' + $env.CROWDRELAY_COMMERCE_API_KEY }}"
+      }
+     ]
+    }
+   },
+   "typeVersion": 4.4
+  },
+  {
+   "id": "3e605dd4-b031-4b90-ab92-d0f7e3ddf2f3",
+   "name": "Resolve provider execution claim",
+   "type": "n8n-nodes-base.code",
+   "position": [
+    896,
+    -96
+   ],
+   "parameters": {
+    "jsCode": "const src=$('Build deterministic team action').item.json||{}; const r=$json||{}; const disposition=String(r.disposition||'');\nif(disposition==='already_succeeded') return [];\nif(disposition!=='claimed'||!r.claim_token) throw new Error(`Provider execution ${disposition||'unclaimed'}; fail closed to prevent duplicate external side effects`);\nreturn [{json:{...src,claim_token:String(r.claim_token),attempt_number:Number(r.attempt_number||1)}}];"
+   },
+   "typeVersion": 2
+  }
+ ],
+ "connections": {
+  "Called by verified ingress": {
+   "main": [
+    [
+     {
+      "node": "Build deterministic team action",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Build deterministic team action": {
+   "main": [
+    [
+     {
+      "node": "Provider execution claim",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Discord \u2014 execute team action": {
+   "main": [
+    [
+     {
+      "node": "Prepare success receipt",
+      "type": "main",
+      "index": 0
+     }
+    ],
+    [
+     {
+      "node": "Fail closed on ambiguous provider error",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Prepare success receipt": {
+   "main": [
+    [
+     {
+      "node": "Queue success receipt",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Provider execution claim": {
+   "main": [
+    [
+     {
+      "node": "Resolve provider execution claim",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Resolve provider execution claim": {
+   "main": [
+    [
+     {
+      "node": "Discord \u2014 execute team action",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  }
+ },
+ "settings": {
+  "executionOrder": "v1",
+  "saveDataErrorExecution": "none",
+  "saveDataSuccessExecution": "none",
+  "saveManualExecutions": false,
+  "errorWorkflow": "98d5e1a4-2dba-5e5a-9be1-2e5d9220859d",
+  "saveExecutionProgress": false,
+  "executionTimeout": 60,
+  "binaryMode": "separate",
+  "timezone": "Europe/Warsaw"
+ },
+ "staticData": null,
+ "meta": {
+  "templateCredsSetupCompleted": true
+ },
+ "nodeGroups": [],
+ "pinData": {},
+ "versionId": "7b3465ea-314f-481f-893a-1e9c9095d18c",
+ "activeVersionId": "7b3465ea-314f-481f-893a-1e9c9095d18c",
+ "versionCounter": 6,
+ "triggerCount": 0,
+ "sourceWorkflowId": null,
+ "shared": [
+  {
+   "updatedAt": "2026-08-11T19:49:59.771Z",
+   "createdAt": "2026-08-11T19:49:59.771Z",
+   "role": "workflow:owner",
+   "workflowId": "VOSTEAMOPS00001",
+   "projectId": "e2rPVcUBR4DTE3mO",
+   "project": {
+    "updatedAt": "2026-07-24T09:45:30.763Z",
+    "createdAt": "2026-07-24T09:45:07.113Z",
+    "id": "e2rPVcUBR4DTE3mO",
+    "name": "Virya Crew <virya.crew@gmail.com>",
+    "type": "personal",
+    "icon": null,
+    "description": null,
+    "customTelemetryTags": [],
+    "creatorId": "89259ec0-46eb-41d3-a04e-eb12f52f6342"
+   }
+  }
+ ],
+ "tags": [],
+ "activeVersion": {
+  "updatedAt": "2026-08-25T12:20:51.980Z",
+  "createdAt": "2026-08-13T20:39:59.787Z",
+  "versionId": "7b3465ea-314f-481f-893a-1e9c9095d18c",
+  "workflowId": "VOSTEAMOPS00001",
+  "nodes": [
+   {
+    "id": "6bb2d8b7-ccfa-4e5e-a28b-c71362186a2a",
+    "name": "Called by verified ingress",
+    "type": "n8n-nodes-base.executeWorkflowTrigger",
+    "position": [
+     320,
+     -96
+    ],
+    "parameters": {
+     "inputSource": "passthrough"
+    },
+    "typeVersion": 1.1
+   },
+   {
+    "id": "b966c75e-8e16-4b83-ae25-e777cf80d21f",
+    "name": "Build deterministic team action",
+    "type": "n8n-nodes-base.code",
+    "position": [
+     576,
+     -96
+    ],
+    "parameters": {
+     "jsCode": "const e=$json||{}; const supported=new Set(['crowdrelay.merch.reorder_requested','crowdrelay.merch.bundle_requested','crowdrelay.content.artifact_requested','crowdrelay.show.task_attention_required','crowdrelay.ops.status_changed']);\nif(e.version!==1||!supported.has(String(e.type||''))) throw new Error('Unsupported VIRYA OS team action');\nconst d=e.data||{}; const action_id=String(d.action_id||'').trim(); if(!action_id) throw new Error('Missing action_id');\nconst clean=v=>String(v??'').replace(/[\\r\\n\\t]+/g,' ').trim(); let content='';\nif(e.type==='crowdrelay.merch.reorder_requested'){\n  content=`\ud83d\udce6 **VIRYA OS \u00b7 RESTOCK**\\nWariant: \\`${clean(d.variant_id)}\\`\\nIlo\u015b\u0107: **${Number(d.quantity||0)} szt.**\\n\\nTo jest gotowe zadanie operacyjne \u2014 potwierd\u017a zam\u00f3wienie/uzupe\u0142nienie u dostawcy.`;\n}else if(e.type==='crowdrelay.merch.bundle_requested'){\n  const price=(Number(d.bundle_price_minor||0)/100).toFixed(2); const affinity=(Number(d.affinity_basis_points||0)/100).toFixed(1);\n  content=`\ud83e\udde9 **VIRYA OS \u00b7 BUNDLE DO WDRO\u017bENIA**\\nProdukt A: \\`${clean(d.product_a)}\\`\\nProdukt B: \\`${clean(d.product_b)}\\`\\nCena bundle: **${price} PLN**\\nAffinity: **${affinity}%**\\n\\nParametry s\u0105 ju\u017c policzone przez CrowdRelay \u2014 executor ich nie zmienia.`;\n}else if(e.type==='crowdrelay.show.task_attention_required'){\n  content=`\ud83d\udea8 **VIRYA OS \u00b7 SHOW OPS \u2014 WYMAGA UWAGI**\\nEvent: \\`${clean(d.event_id)}\\`\\nZadanie: **${clean(d.task).replace(/_/g,' ')}**\\n\\nSprawd\u017a i domknij przed kolejnym cyklem operacyjnym.`;\n}else{\n  const title=clean(d.source_title)||'VIRYA'; const artifact=clean(d.artifact)||'content'; const m=(d.source_metadata&&typeof d.source_metadata==='object')?d.source_metadata:{};\n  const preferred=['city','venue','starts_at','release_at','date','url','ticket_url','destination_url']; const facts=[];\n  for(const key of preferred){if(m[key]!=null&&typeof m[key]!=='object'){const v=clean(m[key]);if(v)facts.push(`${key.replace(/_/g,' ')}: ${v}`)}}\n  if(!facts.length){for(const [k,v] of Object.entries(m).sort(([a],[b])=>a.localeCompare(b))){if(facts.length>=4)break;if(v!=null&&typeof v!=='object'){const cv=clean(v);if(cv)facts.push(`${k.replace(/_/g,' ')}: ${cv}`)}}}\n  const factline=facts.slice(0,4).join(' \u00b7 '); let draft='';\n  if(artifact==='social_story') draft=`${title}${factline?`\\n${factline}`:''}\\n\\nVIRYA \u00b7 z\u0142ap sygna\u0142: https://virya.music/`;\n  else if(artifact==='social_feed') draft=`VIRYA \u00b7 ${title}${factline?`\\n\\n${factline}`:''}\\n\\nWi\u0119cej: https://virya.music/`;\n  else if(artifact==='signal_push') draft=`VIRYA \u00b7 ${title}${factline?` \u2014 ${factline}`:''}`;\n  else if(artifact==='newsletter_block') draft=`**${title}**${factline?`\\n${factline}`:''}\\n\\nAktualny sygna\u0142: https://virya.music/`;\n  else if(artifact==='press_hook') draft=`VIRYA \u2014 ${title}.${factline?` ${factline}.`:''} Materia\u0142y prasowe: https://virya.music/pl/epk/`;\n  else if(artifact==='post_show_recap') draft=`VIRYA \u00b7 ${title}${factline?`\\n${factline}`:''}\\n\\nDzi\u0119ki za wsp\u00f3lny sygna\u0142.`;\n  else draft=`VIRYA \u00b7 ${title}${factline?`\\n${factline}`:''}`;\n  content=`\u270d\ufe0f **VIRYA OS \u00b7 GOTOWY ARTIFACT: ${artifact.replace(/_/g,' ').toUpperCase()}**\\nTemplate: \\`${clean(d.template_key)}\\`\\n\\n${draft}`;\n}\nreturn [{json:{event_id:String(e.id||''),event_type:String(e.type),action_id,discord_message:content.slice(0,1950)}}];"
+    },
+    "typeVersion": 2
+   },
+   {
+    "id": "e1fa7882-e750-4dce-8a7f-98c7ddc1595e",
+    "name": "Discord \u2014 execute team action",
+    "type": "n8n-nodes-base.httpRequest",
+    "onError": "continueErrorOutput",
+    "position": [
+     1072,
+     -96
+    ],
+    "parameters": {
+     "url": "https://discord.com/api/v10/channels/1529482376458276964/messages",
+     "method": "POST",
+     "options": {
+      "timeout": 30000
+     },
+     "jsonBody": "={{ ({content:String($json.discord_message||'').slice(0,2000),allowed_mentions:{parse:[]},flags:4096}) }}",
+     "sendBody": true,
+     "sendHeaders": true,
+     "specifyBody": "json",
+     "authentication": "genericCredentialType",
+     "genericAuthType": "httpHeaderAuth",
+     "headerParameters": {
+      "parameters": [
+       {
+        "name": "User-Agent",
+        "value": "Virya-n8n/1.0 (https://virya.music)"
+       }
+      ]
+     }
+    },
+    "credentials": {
+     "httpHeaderAuth": {
+      "id": "FB7ONYMUsZFfObWB",
+      "name": "Discord Bot HTTP"
+     }
+    },
+    "typeVersion": 4.4
+   },
+   {
+    "id": "c480a287-a924-416c-8b3c-0d559890089e",
+    "name": "Prepare success receipt",
+    "type": "n8n-nodes-base.code",
+    "position": [
+     1120,
+     -192
+    ],
+    "parameters": {
+     "jsCode": "const src=$('Build deterministic team action').item.json||{};const sent=$json||{};return [{json:{action_id:src.action_id,claim_token:$('Resolve provider execution claim').item.json.claim_token,status:'succeeded',provider_reference:String(sent.id||sent.message_id||'discord').slice(0,240),metadata:{event_id:src.event_id,event_type:src.event_type,provider:'discord'},occurred_at:new Date().toISOString()}}];"
+    },
+    "typeVersion": 2
+   },
+   {
+    "id": "2b7c0336-e4a0-454c-bfde-85c2f4a24e84",
+    "name": "Fail closed on ambiguous provider error",
+    "type": "n8n-nodes-base.code",
+    "position": [
+     1120,
+     16
+    ],
+    "parameters": {
+     "jsCode": "const src=$('Resolve provider execution claim').item.json||{}; throw new Error(`Provider outcome ambiguous for action ${src.action_id||'unknown'}; claim retained to prevent automatic duplicate`);"
+    },
+    "typeVersion": 2
+   },
+   {
+    "id": "5fa9ad61-378a-4016-861a-87c21630870f",
+    "name": "Queue success receipt",
+    "type": "n8n-nodes-base.executeWorkflow",
+    "position": [
+     1376,
+     -192
+    ],
+    "parameters": {
+     "options": {},
+     "workflowId": {
+      "__rl": true,
+      "mode": "id",
+      "value": "VOSRECEIPT00001"
+     }
+    },
+    "typeVersion": 1.3,
+    "alwaysOutputData": true
+   },
+   {
+    "id": "681b469d-d734-4add-8081-8407d773c021",
+    "name": "Provider execution claim",
+    "type": "n8n-nodes-base.httpRequest",
+    "position": [
+     736,
+     -96
+    ],
+    "parameters": {
+     "url": "={{ 'https://signal-api.virya.music/v1/internal/autopilot/actions/' + $json.action_id + '/execution-claim' }}",
+     "method": "POST",
+     "options": {
+      "timeout": 30000
+     },
+     "jsonBody": "={{ ({executor_id:String($env.VIRYAOS_EXECUTOR_ID||'virya-n8n-primary').trim(),occurred_at:new Date().toISOString()}) }}",
+     "sendBody": true,
+     "sendHeaders": true,
+     "specifyBody": "json",
+     "headerParameters": {
+      "parameters": [
+       {
+        "name": "Authorization",
+        "value": "={{ 'Bearer ' + $env.CROWDRELAY_COMMERCE_API_KEY }}"
+       }
+      ]
+     }
+    },
+    "typeVersion": 4.4
+   },
+   {
+    "id": "3e605dd4-b031-4b90-ab92-d0f7e3ddf2f3",
+    "name": "Resolve provider execution claim",
+    "type": "n8n-nodes-base.code",
+    "position": [
+     896,
+     -96
+    ],
+    "parameters": {
+     "jsCode": "const src=$('Build deterministic team action').item.json||{}; const r=$json||{}; const disposition=String(r.disposition||'');\nif(disposition==='already_succeeded') return [];\nif(disposition!=='claimed'||!r.claim_token) throw new Error(`Provider execution ${disposition||'unclaimed'}; fail closed to prevent duplicate external side effects`);\nreturn [{json:{...src,claim_token:String(r.claim_token),attempt_number:Number(r.attempt_number||1)}}];"
+    },
+    "typeVersion": 2
+   }
+  ],
+  "connections": {
+   "Called by verified ingress": {
+    "main": [
+     [
+      {
+       "node": "Build deterministic team action",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "Build deterministic team action": {
+    "main": [
+     [
+      {
+       "node": "Provider execution claim",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "Discord \u2014 execute team action": {
+    "main": [
+     [
+      {
+       "node": "Prepare success receipt",
+       "type": "main",
+       "index": 0
+      }
+     ],
+     [
+      {
+       "node": "Fail closed on ambiguous provider error",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "Prepare success receipt": {
+    "main": [
+     [
+      {
+       "node": "Queue success receipt",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "Provider execution claim": {
+    "main": [
+     [
+      {
+       "node": "Resolve provider execution claim",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "Resolve provider execution claim": {
+    "main": [
+     [
+      {
+       "node": "Discord \u2014 execute team action",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   }
+  },
+  "nodeGroups": [],
+  "authors": "Virya Crew",
+  "name": "Version 7b3465ea",
+  "description": "",
+  "autosaved": false,
+  "workflowPublishHistory": [
+   {
+    "createdAt": "2026-08-13T20:40:01.874Z",
+    "id": 606,
+    "workflowId": "VOSTEAMOPS00001",
+    "versionId": "7b3465ea-314f-481f-893a-1e9c9095d18c",
+    "event": "activated",
+    "userId": "89259ec0-46eb-41d3-a04e-eb12f52f6342"
+   }
+  ]
+ }
+}

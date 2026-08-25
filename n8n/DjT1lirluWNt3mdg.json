@@ -1,0 +1,1077 @@
+{
+ "updatedAt": "2026-08-21T12:01:32.190Z",
+ "createdAt": "2026-07-24T09:45:08.790Z",
+ "id": "DjT1lirluWNt3mdg",
+ "name": "VIRYA 06 \u2014 Weekly Festival Scout \u2192 CRM + Discord Bot",
+ "description": null,
+ "active": true,
+ "isArchived": false,
+ "nodes": [
+  {
+   "id": "fcca9541-c25f-473e-9050-4243c7367f92",
+   "name": "SETUP",
+   "type": "n8n-nodes-base.stickyNote",
+   "position": [
+    3232,
+    -272
+   ],
+   "parameters": {
+    "color": 5,
+    "width": 500,
+    "height": 390,
+    "content": "## FESTIVAL SCOUT \u2014 DAILY INTAKE\nCodziennie o 09:05 skanuje publiczne RSS Google/Bing News oraz Google Alerts z Gmaila pod k\u0105tem nabor\u00f3w na festiwale, przegl\u0105dy i konkursy.\n\nTylko wynik 60/100+ trafia do Zgloszenia. Deduplikacja: Zg\u0142oszenie_ID, nazwa i URL. N8N_deadline_enabled pozostaje Nie do r\u0119cznej weryfikacji.\n\nGoogle Alerts s\u0105 czytane bezpo\u015brednio po nadawcy googlealerts-noreply@google.com; workflow nie wysy\u0142a zg\u0142osze\u0144 ani maili."
+   },
+   "typeVersion": 1
+  },
+  {
+   "id": "55d00e92-219f-4d48-b3a2-d580bea1cd57",
+   "name": "SCORING",
+   "type": "n8n-nodes-base.stickyNote",
+   "position": [
+    3808,
+    -272
+   ],
+   "parameters": {
+    "color": 4,
+    "width": 500,
+    "height": 330,
+    "content": "## SCORING VIRYA\n+30 otwarty nab\u00f3r \u2022 +8 format wydarzenia \u2022 +24 metal/heavy \u2022 +12 rock \u2022 +10 progressive \u2022 +8 alternative \u2022 +10 Polska / +5 CEE \u2022 +8 bezp\u0142atne \u2022 +8 aktualna edycja \u2022 +6 deadline\n\n\u221250 pay-to-play \u2022 \u221225 op\u0142ata \u2022 \u221245 zamkni\u0119te/odwo\u0142ane \u2022 \u221235 stara edycja\n\nA = 85+, B = 70\u201384, C = 60\u201369. Maks. 15 nowych rekord\u00f3w na uruchomienie."
+   },
+   "typeVersion": 1
+  },
+  {
+   "id": "7f4dad3e-58ce-45ea-aa9d-0b02c31a65cf",
+   "name": "Daily \u2014 festival scout 09:05",
+   "type": "n8n-nodes-base.scheduleTrigger",
+   "notes": "Daily cadence: 0 5 9 * * * (Europe/Warsaw). RSS + Google Alerts; CRM dedupe remains authoritative.",
+   "position": [
+    3264,
+    160
+   ],
+   "parameters": {
+    "rule": {
+     "interval": [
+      {
+       "field": "cronExpression",
+       "expression": "0 5 9 * * *"
+      }
+     ]
+    }
+   },
+   "notesInFlow": true,
+   "typeVersion": 1.3
+  },
+  {
+   "id": "6bcfc68e-d21a-43c7-a639-7f9f6a00f859",
+   "name": "Lista \u017ar\u00f3de\u0142 RSS",
+   "type": "n8n-nodes-base.code",
+   "position": [
+    3488,
+    160
+   ],
+   "parameters": {
+    "jsCode": "const queries = [\n  { name: 'Google News \u2014 nab\u00f3r PL', q: '\"nab\u00f3r zespo\u0142\u00f3w\" festiwal rock metal', lang: 'pl' },\n  { name: 'Google News \u2014 zg\u0142oszenia PL', q: '\"zg\u0142oszenia zespo\u0142\u00f3w\" festiwal rock metal', lang: 'pl' },\n  { name: 'Google News \u2014 przegl\u0105dy PL', q: '\"przegl\u0105d zespo\u0142\u00f3w\" rock metal', lang: 'pl' },\n  { name: 'Google News \u2014 konkursy PL', q: '\"konkurs zespo\u0142\u00f3w\" rock metal', lang: 'pl' },\n  { name: 'Google News \u2014 eliminacje PL', q: 'eliminacje festiwal rock metal zespo\u0142y', lang: 'pl' },\n  { name: 'Google News \u2014 juwenalia PL', q: 'juwenalia \"nab\u00f3r zespo\u0142\u00f3w\" rock metal', lang: 'pl' },\n  { name: 'Google News \u2014 open call CEE', q: '\"open call for bands\" metal festival Poland Czech Slovakia Germany', lang: 'en' },\n  { name: 'Google News \u2014 band applications EU', q: '\"band applications\" metal festival Europe', lang: 'en' },\n  { name: 'Google News \u2014 battle of bands CEE', q: '\"battle of the bands\" metal Poland Czech Slovakia', lang: 'en' },\n  { name: 'Bing News \u2014 nab\u00f3r PL', q: '\"nab\u00f3r zespo\u0142\u00f3w\" festiwal rock metal', lang: 'pl', engine: 'bing' },\n  { name: 'Bing News \u2014 open call CEE', q: '\"open call for bands\" metal festival Poland Czech Slovakia', lang: 'en', engine: 'bing' }\n];\n\nreturn queries.map(item => {\n  const encoded = encodeURIComponent(item.q);\n  const feed_url = item.engine === 'bing'\n    ? 'https://www.bing.com/news/search?q=' + encoded + '&format=rss'\n    : item.lang === 'pl'\n      ? 'https://news.google.com/rss/search?q=' + encoded + '&hl=pl&gl=PL&ceid=PL:pl'\n      : 'https://news.google.com/rss/search?q=' + encoded + '&hl=en&gl=PL&ceid=PL:en';\n  return { json: { feed_url, source_name: item.name } };\n});"
+   },
+   "typeVersion": 2
+  },
+  {
+   "id": "a6116e6b-cac2-4f15-8789-f29011fe2fbd",
+   "name": "Czytaj publiczne RSS",
+   "type": "n8n-nodes-base.rssFeedRead",
+   "onError": "continueRegularOutput",
+   "maxTries": 4,
+   "position": [
+    3712,
+    160
+   ],
+   "parameters": {
+    "url": "={{ $json.feed_url }}",
+    "options": {}
+   },
+   "retryOnFail": true,
+   "typeVersion": 1.2,
+   "alwaysOutputData": true,
+   "waitBetweenTries": 15000
+  },
+  {
+   "id": "58fe069e-5014-4747-a345-93faf07a8164",
+   "name": "Normalizuj RSS",
+   "type": "n8n-nodes-base.code",
+   "position": [
+    3952,
+    160
+   ],
+   "parameters": {
+    "jsCode": "const clean = value => String(value ?? '').replace(/<[^>]*>/g, ' ').replace(/&nbsp;/gi, ' ').replace(/&amp;/gi, '&').replace(/&quot;/gi, '\"').replace(/&#39;/gi, \"'\").replace(/\\s+/g, ' ').trim();\nconst cleanTitle = value => clean(value).replace(/\\s+[\u2013\u2014-]\\s+[^\u2013\u2014-]{2,70}$/, '').trim();\nconst now = new Date();\nconst seen = new Set();\nconst candidates = [];\n\nfor (const item of $input.all()) {\n  const row = item.json || {};\n  const title = cleanTitle(row.title || row.name || '');\n  const url = clean(row.link || row.guid || row.url || '');\n  const raw = clean((row.title || '') + ' ' + (row.contentSnippet || row.content || row.description || row.summary || ''));\n  if (!title || !raw) continue;\n\n  const publishedRaw = row.isoDate || row.pubDate || row.date || row.published || '';\n  const published = publishedRaw && !Number.isNaN(new Date(publishedRaw).getTime()) ? new Date(publishedRaw) : null;\n  if (published && (now - published) / 86400000 > 400) continue;\n\n  const key = (url || title).toLowerCase().replace(/[?#].*$/, '').replace(/\\/$/, '');\n  if (!key || seen.has(key)) continue;\n  seen.add(key);\n  candidates.push({\n    subject: title,\n    raw,\n    url,\n    date: published ? published.toISOString() : '',\n    source: clean(row.creator || row.author || row.source || 'Publiczny RSS'),\n    origin: clean(row._source_type || 'RSS')\n  });\n}\n\nreturn [{ json: { candidates } }];"
+   },
+   "typeVersion": 2
+  },
+  {
+   "id": "6ee42fd7-a26a-4595-84b4-2077f88e8588",
+   "name": "Czytaj Zgloszenia",
+   "type": "n8n-nodes-base.googleSheets",
+   "maxTries": 5,
+   "position": [
+    4176,
+    160
+   ],
+   "parameters": {
+    "options": {
+     "dataLocationOnSheet": {
+      "values": {
+       "rangeDefinition": "specifyRange"
+      }
+     }
+    },
+    "filtersUI": {
+     "values": []
+    },
+    "sheetName": {
+     "__rl": true,
+     "mode": "name",
+     "value": "Zgloszenia"
+    },
+    "documentId": {
+     "__rl": true,
+     "mode": "id",
+     "value": "11EqtaMi6cx6IigtIFmaYJEiNpF10Ks_gHSJ0aSI14-8"
+    }
+   },
+   "credentials": {
+    "googleSheetsOAuth2Api": {
+     "id": "bc2Y1XmIdyu5ySTa",
+     "name": "Google Sheets account"
+    }
+   },
+   "retryOnFail": true,
+   "typeVersion": 4.7,
+   "alwaysOutputData": true,
+   "waitBetweenTries": 15000
+  },
+  {
+   "id": "e3beda62-ac46-4766-8127-ed089b016c5c",
+   "name": "Score + dedupe + CRM rows",
+   "type": "n8n-nodes-base.code",
+   "position": [
+    4416,
+    160
+   ],
+   "parameters": {
+    "jsCode": "const candidates = $('Normalizuj RSS').first().json.candidates || [];\nconst existingRows = $input.all().map(item => item.json || {});\nconst clean = value => String(value ?? '').replace(/\\s+/g, ' ').trim();\nconst normalize = value => clean(value).toLowerCase().replace(/\u0142/g, 'l').normalize('NFD').replace(/[\\u0300-\\u036f]/g, '').replace(/[^a-z0-9]+/g, ' ').replace(/\\s+/g, ' ').trim();\nconst canonicalUrl = value => clean(value).toLowerCase().replace(/^https?:\\/\\//, '').replace(/^www\\./, '').replace(/[?#].*$/, '').replace(/\\/$/, '');\nconst signature = value => normalize(value)\n  .replace(/\\b(nabor|zgloszenia|zespolow|zespoly|open call|band applications?|festiwal|festival|przeglad|konkurs|eliminacje|edycja|202[0-9])\\b/g, ' ')\n  .replace(/\\s+/g, ' ').trim();\nconst hash = value => { let h = 2166136261; for (const ch of value) { h ^= ch.charCodeAt(0); h = Math.imul(h, 16777619); } return (h >>> 0).toString(36).toUpperCase(); };\nconst hasAny = (text, terms) => terms.some(term => text.includes(term));\nconst now = new Date();\nconst today = now.toISOString().slice(0, 10);\nconst thisYear = now.getFullYear();\nconst nextYear = thisYear + 1;\nconst previousYear = thisYear - 1;\nconst applicationTerms = ['nabor zespolow','zgloszenia zespolow','zglos zespol','przyjmujemy zgloszenia','open call','band application','bands wanted','przeglad zespolow','konkurs zespolow','eliminacje','battle of the bands'];\nconst eventTerms = ['festiwal','festival','przeglad','konkurs','showcase','juwenalia','battle of the bands'];\nconst payTerms = ['pay to play','pay-to-play','buy on','buy-on','ticket quota','obowiazkowa sprzedaz biletow','sprzedaz puli biletow'];\nconst feeTerms = ['oplata zgloszeniowa','application fee','entry fee','registration fee'];\nconst closedTerms = ['nabor zamkniety','zgloszenia zamkniete','applications closed','deadline passed','odwolany','cancelled','canceled','nie odbedzie sie'];\nconst existingNames = new Set();\nconst existingSignatures = new Set();\nconst existingUrls = new Set();\nconst existingIds = new Set();\n\nfor (const row of existingRows) {\n  const name = normalize(row.Wydarzenie || '');\n  if (name) existingNames.add(name);\n  const sig = signature(row.Wydarzenie || '');\n  if (sig.length >= 8) existingSignatures.add(sig);\n  for (const field of ['Formularz_URL','Strona_WWW','WWW','\u0179r\u00f3d\u0142o_weryfikacji_1','\u0179r\u00f3d\u0142o_weryfikacji_2']) {\n    const url = canonicalUrl(row[field] || '');\n    if (url) existingUrls.add(url);\n  }\n  if (row.Zg\u0142oszenie_ID) existingIds.add(clean(row.Zg\u0142oszenie_ID));\n}\n\nconst output = [];\nfor (const candidate of candidates) {\n  const title = clean(candidate.subject).slice(0, 180);\n  const probe = normalize((candidate.subject || '') + ' ' + (candidate.raw || ''));\n  if (!hasAny(probe, applicationTerms) || !hasAny(probe, eventTerms)) continue;\n\n  const published = candidate.date && !Number.isNaN(new Date(candidate.date).getTime()) ? new Date(candidate.date) : null;\n  if (published && (now - published) / 86400000 > 400) continue;\n\n  let score = 30;\n  const reasons = ['otwarty nab\u00f3r / zg\u0142oszenia'];\n  const redFlags = [];\n  score += 8;\n  reasons.push('festiwal lub przegl\u0105d');\n\n  if (hasAny(probe, ['metalcore','progressive metal','prog metal','metal','heavy'])) {\n    score += 24;\n    reasons.push('metal / ci\u0119\u017ckie brzmienie');\n  } else if (probe.includes('rock')) {\n    score += 12;\n    reasons.push('rock');\n  }\n  if (hasAny(probe, ['progressive','progresywn'])) {\n    score += 10;\n    reasons.push('progresywne brzmienie');\n  } else if (hasAny(probe, ['alternative','alternatywn'])) {\n    score += 8;\n    reasons.push('alternatywne brzmienie');\n  }\n\n  const isPoland = hasAny(probe, ['polska','poland','polski','wroclaw','warszawa','krakow','poznan','gdansk','katowice','lodz','lublin','rzeszow','szczecin','opole','torun','bydgoszcz','bialystok']);\n  const isCEE = hasAny(probe, ['czech','czechia','slovak','slovakia','germany','german','berlin','prague','praha','brno','ostrava','bratislava']);\n  if (isPoland) {\n    score += 10;\n    reasons.push('Polska');\n  } else if (isCEE) {\n    score += 5;\n    reasons.push('bliski rynek CEE');\n  }\n\n  if (hasAny(probe, ['bezplat','free application','free entry','no application fee'])) {\n    score += 8;\n    reasons.push('wygl\u0105da na bezp\u0142atne');\n  }\n  const hasCurrentYear = new RegExp('\\\\b(' + thisYear + '|' + nextYear + ')\\\\b').test(probe);\n  if (hasCurrentYear) {\n    score += 8;\n    reasons.push('aktualna edycja');\n  }\n  if (hasAny(probe, ['deadline','termin zgloszen','do kiedy','applications until','zgloszenia do'])) {\n    score += 6;\n    reasons.push('podany termin');\n  }\n\n  if (hasAny(probe, payTerms)) {\n    score -= 50;\n    redFlags.push('mo\u017cliwe pay-to-play / obowi\u0105zek sprzeda\u017cy bilet\u00f3w');\n  }\n  if (hasAny(probe, feeTerms)) {\n    score -= 25;\n    redFlags.push('mo\u017cliwa op\u0142ata zg\u0142oszeniowa');\n  }\n  if (hasAny(probe, closedTerms)) {\n    score -= 45;\n    redFlags.push('nab\u00f3r mo\u017ce by\u0107 zamkni\u0119ty albo wydarzenie odwo\u0142ane');\n  }\n  if (new RegExp('\\\\b' + previousYear + '\\\\b').test(probe) && !hasCurrentYear) {\n    score -= 35;\n    redFlags.push('wynik mo\u017ce dotyczy\u0107 poprzedniej edycji');\n  }\n  score = Math.max(0, Math.min(100, score));\n  if (score < 60) continue;\n\n  const url = clean(candidate.url);\n  const urlKey = canonicalUrl(url);\n  const nameKey = normalize(title);\n  const sigKey = signature(title);\n  const baseKey = urlKey || sigKey || nameKey;\n  const shortHash = hash(baseKey).slice(0, 8);\n  const submissionId = 'ZGL-SC-' + today.replace(/-/g, '') + '-' + shortHash;\n  if (existingIds.has(submissionId) || (urlKey && existingUrls.has(urlKey)) || existingNames.has(nameKey) || (sigKey.length >= 8 && existingSignatures.has(sigKey))) continue;\n\n  existingIds.add(submissionId);\n  if (urlKey) existingUrls.add(urlKey);\n  if (nameKey) existingNames.add(nameKey);\n  if (sigKey.length >= 8) existingSignatures.add(sigKey);\n\n  const priority = score >= 85 ? 'A' : score >= 70 ? 'B' : 'C';\n  const isEnglish = hasAny(probe, ['open call','band application','bands wanted','applications until','battle of the bands']) && !hasAny(probe, ['nabor','zgloszenia','przeglad','konkurs','eliminacje']);\n  const type = hasAny(probe, ['przeglad','konkurs','eliminacje','battle of the bands']) ? 'Przegl\u0105d / konkurs' : 'Festiwal / open call';\n  const country = isPoland ? 'Polska' : hasAny(probe, ['czech','czechia','prague','praha','brno','ostrava']) ? 'Czechy' : hasAny(probe, ['slovak','slovakia','bratislava']) ? 'S\u0142owacja' : hasAny(probe, ['germany','german','berlin']) ? 'Niemcy' : 'Do weryfikacji';\n  const genres = hasAny(probe, ['metalcore','metal','heavy']) ? 'metal, rock, alternative' : probe.includes('rock') ? 'rock, alternative' : 'alternative, progressive';\n  const fitReason = score + '/100 \u2014 ' + reasons.slice(0, 7).join(' + ');\n  const subject = isEnglish ? 'Virya \u00d7 ' + title + ' \u2014 band application' : 'Virya \u00d7 ' + title + ' \u2014 zg\u0142oszenie zespo\u0142u';\n  const body = isEnglish\n    ? 'Hi,\\n\\nwe came across the open call for ' + title + ' and it looks close to Virya\u2019s world. We are a Wroc\u0142aw-based modern metal band combining progressive metal, metalcore and electronics.\\n\\nCould you confirm whether applications are still open and free, and point us to the correct form or requirements?\\n\\nEPK: https://virya.music/pl/epk/\\n\\nThanks,\\nVirya'\n    : 'Cze\u015b\u0107,\\n\\ntrafili\u015bmy na nab\u00f3r do ' + title + ' i wygl\u0105da to jak kierunek bliski Viryi. Gramy nowoczesny metal na styku progresji, metalcore\u2019u i elektroniki; jeste\u015bmy z Wroc\u0142awia.\\n\\nDacie zna\u0107, czy zg\u0142oszenia s\u0105 nadal otwarte i bezp\u0142atne oraz gdzie znajdziemy w\u0142a\u015bciwy formularz lub wymagania?\\n\\nEPK: https://virya.music/pl/epk/\\n\\nDzi\u0119ki,\\nVirya';\n  const runIso = now.toISOString();\n\n  output.push({ json: {\n    'Zg\u0142oszenie_ID': submissionId,\n    'Event_ID': 'EVT-SC-' + shortHash,\n    'Wydarzenie': title,\n    'Status_bookingu': 'Nie wys\u0142ano',\n    'Priorytet': priority,\n    'W\u0142a\u015bciciel': '',\n    'Data_wys\u0142ania': '',\n    'Data_follow_up': '',\n    'Odpowied\u017a': '',\n    'Nast\u0119pny_krok': 'Zweryfikowa\u0107 oficjaln\u0105 stron\u0119, deadline, formularz i bezp\u0142atno\u015b\u0107 zg\u0142oszenia',\n    'Uwagi': clean(candidate.raw).slice(0, 480),\n    'Akcja_n8n': 'Research_only',\n    'N8N_status': 'Nowe znalezisko',\n    'N8N_last_run': runIso,\n    'Email_do': '',\n    'Email_temat': subject.slice(0, 220),\n    'Email_tre\u015b\u0107': body,\n    'EPK_URL': 'https://virya.music/pl/epk/',\n    'Approval_status': 'Nieprzygotowane',\n    'Send_mode': 'Draft_only',\n    'Discord_notification_status': 'Pending',\n    'Last_synced_at': runIso,\n    'Idempotency_key': 'SCOUT-' + shortHash,\n    'Record_hash': shortHash,\n    'Deadline_aktualny': '',\n    'Deadline_typ': 'Do weryfikacji',\n    'Deadline_pewnosc': 'Brak',\n    'Cykl_roczny': 'Nie',\n    'Deadline_podstawa': 'Automatyczny scout \u2014 wymaga potwierdzenia',\n    'N8N_deadline_enabled': 'Nie',\n    'Formularz_URL': url,\n    'Strona_WWW': url,\n    'Discord_podglad_status': 'Nowe ze scouta',\n    'Eligibility': 'Do weryfikacji',\n    'Research_2026_action': 'Zweryfikowa\u0107 oficjaln\u0105 stron\u0119',\n    'Research_2026_status': 'Nowe znalezisko automatyczne',\n    'Typ': type,\n    'Miasto': '',\n    'Kraj': country,\n    'Gatunki': genres,\n    'Email_kontaktowy': '',\n    'Telefon': '',\n    'Data_edycji_aktualnej': today,\n    'Zg\u0142oszenia_otwarte': 'Do weryfikacji',\n    'Status_aktywno\u015bci': 'Do weryfikacji',\n    'Status_weryfikacji': 'Nowe znalezisko \u2014 do weryfikacji',\n    'Dopasowanie_Virya': score,\n    'Uzasadnienie_dopasowania': fitReason,\n    'Ostatnia_weryfikacja': today,\n    '\u0179r\u00f3d\u0142o_weryfikacji_1': url,\n    '\u0179r\u00f3d\u0142o_weryfikacji_2': '',\n    'Uwagi_weryfikacyjne': redFlags.length ? redFlags.join('; ') : 'Brak automatycznie wykrytych ryzyk; nadal sprawdzi\u0107 regulamin i oficjaln\u0105 stron\u0119',\n    'Merge_source': candidate.origin === 'GMAIL_ALERT' ? 'Google Alerts scout' : 'Public RSS scout',\n    'WWW': url,\n    '_scout_score': score,\n    '_scout_priority': priority,\n    '_scout_reason': fitReason,\n    '_scout_risks': redFlags.join('; ')\n  }});\n  if (output.length >= 15) break;\n}\n\nreturn output;"
+   },
+   "typeVersion": 2
+  },
+  {
+   "id": "8fbae0d9-e007-4024-ba9c-5b7e0dd832ff",
+   "name": "Dopisz nowe do CRM",
+   "type": "n8n-nodes-base.googleSheets",
+   "position": [
+    4656,
+    160
+   ],
+   "parameters": {
+    "options": {
+     "locationDefine": {
+      "values": {}
+     },
+     "handlingExtraData": "ignoreIt"
+    },
+    "dataMode": "autoMapInputData",
+    "operation": "appendOrUpdate",
+    "sheetName": {
+     "__rl": true,
+     "mode": "name",
+     "value": "Zgloszenia"
+    },
+    "documentId": {
+     "__rl": true,
+     "mode": "id",
+     "value": "11EqtaMi6cx6IigtIFmaYJEiNpF10Ks_gHSJ0aSI14-8"
+    },
+    "columnToMatchOn": "Zg\u0142oszenie_ID"
+   },
+   "credentials": {
+    "googleSheetsOAuth2Api": {
+     "id": "bc2Y1XmIdyu5ySTa",
+     "name": "Google Sheets account"
+    }
+   },
+   "typeVersion": 3
+  },
+  {
+   "id": "f61237a2-2ac9-4532-8c37-09228d271139",
+   "name": "Zbuduj alerty Discord",
+   "type": "n8n-nodes-base.code",
+   "position": [
+    4896,
+    160
+   ],
+   "parameters": {
+    "jsCode": "const rows=$('Score + dedupe + CRM rows').all().map(i=>i.json||{}).sort((a,b)=>Number(b._scout_score||0)-Number(a._scout_score||0)).slice(0,5);if(!rows.length)return[];const lines=rows.map((row,i)=>[(i+1)+'. **'+String(row.Wydarzenie||'znalezisko').slice(0,120)+'** \u2014 '+String(row._scout_score||0)+'/100 ('+String(row._scout_priority||'?')+')','Status: do weryfikacji | Owner: do przypisania','Akcja: sprawd\u017a oficjalny deadline, formularz i bezp\u0142atno\u015b\u0107',String(row.WWW||row.Strona_WWW||'')].join('\\n'));const more=$('Score + dedupe + CRM rows').all().length>5?'\\n\\nPozosta\u0142e wyniki s\u0105 w CRM.':'';const message=('\ud83d\udef0\ufe0f **[AKCJA] VIRYA \u2014 festiwale do weryfikacji ('+$('Score + dedupe + CRM rows').all().length+')**\\n\\n'+lines.join('\\n\\n')+more).slice(0,1950);return[{json:{discord_message:message,allowed_mentions:{parse:[]}}}];"
+   },
+   "typeVersion": 2
+  },
+  {
+   "id": "d55d3c9e-b630-43b8-9442-734c85d6bb43",
+   "name": "Discord Bot \u2014 nowe znalezisko",
+   "type": "n8n-nodes-base.httpRequest",
+   "maxTries": 5,
+   "position": [
+    5136,
+    160
+   ],
+   "parameters": {
+    "url": "https://discord.com/api/v10/channels/1529482376458276964/messages",
+    "method": "POST",
+    "options": {
+     "timeout": 30000
+    },
+    "jsonBody": "={{ ({ content: String((($json.discord_message)) ?? '').slice(0, 2000), allowed_mentions: ($json.allowed_mentions && typeof $json.allowed_mentions === 'object') ? $json.allowed_mentions : { parse: [] }, flags: 4096 }) }}",
+    "sendBody": true,
+    "sendHeaders": true,
+    "specifyBody": "json",
+    "authentication": "genericCredentialType",
+    "genericAuthType": "httpHeaderAuth",
+    "headerParameters": {
+     "parameters": [
+      {
+       "name": "User-Agent",
+       "value": "Virya-n8n/1.0 (https://virya.music)"
+      }
+     ]
+    }
+   },
+   "credentials": {
+    "httpHeaderAuth": {
+     "id": "FB7ONYMUsZFfObWB",
+     "name": "Discord Bot HTTP"
+    }
+   },
+   "retryOnFail": true,
+   "typeVersion": 4.4,
+   "waitBetweenTries": 5000
+  },
+  {
+   "id": "fc97c448-6a32-48ee-952d-7c8475a4cc83",
+   "name": "Gmail \u2014 Google Alerts 14d",
+   "type": "n8n-nodes-base.gmail",
+   "maxTries": 4,
+   "position": [
+    3488,
+    496
+   ],
+   "webhookId": "3fd7f857-7d90-44f7-8ae8-2f7f19b856d7",
+   "parameters": {
+    "limit": 100,
+    "filters": {
+     "q": "from:googlealerts-noreply@google.com newer_than:14d -in:spam -in:trash"
+    },
+    "operation": "getAll"
+   },
+   "credentials": {
+    "gmailOAuth2": {
+     "id": "BJg5tKEWMNRw0GA1",
+     "name": "Gmail account"
+    }
+   },
+   "executeOnce": true,
+   "retryOnFail": true,
+   "typeVersion": 2.1,
+   "alwaysOutputData": true,
+   "waitBetweenTries": 15000
+  },
+  {
+   "id": "3b9f14e9-5f19-463a-b2d2-42c25dfb1968",
+   "name": "Code \u2014 Extract Google Alerts",
+   "type": "n8n-nodes-base.code",
+   "position": [
+    3712,
+    496
+   ],
+   "parameters": {
+    "jsCode": "const NL = String.fromCharCode(10);\nconst out = [];\nconst seen = new Set();\n\nconst genericLabels = new Set([\n  'google', 'facebook', 'twitter', 'x', 'oznacz jako nieistotne',\n  'zobacz wi\u0119cej wynik\u00f3w', 'edytuj ten alert', 'wy\u015bwietl wszystkie swoje alerty',\n  'prze\u015blij opini\u0119', 'unsubscribe', 'manage alerts'\n]);\n\nfunction decodeEntities(value) {\n  return String(value ?? '')\n    .replace(/&amp;/gi, '&')\n    .replace(/&quot;/gi, '\"')\n    .replace(/&#39;|&#x27;/gi, \"'\")\n    .replace(/&lt;/gi, '<')\n    .replace(/&gt;/gi, '>');\n}\n\nfunction cleanText(value) {\n  return decodeEntities(value)\n    .replace(/<[^>]*>/g, ' ')\n    .replace(/\\[([^\\]]+)\\]\\([^)]+\\)/g, '$1')\n    .replace(/\\s+/g, ' ')\n    .trim();\n}\n\nfunction canonicalTarget(raw) {\n  let value = decodeEntities(raw).trim();\n  while (value && '.,;)]}>'.includes(value.slice(-1))) value = value.slice(0, -1);\n  try {\n    const u = new URL(value);\n    const host = u.hostname.toLowerCase().replace(/^www\\./, '');\n\n    const isGoogle =\n      host === 'google.com' ||\n      host === 'google.pl' ||\n      host.endsWith('.google.com') ||\n      host.endsWith('.google.pl');\n\n    if (isGoogle) {\n      for (const key of ['url', 'ru']) {\n        const nested = u.searchParams.get(key);\n        if (nested) return canonicalTarget(nested);\n      }\n      return '';\n    }\n\n    if (\n      host.endsWith('googleusercontent.com') ||\n      host.endsWith('gstatic.com') ||\n      host === 'schema.org'\n    ) return '';\n\n    u.hash = '';\n    for (const key of [...u.searchParams.keys()]) {\n      const lower = key.toLowerCase();\n      if (\n        lower.startsWith('utm_') ||\n        ['fbclid', 'gclid', 'mc_cid', 'mc_eid'].includes(lower)\n      ) u.searchParams.delete(key);\n    }\n    u.hostname = u.hostname.toLowerCase();\n\n    let result = u.toString();\n    if (result.endsWith('/')) result = result.slice(0, -1);\n    return result;\n  } catch {\n    return '';\n  }\n}\n\nfunction addCandidate(message, rawUrl, label, context) {\n  const url = canonicalTarget(rawUrl);\n  if (!url || seen.has(url)) return;\n\n  const cleanedLabel = cleanText(label);\n  const lowerLabel = cleanedLabel.toLowerCase();\n  if (!cleanedLabel || genericLabels.has(lowerLabel)) return;\n\n  const subject = cleanText(message.Subject || message.subject || 'Google Alert');\n  const snippet = cleanText(context || message.snippet || message.textPlain || message.text || '');\n  seen.add(url);\n  out.push({\n    json: {\n      title: cleanedLabel || subject,\n      link: url,\n      contentSnippet: snippet.slice(0, 5000),\n      isoDate: message.Date || message.date || message.internalDate || '',\n      creator: 'Google Alerts',\n      _source_type: 'GMAIL_ALERT',\n    },\n  });\n}\n\nfor (const { json: message } of $input.all()) {\n  const plain = [\n    message.textPlain,\n    message.text,\n    message.body,\n    message.snippet,\n  ].filter(v => typeof v === 'string' && v.trim()).join(NL);\n\n  const html = [\n    message.textHtml,\n    message.html,\n  ].filter(v => typeof v === 'string' && v.trim()).join(NL);\n\n  const structured = [];\n\n  const markdownRe = /\\[([^\\]]{1,500})\\]\\((https?:\\/\\/[^)\\s]+)\\)/g;\n  for (const match of plain.matchAll(markdownRe)) {\n    structured.push({\n      index: match.index ?? 0,\n      end: (match.index ?? 0) + match[0].length,\n      label: match[1],\n      url: match[2],\n      source: plain,\n    });\n  }\n\n  const htmlRe = /<a\\b[^>]*href=([\"'])(https?:\\/\\/.*?)\\1[^>]*>([\\s\\S]*?)<\\/a>/gi;\n  for (const match of html.matchAll(htmlRe)) {\n    structured.push({\n      index: match.index ?? 0,\n      end: (match.index ?? 0) + match[0].length,\n      label: match[3],\n      url: match[2],\n      source: html,\n    });\n  }\n\n  structured.sort((a, b) => a.index - b.index);\n\n  for (let i = 0; i < structured.length; i++) {\n    const link = structured[i];\n    const next = structured[i + 1];\n    const contextEnd = next && next.source === link.source\n      ? Math.min(next.index, link.end + 1400)\n      : link.end + 1400;\n    const context = link.source.slice(link.end, contextEnd);\n    addCandidate(message, link.url, link.label, context);\n  }\n\n  if (!structured.length) {\n    const blob = [plain, html].filter(Boolean).join(NL);\n    const urlRe = /https?:\\/\\/[^\\s<>\"')\\]]+/g;\n    for (const match of blob.matchAll(urlRe)) {\n      const url = canonicalTarget(match[0]);\n      if (!url || seen.has(url)) continue;\n      const subject = cleanText(message.Subject || message.subject || 'Google Alert');\n      if (!subject) continue;\n      seen.add(url);\n      out.push({\n        json: {\n          title: subject,\n          link: url,\n          contentSnippet: cleanText(message.snippet || plain).slice(0, 5000),\n          isoDate: message.Date || message.date || message.internalDate || '',\n          creator: 'Google Alerts',\n          _source_type: 'GMAIL_ALERT',\n        },\n      });\n    }\n  }\n}\n\nreturn out.slice(0, 100);"
+   },
+   "typeVersion": 2
+  },
+  {
+   "id": "03d580f2-0af9-4e02-a2a5-4f24b03288ee",
+   "name": "Merge \u2014 RSS + Google Alerts",
+   "type": "n8n-nodes-base.merge",
+   "position": [
+    3952,
+    320
+   ],
+   "parameters": {},
+   "typeVersion": 3.2
+  },
+  {
+   "id": "c9df638a-414a-4cc2-8104-0c712cbc2089",
+   "name": "VIRYA OS \u2014 raw opportunity facts",
+   "type": "n8n-nodes-base.code",
+   "position": [
+    1104,
+    144
+   ],
+   "parameters": {
+    "jsCode": "const candidates=$json.candidates||[];\nconst hash=value=>{let h=2166136261;for(const ch of String(value||'')){h^=ch.charCodeAt(0);h=Math.imul(h,16777619);}return (h>>>0).toString(36);};\nreturn candidates.slice(0,100).map(c=>{const title=String(c.subject||'').trim();const url=String(c.url||'').trim();const raw=String(c.raw||'').trim().slice(0,8000);const external_key='festival-scout:'+hash((url||title).toLowerCase());return {json:{source:'n8n.festival_scout',external_key,title,destination_url:url||null,summary:raw}};});"
+   },
+   "typeVersion": 2
+  },
+  {
+   "id": "e2ee353b-764d-4ac9-84c2-c4ea416a8f6c",
+   "name": "CrowdRelay \u2014 score opportunity facts",
+   "type": "n8n-nodes-base.httpRequest",
+   "onError": "continueRegularOutput",
+   "position": [
+    1360,
+    144
+   ],
+   "parameters": {
+    "url": "https://signal-api.virya.music/v1/admin/autopilot/team-opportunities/discover",
+    "method": "POST",
+    "options": {
+     "timeout": 30000
+    },
+    "jsonBody": "={{ $json }}",
+    "sendBody": true,
+    "sendHeaders": true,
+    "specifyBody": "json",
+    "headerParameters": {
+     "parameters": [
+      {
+       "name": "Authorization",
+       "value": "={{ 'Bearer ' + ($env.CROWDRELAY_ADMIN_API_KEY || $env.CROWDRELAY_COMMERCE_API_KEY) }}"
+      },
+      {
+       "name": "Idempotency-Key",
+       "value": "={{ $json.external_key }}"
+      }
+     ]
+    }
+   },
+   "typeVersion": 4.2
+  }
+ ],
+ "connections": {
+  "Lista \u017ar\u00f3de\u0142 RSS": {
+   "main": [
+    [
+     {
+      "node": "Czytaj publiczne RSS",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Czytaj publiczne RSS": {
+   "main": [
+    [
+     {
+      "node": "Merge \u2014 RSS + Google Alerts",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Normalizuj RSS": {
+   "main": [
+    [
+     {
+      "node": "Czytaj Zgloszenia",
+      "type": "main",
+      "index": 0
+     },
+     {
+      "node": "VIRYA OS \u2014 raw opportunity facts",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Czytaj Zgloszenia": {
+   "main": [
+    [
+     {
+      "node": "Score + dedupe + CRM rows",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Score + dedupe + CRM rows": {
+   "main": [
+    [
+     {
+      "node": "Dopisz nowe do CRM",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Dopisz nowe do CRM": {
+   "main": [
+    [
+     {
+      "node": "Zbuduj alerty Discord",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Zbuduj alerty Discord": {
+   "main": [
+    [
+     {
+      "node": "Discord Bot \u2014 nowe znalezisko",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Daily \u2014 festival scout 09:05": {
+   "main": [
+    [
+     {
+      "node": "Lista \u017ar\u00f3de\u0142 RSS",
+      "type": "main",
+      "index": 0
+     },
+     {
+      "node": "Gmail \u2014 Google Alerts 14d",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Gmail \u2014 Google Alerts 14d": {
+   "main": [
+    [
+     {
+      "node": "Code \u2014 Extract Google Alerts",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Code \u2014 Extract Google Alerts": {
+   "main": [
+    [
+     {
+      "node": "Merge \u2014 RSS + Google Alerts",
+      "type": "main",
+      "index": 1
+     }
+    ]
+   ]
+  },
+  "Merge \u2014 RSS + Google Alerts": {
+   "main": [
+    [
+     {
+      "node": "Normalizuj RSS",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "VIRYA OS \u2014 raw opportunity facts": {
+   "main": [
+    [
+     {
+      "node": "CrowdRelay \u2014 score opportunity facts",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  }
+ },
+ "settings": {
+  "executionOrder": "v1",
+  "binaryMode": "separate",
+  "availableInMCP": false,
+  "timezone": "Europe/Warsaw",
+  "errorWorkflow": "98d5e1a4-2dba-5e5a-9be1-2e5d9220859d",
+  "executionTimeout": 600,
+  "saveExecutionProgress": false
+ },
+ "staticData": {
+  "node:Poniedzia\u0142ek 09:00": {
+   "recurrenceRules": [
+    null
+   ],
+   "recurrenceRuleSignatures": [
+    null
+   ]
+  },
+  "node:Monday \u2014 festival scout 07:30": {
+   "recurrenceRules": [
+    null
+   ],
+   "recurrenceRuleSignatures": [
+    null
+   ]
+  },
+  "node:Daily \u2014 festival scout 09:05": {
+   "recurrenceRules": [
+    null
+   ],
+   "recurrenceRuleSignatures": [
+    null
+   ]
+  }
+ },
+ "meta": {
+  "templateCredsSetupCompleted": true,
+  "viryaLocalPackage": "2026-07-24"
+ },
+ "nodeGroups": [],
+ "pinData": {},
+ "versionId": "31f48a2f-e379-4ce9-ac93-c30a210c01a5",
+ "activeVersionId": "31f48a2f-e379-4ce9-ac93-c30a210c01a5",
+ "versionCounter": 17,
+ "triggerCount": 1,
+ "sourceWorkflowId": null,
+ "shared": [
+  {
+   "updatedAt": "2026-07-24T09:45:08.790Z",
+   "createdAt": "2026-07-24T09:45:08.790Z",
+   "role": "workflow:owner",
+   "workflowId": "DjT1lirluWNt3mdg",
+   "projectId": "e2rPVcUBR4DTE3mO",
+   "project": {
+    "updatedAt": "2026-07-24T09:45:30.763Z",
+    "createdAt": "2026-07-24T09:45:07.113Z",
+    "id": "e2rPVcUBR4DTE3mO",
+    "name": "Virya Crew <virya.crew@gmail.com>",
+    "type": "personal",
+    "icon": null,
+    "description": null,
+    "customTelemetryTags": [],
+    "creatorId": "89259ec0-46eb-41d3-a04e-eb12f52f6342"
+   }
+  }
+ ],
+ "tags": [],
+ "activeVersion": {
+  "updatedAt": "2026-08-25T12:20:51.980Z",
+  "createdAt": "2026-08-21T12:01:32.193Z",
+  "versionId": "31f48a2f-e379-4ce9-ac93-c30a210c01a5",
+  "workflowId": "DjT1lirluWNt3mdg",
+  "nodes": [
+   {
+    "id": "fcca9541-c25f-473e-9050-4243c7367f92",
+    "name": "SETUP",
+    "type": "n8n-nodes-base.stickyNote",
+    "position": [
+     3232,
+     -272
+    ],
+    "parameters": {
+     "color": 5,
+     "width": 500,
+     "height": 390,
+     "content": "## FESTIVAL SCOUT \u2014 DAILY INTAKE\nCodziennie o 09:05 skanuje publiczne RSS Google/Bing News oraz Google Alerts z Gmaila pod k\u0105tem nabor\u00f3w na festiwale, przegl\u0105dy i konkursy.\n\nTylko wynik 60/100+ trafia do Zgloszenia. Deduplikacja: Zg\u0142oszenie_ID, nazwa i URL. N8N_deadline_enabled pozostaje Nie do r\u0119cznej weryfikacji.\n\nGoogle Alerts s\u0105 czytane bezpo\u015brednio po nadawcy googlealerts-noreply@google.com; workflow nie wysy\u0142a zg\u0142osze\u0144 ani maili."
+    },
+    "typeVersion": 1
+   },
+   {
+    "id": "55d00e92-219f-4d48-b3a2-d580bea1cd57",
+    "name": "SCORING",
+    "type": "n8n-nodes-base.stickyNote",
+    "position": [
+     3808,
+     -272
+    ],
+    "parameters": {
+     "color": 4,
+     "width": 500,
+     "height": 330,
+     "content": "## SCORING VIRYA\n+30 otwarty nab\u00f3r \u2022 +8 format wydarzenia \u2022 +24 metal/heavy \u2022 +12 rock \u2022 +10 progressive \u2022 +8 alternative \u2022 +10 Polska / +5 CEE \u2022 +8 bezp\u0142atne \u2022 +8 aktualna edycja \u2022 +6 deadline\n\n\u221250 pay-to-play \u2022 \u221225 op\u0142ata \u2022 \u221245 zamkni\u0119te/odwo\u0142ane \u2022 \u221235 stara edycja\n\nA = 85+, B = 70\u201384, C = 60\u201369. Maks. 15 nowych rekord\u00f3w na uruchomienie."
+    },
+    "typeVersion": 1
+   },
+   {
+    "id": "7f4dad3e-58ce-45ea-aa9d-0b02c31a65cf",
+    "name": "Daily \u2014 festival scout 09:05",
+    "type": "n8n-nodes-base.scheduleTrigger",
+    "notes": "Daily cadence: 0 5 9 * * * (Europe/Warsaw). RSS + Google Alerts; CRM dedupe remains authoritative.",
+    "position": [
+     3264,
+     160
+    ],
+    "parameters": {
+     "rule": {
+      "interval": [
+       {
+        "field": "cronExpression",
+        "expression": "0 5 9 * * *"
+       }
+      ]
+     }
+    },
+    "notesInFlow": true,
+    "typeVersion": 1.3
+   },
+   {
+    "id": "6bcfc68e-d21a-43c7-a639-7f9f6a00f859",
+    "name": "Lista \u017ar\u00f3de\u0142 RSS",
+    "type": "n8n-nodes-base.code",
+    "position": [
+     3488,
+     160
+    ],
+    "parameters": {
+     "jsCode": "const queries = [\n  { name: 'Google News \u2014 nab\u00f3r PL', q: '\"nab\u00f3r zespo\u0142\u00f3w\" festiwal rock metal', lang: 'pl' },\n  { name: 'Google News \u2014 zg\u0142oszenia PL', q: '\"zg\u0142oszenia zespo\u0142\u00f3w\" festiwal rock metal', lang: 'pl' },\n  { name: 'Google News \u2014 przegl\u0105dy PL', q: '\"przegl\u0105d zespo\u0142\u00f3w\" rock metal', lang: 'pl' },\n  { name: 'Google News \u2014 konkursy PL', q: '\"konkurs zespo\u0142\u00f3w\" rock metal', lang: 'pl' },\n  { name: 'Google News \u2014 eliminacje PL', q: 'eliminacje festiwal rock metal zespo\u0142y', lang: 'pl' },\n  { name: 'Google News \u2014 juwenalia PL', q: 'juwenalia \"nab\u00f3r zespo\u0142\u00f3w\" rock metal', lang: 'pl' },\n  { name: 'Google News \u2014 open call CEE', q: '\"open call for bands\" metal festival Poland Czech Slovakia Germany', lang: 'en' },\n  { name: 'Google News \u2014 band applications EU', q: '\"band applications\" metal festival Europe', lang: 'en' },\n  { name: 'Google News \u2014 battle of bands CEE', q: '\"battle of the bands\" metal Poland Czech Slovakia', lang: 'en' },\n  { name: 'Bing News \u2014 nab\u00f3r PL', q: '\"nab\u00f3r zespo\u0142\u00f3w\" festiwal rock metal', lang: 'pl', engine: 'bing' },\n  { name: 'Bing News \u2014 open call CEE', q: '\"open call for bands\" metal festival Poland Czech Slovakia', lang: 'en', engine: 'bing' }\n];\n\nreturn queries.map(item => {\n  const encoded = encodeURIComponent(item.q);\n  const feed_url = item.engine === 'bing'\n    ? 'https://www.bing.com/news/search?q=' + encoded + '&format=rss'\n    : item.lang === 'pl'\n      ? 'https://news.google.com/rss/search?q=' + encoded + '&hl=pl&gl=PL&ceid=PL:pl'\n      : 'https://news.google.com/rss/search?q=' + encoded + '&hl=en&gl=PL&ceid=PL:en';\n  return { json: { feed_url, source_name: item.name } };\n});"
+    },
+    "typeVersion": 2
+   },
+   {
+    "id": "a6116e6b-cac2-4f15-8789-f29011fe2fbd",
+    "name": "Czytaj publiczne RSS",
+    "type": "n8n-nodes-base.rssFeedRead",
+    "onError": "continueRegularOutput",
+    "maxTries": 4,
+    "position": [
+     3712,
+     160
+    ],
+    "parameters": {
+     "url": "={{ $json.feed_url }}",
+     "options": {}
+    },
+    "retryOnFail": true,
+    "typeVersion": 1.2,
+    "alwaysOutputData": true,
+    "waitBetweenTries": 15000
+   },
+   {
+    "id": "58fe069e-5014-4747-a345-93faf07a8164",
+    "name": "Normalizuj RSS",
+    "type": "n8n-nodes-base.code",
+    "position": [
+     3952,
+     160
+    ],
+    "parameters": {
+     "jsCode": "const clean = value => String(value ?? '').replace(/<[^>]*>/g, ' ').replace(/&nbsp;/gi, ' ').replace(/&amp;/gi, '&').replace(/&quot;/gi, '\"').replace(/&#39;/gi, \"'\").replace(/\\s+/g, ' ').trim();\nconst cleanTitle = value => clean(value).replace(/\\s+[\u2013\u2014-]\\s+[^\u2013\u2014-]{2,70}$/, '').trim();\nconst now = new Date();\nconst seen = new Set();\nconst candidates = [];\n\nfor (const item of $input.all()) {\n  const row = item.json || {};\n  const title = cleanTitle(row.title || row.name || '');\n  const url = clean(row.link || row.guid || row.url || '');\n  const raw = clean((row.title || '') + ' ' + (row.contentSnippet || row.content || row.description || row.summary || ''));\n  if (!title || !raw) continue;\n\n  const publishedRaw = row.isoDate || row.pubDate || row.date || row.published || '';\n  const published = publishedRaw && !Number.isNaN(new Date(publishedRaw).getTime()) ? new Date(publishedRaw) : null;\n  if (published && (now - published) / 86400000 > 400) continue;\n\n  const key = (url || title).toLowerCase().replace(/[?#].*$/, '').replace(/\\/$/, '');\n  if (!key || seen.has(key)) continue;\n  seen.add(key);\n  candidates.push({\n    subject: title,\n    raw,\n    url,\n    date: published ? published.toISOString() : '',\n    source: clean(row.creator || row.author || row.source || 'Publiczny RSS'),\n    origin: clean(row._source_type || 'RSS')\n  });\n}\n\nreturn [{ json: { candidates } }];"
+    },
+    "typeVersion": 2
+   },
+   {
+    "id": "6ee42fd7-a26a-4595-84b4-2077f88e8588",
+    "name": "Czytaj Zgloszenia",
+    "type": "n8n-nodes-base.googleSheets",
+    "maxTries": 5,
+    "position": [
+     4176,
+     160
+    ],
+    "parameters": {
+     "options": {
+      "dataLocationOnSheet": {
+       "values": {
+        "rangeDefinition": "specifyRange"
+       }
+      }
+     },
+     "filtersUI": {
+      "values": []
+     },
+     "sheetName": {
+      "__rl": true,
+      "mode": "name",
+      "value": "Zgloszenia"
+     },
+     "documentId": {
+      "__rl": true,
+      "mode": "id",
+      "value": "11EqtaMi6cx6IigtIFmaYJEiNpF10Ks_gHSJ0aSI14-8"
+     }
+    },
+    "credentials": {
+     "googleSheetsOAuth2Api": {
+      "id": "bc2Y1XmIdyu5ySTa",
+      "name": "Google Sheets account"
+     }
+    },
+    "retryOnFail": true,
+    "typeVersion": 4.7,
+    "alwaysOutputData": true,
+    "waitBetweenTries": 15000
+   },
+   {
+    "id": "e3beda62-ac46-4766-8127-ed089b016c5c",
+    "name": "Score + dedupe + CRM rows",
+    "type": "n8n-nodes-base.code",
+    "position": [
+     4416,
+     160
+    ],
+    "parameters": {
+     "jsCode": "const candidates = $('Normalizuj RSS').first().json.candidates || [];\nconst existingRows = $input.all().map(item => item.json || {});\nconst clean = value => String(value ?? '').replace(/\\s+/g, ' ').trim();\nconst normalize = value => clean(value).toLowerCase().replace(/\u0142/g, 'l').normalize('NFD').replace(/[\\u0300-\\u036f]/g, '').replace(/[^a-z0-9]+/g, ' ').replace(/\\s+/g, ' ').trim();\nconst canonicalUrl = value => clean(value).toLowerCase().replace(/^https?:\\/\\//, '').replace(/^www\\./, '').replace(/[?#].*$/, '').replace(/\\/$/, '');\nconst signature = value => normalize(value)\n  .replace(/\\b(nabor|zgloszenia|zespolow|zespoly|open call|band applications?|festiwal|festival|przeglad|konkurs|eliminacje|edycja|202[0-9])\\b/g, ' ')\n  .replace(/\\s+/g, ' ').trim();\nconst hash = value => { let h = 2166136261; for (const ch of value) { h ^= ch.charCodeAt(0); h = Math.imul(h, 16777619); } return (h >>> 0).toString(36).toUpperCase(); };\nconst hasAny = (text, terms) => terms.some(term => text.includes(term));\nconst now = new Date();\nconst today = now.toISOString().slice(0, 10);\nconst thisYear = now.getFullYear();\nconst nextYear = thisYear + 1;\nconst previousYear = thisYear - 1;\nconst applicationTerms = ['nabor zespolow','zgloszenia zespolow','zglos zespol','przyjmujemy zgloszenia','open call','band application','bands wanted','przeglad zespolow','konkurs zespolow','eliminacje','battle of the bands'];\nconst eventTerms = ['festiwal','festival','przeglad','konkurs','showcase','juwenalia','battle of the bands'];\nconst payTerms = ['pay to play','pay-to-play','buy on','buy-on','ticket quota','obowiazkowa sprzedaz biletow','sprzedaz puli biletow'];\nconst feeTerms = ['oplata zgloszeniowa','application fee','entry fee','registration fee'];\nconst closedTerms = ['nabor zamkniety','zgloszenia zamkniete','applications closed','deadline passed','odwolany','cancelled','canceled','nie odbedzie sie'];\nconst existingNames = new Set();\nconst existingSignatures = new Set();\nconst existingUrls = new Set();\nconst existingIds = new Set();\n\nfor (const row of existingRows) {\n  const name = normalize(row.Wydarzenie || '');\n  if (name) existingNames.add(name);\n  const sig = signature(row.Wydarzenie || '');\n  if (sig.length >= 8) existingSignatures.add(sig);\n  for (const field of ['Formularz_URL','Strona_WWW','WWW','\u0179r\u00f3d\u0142o_weryfikacji_1','\u0179r\u00f3d\u0142o_weryfikacji_2']) {\n    const url = canonicalUrl(row[field] || '');\n    if (url) existingUrls.add(url);\n  }\n  if (row.Zg\u0142oszenie_ID) existingIds.add(clean(row.Zg\u0142oszenie_ID));\n}\n\nconst output = [];\nfor (const candidate of candidates) {\n  const title = clean(candidate.subject).slice(0, 180);\n  const probe = normalize((candidate.subject || '') + ' ' + (candidate.raw || ''));\n  if (!hasAny(probe, applicationTerms) || !hasAny(probe, eventTerms)) continue;\n\n  const published = candidate.date && !Number.isNaN(new Date(candidate.date).getTime()) ? new Date(candidate.date) : null;\n  if (published && (now - published) / 86400000 > 400) continue;\n\n  let score = 30;\n  const reasons = ['otwarty nab\u00f3r / zg\u0142oszenia'];\n  const redFlags = [];\n  score += 8;\n  reasons.push('festiwal lub przegl\u0105d');\n\n  if (hasAny(probe, ['metalcore','progressive metal','prog metal','metal','heavy'])) {\n    score += 24;\n    reasons.push('metal / ci\u0119\u017ckie brzmienie');\n  } else if (probe.includes('rock')) {\n    score += 12;\n    reasons.push('rock');\n  }\n  if (hasAny(probe, ['progressive','progresywn'])) {\n    score += 10;\n    reasons.push('progresywne brzmienie');\n  } else if (hasAny(probe, ['alternative','alternatywn'])) {\n    score += 8;\n    reasons.push('alternatywne brzmienie');\n  }\n\n  const isPoland = hasAny(probe, ['polska','poland','polski','wroclaw','warszawa','krakow','poznan','gdansk','katowice','lodz','lublin','rzeszow','szczecin','opole','torun','bydgoszcz','bialystok']);\n  const isCEE = hasAny(probe, ['czech','czechia','slovak','slovakia','germany','german','berlin','prague','praha','brno','ostrava','bratislava']);\n  if (isPoland) {\n    score += 10;\n    reasons.push('Polska');\n  } else if (isCEE) {\n    score += 5;\n    reasons.push('bliski rynek CEE');\n  }\n\n  if (hasAny(probe, ['bezplat','free application','free entry','no application fee'])) {\n    score += 8;\n    reasons.push('wygl\u0105da na bezp\u0142atne');\n  }\n  const hasCurrentYear = new RegExp('\\\\b(' + thisYear + '|' + nextYear + ')\\\\b').test(probe);\n  if (hasCurrentYear) {\n    score += 8;\n    reasons.push('aktualna edycja');\n  }\n  if (hasAny(probe, ['deadline','termin zgloszen','do kiedy','applications until','zgloszenia do'])) {\n    score += 6;\n    reasons.push('podany termin');\n  }\n\n  if (hasAny(probe, payTerms)) {\n    score -= 50;\n    redFlags.push('mo\u017cliwe pay-to-play / obowi\u0105zek sprzeda\u017cy bilet\u00f3w');\n  }\n  if (hasAny(probe, feeTerms)) {\n    score -= 25;\n    redFlags.push('mo\u017cliwa op\u0142ata zg\u0142oszeniowa');\n  }\n  if (hasAny(probe, closedTerms)) {\n    score -= 45;\n    redFlags.push('nab\u00f3r mo\u017ce by\u0107 zamkni\u0119ty albo wydarzenie odwo\u0142ane');\n  }\n  if (new RegExp('\\\\b' + previousYear + '\\\\b').test(probe) && !hasCurrentYear) {\n    score -= 35;\n    redFlags.push('wynik mo\u017ce dotyczy\u0107 poprzedniej edycji');\n  }\n  score = Math.max(0, Math.min(100, score));\n  if (score < 60) continue;\n\n  const url = clean(candidate.url);\n  const urlKey = canonicalUrl(url);\n  const nameKey = normalize(title);\n  const sigKey = signature(title);\n  const baseKey = urlKey || sigKey || nameKey;\n  const shortHash = hash(baseKey).slice(0, 8);\n  const submissionId = 'ZGL-SC-' + today.replace(/-/g, '') + '-' + shortHash;\n  if (existingIds.has(submissionId) || (urlKey && existingUrls.has(urlKey)) || existingNames.has(nameKey) || (sigKey.length >= 8 && existingSignatures.has(sigKey))) continue;\n\n  existingIds.add(submissionId);\n  if (urlKey) existingUrls.add(urlKey);\n  if (nameKey) existingNames.add(nameKey);\n  if (sigKey.length >= 8) existingSignatures.add(sigKey);\n\n  const priority = score >= 85 ? 'A' : score >= 70 ? 'B' : 'C';\n  const isEnglish = hasAny(probe, ['open call','band application','bands wanted','applications until','battle of the bands']) && !hasAny(probe, ['nabor','zgloszenia','przeglad','konkurs','eliminacje']);\n  const type = hasAny(probe, ['przeglad','konkurs','eliminacje','battle of the bands']) ? 'Przegl\u0105d / konkurs' : 'Festiwal / open call';\n  const country = isPoland ? 'Polska' : hasAny(probe, ['czech','czechia','prague','praha','brno','ostrava']) ? 'Czechy' : hasAny(probe, ['slovak','slovakia','bratislava']) ? 'S\u0142owacja' : hasAny(probe, ['germany','german','berlin']) ? 'Niemcy' : 'Do weryfikacji';\n  const genres = hasAny(probe, ['metalcore','metal','heavy']) ? 'metal, rock, alternative' : probe.includes('rock') ? 'rock, alternative' : 'alternative, progressive';\n  const fitReason = score + '/100 \u2014 ' + reasons.slice(0, 7).join(' + ');\n  const subject = isEnglish ? 'Virya \u00d7 ' + title + ' \u2014 band application' : 'Virya \u00d7 ' + title + ' \u2014 zg\u0142oszenie zespo\u0142u';\n  const body = isEnglish\n    ? 'Hi,\\n\\nwe came across the open call for ' + title + ' and it looks close to Virya\u2019s world. We are a Wroc\u0142aw-based modern metal band combining progressive metal, metalcore and electronics.\\n\\nCould you confirm whether applications are still open and free, and point us to the correct form or requirements?\\n\\nEPK: https://virya.music/pl/epk/\\n\\nThanks,\\nVirya'\n    : 'Cze\u015b\u0107,\\n\\ntrafili\u015bmy na nab\u00f3r do ' + title + ' i wygl\u0105da to jak kierunek bliski Viryi. Gramy nowoczesny metal na styku progresji, metalcore\u2019u i elektroniki; jeste\u015bmy z Wroc\u0142awia.\\n\\nDacie zna\u0107, czy zg\u0142oszenia s\u0105 nadal otwarte i bezp\u0142atne oraz gdzie znajdziemy w\u0142a\u015bciwy formularz lub wymagania?\\n\\nEPK: https://virya.music/pl/epk/\\n\\nDzi\u0119ki,\\nVirya';\n  const runIso = now.toISOString();\n\n  output.push({ json: {\n    'Zg\u0142oszenie_ID': submissionId,\n    'Event_ID': 'EVT-SC-' + shortHash,\n    'Wydarzenie': title,\n    'Status_bookingu': 'Nie wys\u0142ano',\n    'Priorytet': priority,\n    'W\u0142a\u015bciciel': '',\n    'Data_wys\u0142ania': '',\n    'Data_follow_up': '',\n    'Odpowied\u017a': '',\n    'Nast\u0119pny_krok': 'Zweryfikowa\u0107 oficjaln\u0105 stron\u0119, deadline, formularz i bezp\u0142atno\u015b\u0107 zg\u0142oszenia',\n    'Uwagi': clean(candidate.raw).slice(0, 480),\n    'Akcja_n8n': 'Research_only',\n    'N8N_status': 'Nowe znalezisko',\n    'N8N_last_run': runIso,\n    'Email_do': '',\n    'Email_temat': subject.slice(0, 220),\n    'Email_tre\u015b\u0107': body,\n    'EPK_URL': 'https://virya.music/pl/epk/',\n    'Approval_status': 'Nieprzygotowane',\n    'Send_mode': 'Draft_only',\n    'Discord_notification_status': 'Pending',\n    'Last_synced_at': runIso,\n    'Idempotency_key': 'SCOUT-' + shortHash,\n    'Record_hash': shortHash,\n    'Deadline_aktualny': '',\n    'Deadline_typ': 'Do weryfikacji',\n    'Deadline_pewnosc': 'Brak',\n    'Cykl_roczny': 'Nie',\n    'Deadline_podstawa': 'Automatyczny scout \u2014 wymaga potwierdzenia',\n    'N8N_deadline_enabled': 'Nie',\n    'Formularz_URL': url,\n    'Strona_WWW': url,\n    'Discord_podglad_status': 'Nowe ze scouta',\n    'Eligibility': 'Do weryfikacji',\n    'Research_2026_action': 'Zweryfikowa\u0107 oficjaln\u0105 stron\u0119',\n    'Research_2026_status': 'Nowe znalezisko automatyczne',\n    'Typ': type,\n    'Miasto': '',\n    'Kraj': country,\n    'Gatunki': genres,\n    'Email_kontaktowy': '',\n    'Telefon': '',\n    'Data_edycji_aktualnej': today,\n    'Zg\u0142oszenia_otwarte': 'Do weryfikacji',\n    'Status_aktywno\u015bci': 'Do weryfikacji',\n    'Status_weryfikacji': 'Nowe znalezisko \u2014 do weryfikacji',\n    'Dopasowanie_Virya': score,\n    'Uzasadnienie_dopasowania': fitReason,\n    'Ostatnia_weryfikacja': today,\n    '\u0179r\u00f3d\u0142o_weryfikacji_1': url,\n    '\u0179r\u00f3d\u0142o_weryfikacji_2': '',\n    'Uwagi_weryfikacyjne': redFlags.length ? redFlags.join('; ') : 'Brak automatycznie wykrytych ryzyk; nadal sprawdzi\u0107 regulamin i oficjaln\u0105 stron\u0119',\n    'Merge_source': candidate.origin === 'GMAIL_ALERT' ? 'Google Alerts scout' : 'Public RSS scout',\n    'WWW': url,\n    '_scout_score': score,\n    '_scout_priority': priority,\n    '_scout_reason': fitReason,\n    '_scout_risks': redFlags.join('; ')\n  }});\n  if (output.length >= 15) break;\n}\n\nreturn output;"
+    },
+    "typeVersion": 2
+   },
+   {
+    "id": "8fbae0d9-e007-4024-ba9c-5b7e0dd832ff",
+    "name": "Dopisz nowe do CRM",
+    "type": "n8n-nodes-base.googleSheets",
+    "position": [
+     4656,
+     160
+    ],
+    "parameters": {
+     "options": {
+      "locationDefine": {
+       "values": {}
+      },
+      "handlingExtraData": "ignoreIt"
+     },
+     "dataMode": "autoMapInputData",
+     "operation": "appendOrUpdate",
+     "sheetName": {
+      "__rl": true,
+      "mode": "name",
+      "value": "Zgloszenia"
+     },
+     "documentId": {
+      "__rl": true,
+      "mode": "id",
+      "value": "11EqtaMi6cx6IigtIFmaYJEiNpF10Ks_gHSJ0aSI14-8"
+     },
+     "columnToMatchOn": "Zg\u0142oszenie_ID"
+    },
+    "credentials": {
+     "googleSheetsOAuth2Api": {
+      "id": "bc2Y1XmIdyu5ySTa",
+      "name": "Google Sheets account"
+     }
+    },
+    "typeVersion": 3
+   },
+   {
+    "id": "f61237a2-2ac9-4532-8c37-09228d271139",
+    "name": "Zbuduj alerty Discord",
+    "type": "n8n-nodes-base.code",
+    "position": [
+     4896,
+     160
+    ],
+    "parameters": {
+     "jsCode": "const rows=$('Score + dedupe + CRM rows').all().map(i=>i.json||{}).sort((a,b)=>Number(b._scout_score||0)-Number(a._scout_score||0)).slice(0,5);if(!rows.length)return[];const lines=rows.map((row,i)=>[(i+1)+'. **'+String(row.Wydarzenie||'znalezisko').slice(0,120)+'** \u2014 '+String(row._scout_score||0)+'/100 ('+String(row._scout_priority||'?')+')','Status: do weryfikacji | Owner: do przypisania','Akcja: sprawd\u017a oficjalny deadline, formularz i bezp\u0142atno\u015b\u0107',String(row.WWW||row.Strona_WWW||'')].join('\\n'));const more=$('Score + dedupe + CRM rows').all().length>5?'\\n\\nPozosta\u0142e wyniki s\u0105 w CRM.':'';const message=('\ud83d\udef0\ufe0f **[AKCJA] VIRYA \u2014 festiwale do weryfikacji ('+$('Score + dedupe + CRM rows').all().length+')**\\n\\n'+lines.join('\\n\\n')+more).slice(0,1950);return[{json:{discord_message:message,allowed_mentions:{parse:[]}}}];"
+    },
+    "typeVersion": 2
+   },
+   {
+    "id": "d55d3c9e-b630-43b8-9442-734c85d6bb43",
+    "name": "Discord Bot \u2014 nowe znalezisko",
+    "type": "n8n-nodes-base.httpRequest",
+    "maxTries": 5,
+    "position": [
+     5136,
+     160
+    ],
+    "parameters": {
+     "url": "https://discord.com/api/v10/channels/1529482376458276964/messages",
+     "method": "POST",
+     "options": {
+      "timeout": 30000
+     },
+     "jsonBody": "={{ ({ content: String((($json.discord_message)) ?? '').slice(0, 2000), allowed_mentions: ($json.allowed_mentions && typeof $json.allowed_mentions === 'object') ? $json.allowed_mentions : { parse: [] }, flags: 4096 }) }}",
+     "sendBody": true,
+     "sendHeaders": true,
+     "specifyBody": "json",
+     "authentication": "genericCredentialType",
+     "genericAuthType": "httpHeaderAuth",
+     "headerParameters": {
+      "parameters": [
+       {
+        "name": "User-Agent",
+        "value": "Virya-n8n/1.0 (https://virya.music)"
+       }
+      ]
+     }
+    },
+    "credentials": {
+     "httpHeaderAuth": {
+      "id": "FB7ONYMUsZFfObWB",
+      "name": "Discord Bot HTTP"
+     }
+    },
+    "retryOnFail": true,
+    "typeVersion": 4.4,
+    "waitBetweenTries": 5000
+   },
+   {
+    "id": "fc97c448-6a32-48ee-952d-7c8475a4cc83",
+    "name": "Gmail \u2014 Google Alerts 14d",
+    "type": "n8n-nodes-base.gmail",
+    "maxTries": 4,
+    "position": [
+     3488,
+     496
+    ],
+    "webhookId": "3fd7f857-7d90-44f7-8ae8-2f7f19b856d7",
+    "parameters": {
+     "limit": 100,
+     "filters": {
+      "q": "from:googlealerts-noreply@google.com newer_than:14d -in:spam -in:trash"
+     },
+     "operation": "getAll"
+    },
+    "credentials": {
+     "gmailOAuth2": {
+      "id": "BJg5tKEWMNRw0GA1",
+      "name": "Gmail account"
+     }
+    },
+    "executeOnce": true,
+    "retryOnFail": true,
+    "typeVersion": 2.1,
+    "alwaysOutputData": true,
+    "waitBetweenTries": 15000
+   },
+   {
+    "id": "3b9f14e9-5f19-463a-b2d2-42c25dfb1968",
+    "name": "Code \u2014 Extract Google Alerts",
+    "type": "n8n-nodes-base.code",
+    "position": [
+     3712,
+     496
+    ],
+    "parameters": {
+     "jsCode": "const NL = String.fromCharCode(10);\nconst out = [];\nconst seen = new Set();\n\nconst genericLabels = new Set([\n  'google', 'facebook', 'twitter', 'x', 'oznacz jako nieistotne',\n  'zobacz wi\u0119cej wynik\u00f3w', 'edytuj ten alert', 'wy\u015bwietl wszystkie swoje alerty',\n  'prze\u015blij opini\u0119', 'unsubscribe', 'manage alerts'\n]);\n\nfunction decodeEntities(value) {\n  return String(value ?? '')\n    .replace(/&amp;/gi, '&')\n    .replace(/&quot;/gi, '\"')\n    .replace(/&#39;|&#x27;/gi, \"'\")\n    .replace(/&lt;/gi, '<')\n    .replace(/&gt;/gi, '>');\n}\n\nfunction cleanText(value) {\n  return decodeEntities(value)\n    .replace(/<[^>]*>/g, ' ')\n    .replace(/\\[([^\\]]+)\\]\\([^)]+\\)/g, '$1')\n    .replace(/\\s+/g, ' ')\n    .trim();\n}\n\nfunction canonicalTarget(raw) {\n  let value = decodeEntities(raw).trim();\n  while (value && '.,;)]}>'.includes(value.slice(-1))) value = value.slice(0, -1);\n  try {\n    const u = new URL(value);\n    const host = u.hostname.toLowerCase().replace(/^www\\./, '');\n\n    const isGoogle =\n      host === 'google.com' ||\n      host === 'google.pl' ||\n      host.endsWith('.google.com') ||\n      host.endsWith('.google.pl');\n\n    if (isGoogle) {\n      for (const key of ['url', 'ru']) {\n        const nested = u.searchParams.get(key);\n        if (nested) return canonicalTarget(nested);\n      }\n      return '';\n    }\n\n    if (\n      host.endsWith('googleusercontent.com') ||\n      host.endsWith('gstatic.com') ||\n      host === 'schema.org'\n    ) return '';\n\n    u.hash = '';\n    for (const key of [...u.searchParams.keys()]) {\n      const lower = key.toLowerCase();\n      if (\n        lower.startsWith('utm_') ||\n        ['fbclid', 'gclid', 'mc_cid', 'mc_eid'].includes(lower)\n      ) u.searchParams.delete(key);\n    }\n    u.hostname = u.hostname.toLowerCase();\n\n    let result = u.toString();\n    if (result.endsWith('/')) result = result.slice(0, -1);\n    return result;\n  } catch {\n    return '';\n  }\n}\n\nfunction addCandidate(message, rawUrl, label, context) {\n  const url = canonicalTarget(rawUrl);\n  if (!url || seen.has(url)) return;\n\n  const cleanedLabel = cleanText(label);\n  const lowerLabel = cleanedLabel.toLowerCase();\n  if (!cleanedLabel || genericLabels.has(lowerLabel)) return;\n\n  const subject = cleanText(message.Subject || message.subject || 'Google Alert');\n  const snippet = cleanText(context || message.snippet || message.textPlain || message.text || '');\n  seen.add(url);\n  out.push({\n    json: {\n      title: cleanedLabel || subject,\n      link: url,\n      contentSnippet: snippet.slice(0, 5000),\n      isoDate: message.Date || message.date || message.internalDate || '',\n      creator: 'Google Alerts',\n      _source_type: 'GMAIL_ALERT',\n    },\n  });\n}\n\nfor (const { json: message } of $input.all()) {\n  const plain = [\n    message.textPlain,\n    message.text,\n    message.body,\n    message.snippet,\n  ].filter(v => typeof v === 'string' && v.trim()).join(NL);\n\n  const html = [\n    message.textHtml,\n    message.html,\n  ].filter(v => typeof v === 'string' && v.trim()).join(NL);\n\n  const structured = [];\n\n  const markdownRe = /\\[([^\\]]{1,500})\\]\\((https?:\\/\\/[^)\\s]+)\\)/g;\n  for (const match of plain.matchAll(markdownRe)) {\n    structured.push({\n      index: match.index ?? 0,\n      end: (match.index ?? 0) + match[0].length,\n      label: match[1],\n      url: match[2],\n      source: plain,\n    });\n  }\n\n  const htmlRe = /<a\\b[^>]*href=([\"'])(https?:\\/\\/.*?)\\1[^>]*>([\\s\\S]*?)<\\/a>/gi;\n  for (const match of html.matchAll(htmlRe)) {\n    structured.push({\n      index: match.index ?? 0,\n      end: (match.index ?? 0) + match[0].length,\n      label: match[3],\n      url: match[2],\n      source: html,\n    });\n  }\n\n  structured.sort((a, b) => a.index - b.index);\n\n  for (let i = 0; i < structured.length; i++) {\n    const link = structured[i];\n    const next = structured[i + 1];\n    const contextEnd = next && next.source === link.source\n      ? Math.min(next.index, link.end + 1400)\n      : link.end + 1400;\n    const context = link.source.slice(link.end, contextEnd);\n    addCandidate(message, link.url, link.label, context);\n  }\n\n  if (!structured.length) {\n    const blob = [plain, html].filter(Boolean).join(NL);\n    const urlRe = /https?:\\/\\/[^\\s<>\"')\\]]+/g;\n    for (const match of blob.matchAll(urlRe)) {\n      const url = canonicalTarget(match[0]);\n      if (!url || seen.has(url)) continue;\n      const subject = cleanText(message.Subject || message.subject || 'Google Alert');\n      if (!subject) continue;\n      seen.add(url);\n      out.push({\n        json: {\n          title: subject,\n          link: url,\n          contentSnippet: cleanText(message.snippet || plain).slice(0, 5000),\n          isoDate: message.Date || message.date || message.internalDate || '',\n          creator: 'Google Alerts',\n          _source_type: 'GMAIL_ALERT',\n        },\n      });\n    }\n  }\n}\n\nreturn out.slice(0, 100);"
+    },
+    "typeVersion": 2
+   },
+   {
+    "id": "03d580f2-0af9-4e02-a2a5-4f24b03288ee",
+    "name": "Merge \u2014 RSS + Google Alerts",
+    "type": "n8n-nodes-base.merge",
+    "position": [
+     3952,
+     320
+    ],
+    "parameters": {},
+    "typeVersion": 3.2
+   },
+   {
+    "id": "c9df638a-414a-4cc2-8104-0c712cbc2089",
+    "name": "VIRYA OS \u2014 raw opportunity facts",
+    "type": "n8n-nodes-base.code",
+    "position": [
+     1104,
+     144
+    ],
+    "parameters": {
+     "jsCode": "const candidates=$json.candidates||[];\nconst hash=value=>{let h=2166136261;for(const ch of String(value||'')){h^=ch.charCodeAt(0);h=Math.imul(h,16777619);}return (h>>>0).toString(36);};\nreturn candidates.slice(0,100).map(c=>{const title=String(c.subject||'').trim();const url=String(c.url||'').trim();const raw=String(c.raw||'').trim().slice(0,8000);const external_key='festival-scout:'+hash((url||title).toLowerCase());return {json:{source:'n8n.festival_scout',external_key,title,destination_url:url||null,summary:raw}};});"
+    },
+    "typeVersion": 2
+   },
+   {
+    "id": "e2ee353b-764d-4ac9-84c2-c4ea416a8f6c",
+    "name": "CrowdRelay \u2014 score opportunity facts",
+    "type": "n8n-nodes-base.httpRequest",
+    "onError": "continueRegularOutput",
+    "position": [
+     1360,
+     144
+    ],
+    "parameters": {
+     "url": "https://signal-api.virya.music/v1/admin/autopilot/team-opportunities/discover",
+     "method": "POST",
+     "options": {
+      "timeout": 30000
+     },
+     "jsonBody": "={{ $json }}",
+     "sendBody": true,
+     "sendHeaders": true,
+     "specifyBody": "json",
+     "headerParameters": {
+      "parameters": [
+       {
+        "name": "Authorization",
+        "value": "={{ 'Bearer ' + ($env.CROWDRELAY_ADMIN_API_KEY || $env.CROWDRELAY_COMMERCE_API_KEY) }}"
+       },
+       {
+        "name": "Idempotency-Key",
+        "value": "={{ $json.external_key }}"
+       }
+      ]
+     }
+    },
+    "typeVersion": 4.2
+   }
+  ],
+  "connections": {
+   "Lista \u017ar\u00f3de\u0142 RSS": {
+    "main": [
+     [
+      {
+       "node": "Czytaj publiczne RSS",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "Czytaj publiczne RSS": {
+    "main": [
+     [
+      {
+       "node": "Merge \u2014 RSS + Google Alerts",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "Normalizuj RSS": {
+    "main": [
+     [
+      {
+       "node": "Czytaj Zgloszenia",
+       "type": "main",
+       "index": 0
+      },
+      {
+       "node": "VIRYA OS \u2014 raw opportunity facts",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "Czytaj Zgloszenia": {
+    "main": [
+     [
+      {
+       "node": "Score + dedupe + CRM rows",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "Score + dedupe + CRM rows": {
+    "main": [
+     [
+      {
+       "node": "Dopisz nowe do CRM",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "Dopisz nowe do CRM": {
+    "main": [
+     [
+      {
+       "node": "Zbuduj alerty Discord",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "Zbuduj alerty Discord": {
+    "main": [
+     [
+      {
+       "node": "Discord Bot \u2014 nowe znalezisko",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "Daily \u2014 festival scout 09:05": {
+    "main": [
+     [
+      {
+       "node": "Lista \u017ar\u00f3de\u0142 RSS",
+       "type": "main",
+       "index": 0
+      },
+      {
+       "node": "Gmail \u2014 Google Alerts 14d",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "Gmail \u2014 Google Alerts 14d": {
+    "main": [
+     [
+      {
+       "node": "Code \u2014 Extract Google Alerts",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "Code \u2014 Extract Google Alerts": {
+    "main": [
+     [
+      {
+       "node": "Merge \u2014 RSS + Google Alerts",
+       "type": "main",
+       "index": 1
+      }
+     ]
+    ]
+   },
+   "Merge \u2014 RSS + Google Alerts": {
+    "main": [
+     [
+      {
+       "node": "Normalizuj RSS",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "VIRYA OS \u2014 raw opportunity facts": {
+    "main": [
+     [
+      {
+       "node": "CrowdRelay \u2014 score opportunity facts",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   }
+  },
+  "nodeGroups": [],
+  "authors": "Virya Crew",
+  "name": "Version 31f48a2f",
+  "description": "",
+  "autosaved": true,
+  "workflowPublishHistory": [
+   {
+    "createdAt": "2026-08-21T12:01:33.549Z",
+    "id": 635,
+    "workflowId": "DjT1lirluWNt3mdg",
+    "versionId": "31f48a2f-e379-4ce9-ac93-c30a210c01a5",
+    "event": "activated",
+    "userId": "89259ec0-46eb-41d3-a04e-eb12f52f6342"
+   }
+  ]
+ }
+}
