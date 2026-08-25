@@ -1,0 +1,22 @@
+name: validate
+on: [push, pull_request]
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with:
+          node-version: 20
+      - name: hardening validation
+        run: python3 validate-hardening.py
+      - name: json syntax gate
+        run: git ls-files '*.json' | xargs -I{} python3 -m json.tool {} > /dev/null
+      - name: secret-pattern gate
+        run: |
+          if git grep -InE 'hooks\.discordapp\.com/api/webhooks/|xox[bap]-|sk-|ghp_|AIza|"password":[[:space:]]*"[^$]' -- '*.json'; then
+            echo "::error::potential secret matched in tracked *.json"
+            exit 1
+          fi
