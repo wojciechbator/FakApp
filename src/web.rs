@@ -250,7 +250,7 @@ fn render(shared: &MonitorState, config: &crate::Config) -> String {
                     "<div><dt>In state</dt><dd>{in_state}</dd></div>",
                     "<div><dt>Last check</dt><dd>{checked}</dd></div>",
                     "</dl>",
-                    "<p class=\"strip\" aria-label=\"recent checks, oldest to newest\">{strip}</p>",
+                    "<div class=\"strip\" role=\"img\" aria-label=\"recent checks, oldest to newest\">{strip}</div>",
                     "{error_line}",
                     "</article>"
                 ),

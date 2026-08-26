@@ -1,4 +1,4 @@
-# FAKAP — service watchdog for the virya stack
+# FAKAP
 
 > FakApp is a small, single-binary watchdog that probes public health
 > endpoints of the virya production services and emails the crew when one
@@ -21,11 +21,10 @@
   reminder is re-sent after a fixed quiet period. Recovery sends exactly one
   all-clear.
 
-## Machine-readable metadata
+## Machine-readable endpoints
 
-- `/llms.txt` — this file.
-- `/healthz` — plain-text liveness of the watchdog process itself.
-- `/style.css` — the board stylesheet.
+- [/healthz](/healthz) — plain-text liveness of the watchdog process itself.
+- [/style.css](/style.css) — the board stylesheet.
 
 ## Scope and authority
 
