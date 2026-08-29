@@ -21,8 +21,12 @@ test:
 panics:
     python3 scripts/check_runtime_panics.py
 
+# Deploy script structure gate
+deploy-contract:
+    python3 scripts/test_deploy_contract.py
+
 # Everything that must pass before a commit ships.
-check: fmt clippy panics test
+check: fmt clippy panics deploy-contract test
 
 # Release build (locked)
 build:
