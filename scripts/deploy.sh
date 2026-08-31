@@ -63,10 +63,15 @@ if [[ "${1:-}" == "rollback" ]]; then
   step "Rolling back fakap on $REMOTE"
   current_sha="$(remote_root "readlink '$LINK'" 2>/dev/null | sed 's#'"$RELEASES_DIR"'/##; s#/fakap##' || true)"
   [[ -n "$current_sha" ]] || fail "cannot determine current release from $LINK symlink"
-  prev_sha="$(remote_root "ls -1 '$RELEASES_DIR'" 2>/dev/null | sort | grep -v "^${current_sha}\$" | tail -1 || true)"
+  # Use the recorded previous release file, falling back to the most recent
+  # release directory that isn't the current one.
+  prev_sha="$(remote_root "cat '$RELEASES_DIR/previous.txt' 2>/dev/null || true")"
+  if [[ -z "$prev_sha" ]] || [[ "$prev_sha" == "$current_sha" ]]; then
+    prev_sha="$(remote_root "ls -1 '$RELEASES_DIR'" 2>/dev/null | sort -r | grep -v "^${current_sha}\$" | head -1 || true)"
+  fi
   [[ -n "$prev_sha" ]] || fail "no previous release directory in $RELEASES_DIR to roll back to"
   step "Re-pointing $LINK to $RELEASES_DIR/$prev_sha/fakap"
-  remote_root "ln -sfn '$RELEASES_DIR/$prev_sha/fakap' '$LINK'"
+  remote_root "ln -s '$RELEASES_DIR/$prev_sha/fakap' '$LINK.tmp' && mv -Tf '$LINK.tmp' '$LINK'"
   remote_root 'systemctl restart fakap'
   verify
   exit 0
@@ -100,8 +105,12 @@ step "Installing binary, unit and config"
 remote_root "test -x '$RELEASES_DIR/$SHA/fakap'" \
   || fail "shipped binary does not run on $REMOTE (wrong arch?)"
 remote_root "chmod 755 '$RELEASES_DIR/$SHA/fakap'"
-remote_root "ln -sfn '$RELEASES_DIR/$SHA/fakap' '$LINK'"
-remote "/usr/local/bin/fakap --version" || fail "binary fails --version after install"
+# Verify the binary works BEFORE moving the symlink
+remote "'$RELEASES_DIR/$SHA/fakap' --version" \
+  || fail "binary fails --version before install (corrupted download?)"
+# Atomic symlink swap: create temp symlink then rename over the old one
+remote_root "ln -s '$RELEASES_DIR/$SHA/fakap' '$LINK.tmp' && mv -Tf '$LINK.tmp' '$LINK'" \
+  || fail "failed to atomically swap symlink to new release"
 remote_root "install -Dm644 '$REMOTE_DIR/deploy/fakap.service' /etc/systemd/system/fakap.service"
 if ! remote_root 'test -f /etc/fakap/fakap.json'; then
   step "First install: seeding /etc/fakap/fakap.json from production example"
@@ -120,5 +129,14 @@ remote_root 'systemctl restart fakap'
 sleep 2
 
 verify
+
+# Record the previous SHA for rollback (before this deploy's SHA)
+prev_link="$(remote_root "readlink '$LINK'" 2>/dev/null || true)"
+if [[ -n "$prev_link" ]]; then
+  prev_sha_recorded="$(printf '%s' "$prev_link" | sed 's#'"$RELEASES_DIR"'/##; s#/fakap##')"
+  if [[ -n "$prev_sha_recorded" ]] && [[ "$prev_sha_recorded" != "$SHA" ]]; then
+    remote_root "printf '%s' '$prev_sha_recorded' > '$RELEASES_DIR/previous.txt'"
+  fi
+fi
 
 printf '==> Done. Board: https://fakap.virya.music/\n'
