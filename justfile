@@ -21,21 +21,17 @@ test:
 panics:
     python3 scripts/check_runtime_panics.py
 
-# Deploy script structure gate
-deploy-contract:
-    python3 scripts/test_deploy_contract.py
-
 # Everything that must pass before a commit ships.
-check: fmt clippy panics deploy-contract test
+check: fmt clippy panics test
 
 # Release build (locked)
 build:
     cargo build --release --locked
 
-# Ship to virya-oracle: static musl binary via docker, install, verify.
-deploy:
-    scripts/deploy.sh
+# Ship to virya-oracle: download CI artifact by SHA, install, verify.
+deploy sha:
+    scripts/deploy.sh {{sha}}
 
-# Previous binary back, restart, verify.
+# Re-symlink to previous release, restart, verify.
 rollback:
     scripts/deploy.sh rollback

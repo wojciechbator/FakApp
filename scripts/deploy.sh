@@ -2,10 +2,11 @@
 # Deploy FakApp to virya-oracle.
 #
 # The box is tiny, so the artifact is a statically linked musl binary built
-# once (in an Alpine rust container) and shipped as a single file — no
-# toolchain, no dependencies on the target. Install = swap one binary,
-# restart systemd, verify the board actually answers. A deploy that ends
-# without a verified /healthz is a failure by definition.
+# once in CI and downloaded by SHA — no local toolchain, no dependencies on
+# the target. Each release lands in its own /srv/fakap/releases/<sha>/fakap
+# directory; /usr/local/bin/fakap is an atomic symlink to the current one, so
+# rollback is just re-pointing the symlink at the previous directory. A deploy
+# that ends without a verified /healthz is a failure by definition.
 #
 # Required remote state:
 #   /etc/fakap/fakap.json  monitoring config (seeded from
@@ -15,21 +16,21 @@
 #                          start without it — silent watchdogs are useless)
 #
 # Usage:
-#   scripts/deploy.sh            # build + install + verify
-#   scripts/deploy.sh rollback   # restore previous binary, restart, verify
+#   scripts/deploy.sh <sha>            # download + install + verify
+#   scripts/deploy.sh rollback         # re-symlink to previous release, verify
 #
 # Overrides: FAKAP_DEPLOY_HOST, FAKAP_DEPLOY_REMOTE_DIR, FAKAP_DEPLOY_SUDO,
-# FAKAP_DEPLOY_ALLOW_DIRTY=1, FAKAP_SKIP_BUILD=1 (reuse dist-staging binary).
+# FAKAP_DEPLOY_ALLOW_DIRTY=1.
 set -Eeuo pipefail
 umask 077
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
 REMOTE="${FAKAP_DEPLOY_HOST:-virya-oracle}"
 REMOTE_DIR="${FAKAP_DEPLOY_REMOTE_DIR:-/srv/fakap}"
+RELEASES_DIR="$REMOTE_DIR/releases"
 SUDO="${FAKAP_DEPLOY_SUDO:-sudo}"
 ALLOW_DIRTY="${FAKAP_DEPLOY_ALLOW_DIRTY:-0}"
-STAGING="$ROOT_DIR/dist-staging"
-BINARY="$STAGING/fakap-linux-amd64"
+LINK="/usr/local/bin/fakap"
 
 fail() { printf 'ERROR: %s\n' "$*" >&2; exit 1; }
 require() { command -v "$1" >/dev/null 2>&1 || fail "missing required command: $1"; }
@@ -38,22 +39,6 @@ step() { printf '==> %s\n' "$*"; }
 remote() { ssh "$REMOTE" "$@"; }
 remote_root() {
   if [[ -n "$SUDO" ]]; then ssh "$REMOTE" "$SUDO" -n "$@"; else ssh "$REMOTE" "$@"; fi
-}
-
-build_static() {
-  # Native cross-compile with zig as the musl linker: no emulation, no docker
-  # requirement, fully static output for the tiny oracle box.
-  step "Cross-compiling static musl binary (x86_64-unknown-linux-musl)"
-  require cargo-zigbuild
-  mkdir -p "$STAGING"
-  RUSTFLAGS="-C target-feature=+crt-static" \
-    cargo zigbuild --locked --release \
-    --target x86_64-unknown-linux-musl \
-    --target-dir "$ROOT_DIR/target-musl"
-  cp "$ROOT_DIR/target-musl/x86_64-unknown-linux-musl/release/fakap" "$BINARY"
-  [[ -f "$BINARY" ]] || fail "static build produced no binary"
-  file "$BINARY" | grep -q 'statically linked' \
-    || fail "binary is not fully static: $(file "$BINARY")"
 }
 
 verify() {
@@ -74,38 +59,48 @@ verify() {
 
 cd "$ROOT_DIR"
 
-if [[ "${1:-deploy}" == "rollback" ]]; then
+if [[ "${1:-}" == "rollback" ]]; then
   step "Rolling back fakap on $REMOTE"
-  remote_root 'test -f /usr/local/bin/fakap.previous' \
-    || fail "no previous binary on $REMOTE to roll back to"
-  remote_root 'cp /usr/local/bin/fakap.previous /usr/local/bin/fakap'
+  current_sha="$(remote_root "readlink '$LINK'" 2>/dev/null | sed 's#'"$RELEASES_DIR"'/##; s#/fakap##' || true)"
+  [[ -n "$current_sha" ]] || fail "cannot determine current release from $LINK symlink"
+  prev_sha="$(remote_root "ls -1 '$RELEASES_DIR'" 2>/dev/null | sort | grep -v "^${current_sha}\$" | tail -1 || true)"
+  [[ -n "$prev_sha" ]] || fail "no previous release directory in $RELEASES_DIR to roll back to"
+  step "Re-pointing $LINK to $RELEASES_DIR/$prev_sha/fakap"
+  remote_root "ln -sfn '$RELEASES_DIR/$prev_sha/fakap' '$LINK'"
   remote_root 'systemctl restart fakap'
   verify
   exit 0
 fi
+
+SHA="${1:-}"
+[[ -n "$SHA" ]] || fail "usage: scripts/deploy.sh <sha>   (or: scripts/deploy.sh rollback)"
 
 [[ "$ALLOW_DIRTY" == "1" ]] || {
   [[ -z "$(git status --porcelain --untracked-files=normal)" ]] \
     || fail 'local worktree must be clean (or set FAKAP_DEPLOY_ALLOW_DIRTY=1)'
 }
 remote 'true' || fail "ssh host $REMOTE unreachable"
+require gh
 
-if [[ "${FAKAP_SKIP_BUILD:-0}" == "1" && -f "$BINARY" ]]; then
-  step "Skipping build (FAKAP_SKIP_BUILD=1), reusing $BINARY"
-else
-  build_static
-fi
+step "Downloading artifact fakap-binary-$SHA from GitHub Actions"
+TMP="$(mktemp -d)"
+trap 'rm -rf "$TMP"' EXIT
+gh run download -R "$(git remote get-url origin | sed 's#.*github.com[:/]##; s#\.git$##')" \
+  -n "fakap-binary-$SHA" -D "$TMP/artifact" \
+  || fail "could not download artifact fakap-binary-$SHA (is the publish workflow green?)"
+BINARY="$TMP/artifact/fakap-${SHA}-linux-amd64"
+[[ -f "$BINARY" ]] || fail "artifact did not contain fakap-${SHA}-linux-amd64"
 
-step "Shipping to $REMOTE:$REMOTE_DIR"
-remote "mkdir -p '$REMOTE_DIR'"
-rsync -az "$BINARY" "$REMOTE:$REMOTE_DIR/fakap.new"
+step "Shipping to $REMOTE:$RELEASES_DIR/$SHA"
+remote "mkdir -p '$RELEASES_DIR/$SHA'"
+rsync -az "$BINARY" "$REMOTE:$RELEASES_DIR/$SHA/fakap"
 rsync -az "$ROOT_DIR/deploy/" "$REMOTE:$REMOTE_DIR/deploy/"
 
 step "Installing binary, unit and config"
-remote_root "test -x '$REMOTE_DIR/fakap.new'" || fail "shipped binary does not run on $REMOTE (wrong arch?)"
-remote_root "install -m755 '$REMOTE_DIR/fakap.new' /usr/local/bin/fakap.new"
-remote_root 'test -f /usr/local/bin/fakap && cp /usr/local/bin/fakap /usr/local/bin/fakap.previous || true'
-remote_root 'mv /usr/local/bin/fakap.new /usr/local/bin/fakap'
+remote_root "test -x '$RELEASES_DIR/$SHA/fakap'" \
+  || fail "shipped binary does not run on $REMOTE (wrong arch?)"
+remote_root "chmod 755 '$RELEASES_DIR/$SHA/fakap'"
+remote_root "ln -sfn '$RELEASES_DIR/$SHA/fakap' '$LINK'"
 remote "/usr/local/bin/fakap --version" || fail "binary fails --version after install"
 remote_root "install -Dm644 '$REMOTE_DIR/deploy/fakap.service' /etc/systemd/system/fakap.service"
 if ! remote_root 'test -f /etc/fakap/fakap.json'; then
