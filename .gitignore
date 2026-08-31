@@ -7,3 +7,4 @@
 *.tmp
 /target-musl/
 CLAUDE.md
+BUG_TRACKER.md
