@@ -32,3 +32,4 @@ FAKAP_CONFIG=fakap.example.json FAKAP_DISCORD_WEBHOOK_URL=... ./target/release/f
 - `fakap.example.json` documents every field — copy it and edit the targets
 - Discord webhook URL comes from `FAKAP_DISCORD_WEBHOOK_URL` (env or `/etc/fakap/fakap.env`)
 - Without Discord configured the checker still runs and the board still serves — a silent watchdog is decorative
+# thomann-affiliate
