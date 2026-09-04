@@ -10,8 +10,8 @@ FAKAP monitors your infrastructure on an interval, decides UP/DOWN with hysteres
 
 - **Probes** targets on a configurable interval — HTTP health checks with timeout and threshold logic
 - **Decides** UP/DOWN with hysteresis: a single failed check doesn't page; N consecutive failures do
-- **Alerts** on every state transition (UP→DOWN, DOWN→UP) and sends reminders while anything stays down
-- **Serves** a zero-JavaScript, server-rendered status board at `/` and a health endpoint at `/healthz`
+- **Alerts** on every state transition (UP→DOWN, DOWN→UP) and sends reminders while anything stays down. Two notifier channels: Discord webhooks and SMTP email.
+- **Serves** a zero-JavaScript, server-rendered status board at `/`, a health endpoint at `/healthz`, and an `llms.txt` endpoint for machine-readable service descriptions.
 - **Persists** state to a JSON file so a restart doesn't re-page about a known outage
 
 ## What it solves
