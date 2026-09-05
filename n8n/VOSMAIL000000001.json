@@ -2,14 +2,14 @@
  "updatedAt": "2026-08-21T12:01:02.602Z",
  "createdAt": "2026-08-11T09:00:00.000Z",
  "id": "VOSMAIL000000001",
- "name": "CrowdRelay \u2014 CrowdRelayOS mail executor + daily Gemini polish",
+ "name": "CrowdRelay — CrowdRelayOS mail executor + daily Gemini polish",
  "description": "Executes authorized VIRYA OS mail. Fan lifecycle is deterministic/immediate; booking, press, patronage and endorsement cold outreach is queued and polished in one Gemini batch daily with strict deterministic fallback. Reply monitor stops follow-ups after inbound replies.",
  "active": true,
  "isArchived": false,
  "nodes": [
   {
    "id": "3128f916-097d-4614-b4f0-766864f62efb",
-   "name": "CrowdRelay \u2014 record inbound reply",
+   "name": "CrowdRelay — record inbound reply",
    "type": "n8n-nodes-base.httpRequest",
    "onError": "continueRegularOutput",
    "maxTries": 4,
@@ -66,13 +66,13 @@
     464
    ],
    "parameters": {
-    "jsCode": "const e=$json;\nconst ok=new Set(['crowdrelay.fan_lifecycle.message_requested','crowdrelay.booking.outreach_requested','crowdrelay.outreach.requested']);\nif(!e||e.version!==1||!ok.has(String(e.type))) throw new Error('Unsupported VIRYA OS mail event');\nconst d=e.data??{}; const clean=v=>String(v??'').replace(/[\\r\\n\\t]+/g,' ').trim();\nconst pl=String(d.fan?.locale||'pl').toLowerCase().startsWith('pl');\nlet to='', subject='', body=''; const key=String(d.template_key||d.target_template_key||'');\nlet outreach_kind='transactional';\nif(e.type==='crowdrelay.fan_lifecycle.message_requested'){\n  to=clean(d.fan?.email); const name=clean(d.fan?.display_name); const hi=pl?(name?`Cze\u015b\u0107 ${name}!`:'Cze\u015b\u0107!'):(name?`Hi ${name}!`:'Hi!');\n  if(key==='crowdrelay.fan.welcome.v1'){ subject=pl?'Witaj w sygnale VIRYA':'Welcome to the VIRYA signal'; body=pl?`${hi}\\n\\nDzi\u0119ki, \u017ce jeste\u015b z nami. B\u0119dziemy odzywa\u0107 si\u0119 tylko wtedy, kiedy mamy co\u015b wartego Twojej uwagi \u2014 premiery, koncerty i rzeczy dla spo\u0142eczno\u015bci.\\n\\nVIRYA\\nhttps://virya.music/pl/signal/`:`${hi}\\n\\nThanks for joining us. We will only reach out when there is something worth your attention: releases, shows and community updates.\\n\\nVIRYA\\nhttps://virya.music/signal/`; }\n  else if(key==='crowdrelay.fan.reactivation.v1'){ subject=pl?'Co s\u0142ycha\u0107 u VIRYA?':'What is new with VIRYA?'; body=pl?`${hi}\\n\\nDawno si\u0119 nie odzywali\u015bmy. Je\u015bli nadal chcesz by\u0107 blisko VIRYA, tutaj masz aktualny sygna\u0142:\\nhttps://virya.music/pl/signal/\\n\\nDzi\u0119ki!`:`${hi}\\n\\nIt has been a while. If you still want to stay close to VIRYA, here is the current signal:\\nhttps://virya.music/signal/\\n\\nThanks!`; }\n  else { subject=pl?'VIRYA \u2014 dzi\u0119ki za Synestezj\u0119':'VIRYA \u2014 thanks for Synesthesia'; body=pl?`${hi}\\n\\nDzi\u0119ki za przej\u015bcie Synestezji. Je\u015bli chcesz zosta\u0107 z nami d\u0142u\u017cej, aktualno\u015bci i koncerty s\u0105 tutaj:\\nhttps://virya.music/pl/signal/`:`${hi}\\n\\nThanks for completing Synesthesia. If you want to stay with us, releases and shows are here:\\nhttps://virya.music/signal/`; }\n}else if(e.type==='crowdrelay.booking.outreach_requested'){\n  outreach_kind='booking'; to=clean(d.contact_email); const who=clean(d.target_name)||'ekipo'; const follow=String(d.phase)==='follow_up';\n  subject=follow?'Virya \u2014 follow-up koncertowy':`Virya \u00d7 ${who} \u2014 koncert`;\n  body=follow?`Cze\u015b\u0107,\\n\\nwracamy kr\u00f3tko do poprzedniej wiadomo\u015bci w sprawie koncertu VIRYA. Je\u015bli temat jest aktualny, ch\u0119tnie pode\u015blemy konkretny termin i warunki.\\n\\nEPK: https://virya.music/pl/epk/\\n\\nPozdrawiamy,\\nVIRYA`:`Cze\u015b\u0107,\\n\\njeste\u015bmy VIRYA z Wroc\u0142awia \u2014 nowoczesny metal na styku progresji, metalcore\u2019u i elektroniki. Ch\u0119tnie sprawdzimy mo\u017cliwo\u015b\u0107 zagrania u Was.\\n\\nEPK: https://virya.music/pl/epk/\\nMuzyka: https://virya.music/\\n\\nJe\u017celi widzicie przestrze\u0144 na termin, dajcie zna\u0107.\\n\\nPozdrawiamy,\\nVIRYA`;\n}else{\n  to=clean(d.contact_email); const follow=String(d.phase)==='follow_up';\n  const patron=key.includes('media_patronage'); const endorse=key.includes('endorsement');\n  outreach_kind=endorse?'endorsement':patron?'media_patronage':'press';\n  if(endorse){ subject=follow?'VIRYA \u00d7 wsp\u00f3\u0142praca sprz\u0119towa \u2014 follow-up':'VIRYA \u00d7 wsp\u00f3\u0142praca sprz\u0119towa'; body=follow?`Cze\u015b\u0107,\\n\\nkr\u00f3tki follow-up do naszej wiadomo\u015bci o potencjalnej wsp\u00f3\u0142pracy sprz\u0119towej. Je\u015bli temat pasuje do Waszego programu artist relations, ch\u0119tnie pode\u015blemy aktualne dane koncertowe i contentowe.\\n\\nEPK: https://virya.music/pl/epk/\\n\\nVIRYA`:`Cze\u015b\u0107,\\n\\njeste\u015bmy VIRYA \u2014 aktywny koncertowo zesp\u00f3\u0142 modern metal z Wroc\u0142awia. Szukamy wsp\u00f3\u0142prac wy\u0142\u0105cznie z markami, kt\u00f3rych sprz\u0119t realnie pasuje do naszego live rig i contentu.\\n\\nEPK: https://virya.music/pl/epk/\\n\\nJe\u017celi widzicie sens w rozmowie z artist relations, ch\u0119tnie pode\u015blemy konkretny profil wsp\u00f3\u0142pracy.\\n\\nVIRYA`; }\n  else if(patron){ subject=follow?'VIRYA \u2014 patronat medialny \u2014 follow-up':'VIRYA \u2014 propozycja patronatu medialnego'; body=follow?`Cze\u015b\u0107,\\n\\nwracamy kr\u00f3tko do propozycji patronatu medialnego VIRYA. Je\u015bli temat jest aktualny, pode\u015blemy komplet materia\u0142\u00f3w i uzgodnimy prosty zakres \u015bwiadcze\u0144.\\n\\nEPK: https://virya.music/pl/epk/\\n\\nVIRYA`:`Cze\u015b\u0107,\\n\\nchcieliby\u015bmy zaproponowa\u0107 patronat medialny przy najbli\u017cszej aktywno\u015bci VIRYA. Mamy gotowe EPK, materia\u0142y graficzne i komunikacj\u0119 po swojej stronie.\\n\\nEPK: https://virya.music/pl/epk/\\n\\nJe\u015bli pasuje to do Waszego profilu, dajcie zna\u0107 \u2014 pode\u015blemy konkretny zakres.\\n\\nVIRYA`; }\n  else { subject=follow?'VIRYA \u2014 materia\u0142 do recenzji / wywiadu \u2014 follow-up':'VIRYA \u2014 materia\u0142 do recenzji / wywiadu'; body=follow?`Cze\u015b\u0107,\\n\\nkr\u00f3tki follow-up do materia\u0142u VIRYA. Je\u015bli macie przestrze\u0144 na recenzj\u0119, wywiad, radio lub podcast, ch\u0119tnie dopasujemy format.\\n\\nEPK: https://virya.music/pl/epk/\\n\\nVIRYA`:`Cze\u015b\u0107,\\n\\npodsy\u0142amy VIRYA \u2014 modern metal z Wroc\u0142awia. Je\u015bli pasujemy do Waszego profilu, ch\u0119tnie pode\u015blemy materia\u0142 do recenzji albo um\u00f3wimy wywiad / radio / podcast.\\n\\nEPK: https://virya.music/pl/epk/\\nMuzyka: https://virya.music/\\n\\nPozdrawiamy,\\nVIRYA`; }\n}\nif(!to||!to.includes('@')) throw new Error('Missing verified contact email');\nconst phase=String(d.phase||'initial');\nconst queue_id=String(d.action_id||e.id||'').trim();\nreturn [{json:{queue_id,event_id:e.id,event_type:e.type,action_id:d.action_id||null,target_id:d.target_id||null,opportunity_id:d.opportunity_id||null,target_name:clean(d.target_name),score:Number.isFinite(Number(d.score))?Number(d.score):null,phase,SendTo:to,SendSubject:subject.slice(0,220),SendBody:body,template_key:key,outreach_kind,needs_copy_polish:e.type!=='crowdrelay.fan_lifecycle.message_requested'}}];"
+    "jsCode": "const e=$json;\nconst ok=new Set(['crowdrelay.fan_lifecycle.message_requested','crowdrelay.booking.outreach_requested','crowdrelay.outreach.requested']);\nif(!e||e.version!==1||!ok.has(String(e.type))) throw new Error('Unsupported VIRYA OS mail event');\nconst d=e.data??{}; const clean=v=>String(v??'').replace(/[\\r\\n\\t]+/g,' ').trim();\nconst pl=String(d.fan?.locale||'pl').toLowerCase().startsWith('pl');\nlet to='', subject='', body=''; const key=String(d.template_key||d.target_template_key||'');\nlet outreach_kind='transactional';\nif(e.type==='crowdrelay.fan_lifecycle.message_requested'){\n  to=clean(d.fan?.email); const name=clean(d.fan?.display_name); const hi=pl?(name?`Cześć ${name}!`:'Cześć!'):(name?`Hi ${name}!`:'Hi!');\n  if(key==='crowdrelay.fan.welcome.v1'){ subject=pl?'Witaj w sygnale VIRYA':'Welcome to the VIRYA signal'; body=pl?`${hi}\\n\\nDzięki, że jesteś z nami. Będziemy odzywać się tylko wtedy, kiedy mamy coś wartego Twojej uwagi — premiery, koncerty i rzeczy dla społeczności.\\n\\nVIRYA\\nhttps://virya.music/pl/signal/`:`${hi}\\n\\nThanks for joining us. We will only reach out when there is something worth your attention: releases, shows and community updates.\\n\\nVIRYA\\nhttps://virya.music/signal/`; }\n  else if(key==='crowdrelay.fan.reactivation.v1'){ subject=pl?'Co słychać u VIRYA?':'What is new with VIRYA?'; body=pl?`${hi}\\n\\nDawno się nie odzywaliśmy. Jeśli nadal chcesz być blisko VIRYA, tutaj masz aktualny sygnał:\\nhttps://virya.music/pl/signal/\\n\\nDzięki!`:`${hi}\\n\\nIt has been a while. If you still want to stay close to VIRYA, here is the current signal:\\nhttps://virya.music/signal/\\n\\nThanks!`; }\n  else if(key==='crowdrelay.fan.referral_invite.v1'){ const code=clean(d.fan?.referral_code); if(!code) throw new Error('Referral invite missing referral code'); const link=`https://virya.music/r/${code}`; subject=pl?'Poleć VIRYA — zaproś kogoś do sygnału':'Refer VIRYA — invite someone to the signal'; body=pl?`${hi}\\n\\nJeśli znasz kogoś, kto polubiłby VIRYA, podziel się tym linkiem. Każdy, kto przez niego dołączy, dostaje miejsce w sygnale — a Ty wiesz, że przyprowadzasz kogoś, kto naprawdę pasuje.\\n\\n${link}\\n\\nVIRYA`:`${hi}\\n\\nIf you know someone who would vibe with VIRYA, share this link. Anyone who joins through it gets a place in the signal — and you know you are bringing someone who actually fits.\\n\\n${link}\\n\\nVIRYA`; }\n  else { subject=pl?'VIRYA — dzięki za Synestezję':'VIRYA — thanks for Synesthesia'; body=pl?`${hi}\\n\\nDzięki za przejście Synestezji. Jeśli chcesz zostać z nami dłużej, aktualności i koncerty są tutaj:\\nhttps://virya.music/pl/signal/`:`${hi}\\n\\nThanks for completing Synesthesia. If you want to stay with us, releases and shows are here:\\nhttps://virya.music/signal/`; }\n}else if(e.type==='crowdrelay.booking.outreach_requested'){\n  outreach_kind='booking'; to=clean(d.contact_email); const who=clean(d.target_name)||'ekipo'; const follow=String(d.phase)==='follow_up';\n  subject=follow?'Virya — follow-up koncertowy':`Virya × ${who} — koncert`;\n  body=follow?`Cześć,\\n\\nwracamy krótko do poprzedniej wiadomości w sprawie koncertu VIRYA. Jeśli temat jest aktualny, chętnie podeślemy konkretny termin i warunki.\\n\\nEPK: https://virya.music/pl/epk/\\n\\nPozdrawiamy,\\nVIRYA`:`Cześć,\\n\\njesteśmy VIRYA z Wrocławia — nowoczesny metal na styku progresji, metalcore’u i elektroniki. Chętnie sprawdzimy możliwość zagrania u Was.\\n\\nEPK: https://virya.music/pl/epk/\\nMuzyka: https://virya.music/\\n\\nJeżeli widzicie przestrzeń na termin, dajcie znać.\\n\\nPozdrawiamy,\\nVIRYA`;\n}else{\n  to=clean(d.contact_email); const follow=String(d.phase)==='follow_up';\n  const patron=key.includes('media_patronage'); const endorse=key.includes('endorsement');\n  outreach_kind=endorse?'endorsement':patron?'media_patronage':'press';\n  if(endorse){ subject=follow?'VIRYA × współpraca sprzętowa — follow-up':'VIRYA × współpraca sprzętowa'; body=follow?`Cześć,\\n\\nkrótki follow-up do naszej wiadomości o potencjalnej współpracy sprzętowej. Jeśli temat pasuje do Waszego programu artist relations, chętnie podeślemy aktualne dane koncertowe i contentowe.\\n\\nEPK: https://virya.music/pl/epk/\\n\\nVIRYA`:`Cześć,\\n\\njesteśmy VIRYA — aktywny koncertowo zespół modern metal z Wrocławia. Szukamy współprac wyłącznie z markami, których sprzęt realnie pasuje do naszego live rig i contentu.\\n\\nEPK: https://virya.music/pl/epk/\\n\\nJeżeli widzicie sens w rozmowie z artist relations, chętnie podeślemy konkretny profil współpracy.\\n\\nVIRYA`; }\n  else if(patron){ subject=follow?'VIRYA — patronat medialny — follow-up':'VIRYA — propozycja patronatu medialnego'; body=follow?`Cześć,\\n\\nwracamy krótko do propozycji patronatu medialnego VIRYA. Jeśli temat jest aktualny, podeślemy komplet materiałów i uzgodnimy prosty zakres świadczeń.\\n\\nEPK: https://virya.music/pl/epk/\\n\\nVIRYA`:`Cześć,\\n\\nchcielibyśmy zaproponować patronat medialny przy najbliższej aktywności VIRYA. Mamy gotowe EPK, materiały graficzne i komunikację po swojej stronie.\\n\\nEPK: https://virya.music/pl/epk/\\n\\nJeśli pasuje to do Waszego profilu, dajcie znać — podeślemy konkretny zakres.\\n\\nVIRYA`; }\n  else { subject=follow?'VIRYA — materiał do recenzji / wywiadu — follow-up':'VIRYA — materiał do recenzji / wywiadu'; body=follow?`Cześć,\\n\\nkrótki follow-up do materiału VIRYA. Jeśli macie przestrzeń na recenzję, wywiad, radio lub podcast, chętnie dopasujemy format.\\n\\nEPK: https://virya.music/pl/epk/\\n\\nVIRYA`:`Cześć,\\n\\npodsyłamy VIRYA — modern metal z Wrocławia. Jeśli pasujemy do Waszego profilu, chętnie podeślemy materiał do recenzji albo umówimy wywiad / radio / podcast.\\n\\nEPK: https://virya.music/pl/epk/\\nMuzyka: https://virya.music/\\n\\nPozdrawiamy,\\nVIRYA`; }\n}\nif(!to||!to.includes('@')) throw new Error('Missing verified contact email');\nconst phase=String(d.phase||'initial');\nconst queue_id=String(d.action_id||e.id||'').trim();\nreturn [{json:{queue_id,event_id:e.id,event_type:e.type,action_id:d.action_id||null,target_id:d.target_id||null,opportunity_id:d.opportunity_id||null,target_name:clean(d.target_name),score:Number.isFinite(Number(d.score))?Number(d.score):null,phase,SendTo:to,SendSubject:subject.slice(0,220),SendBody:body,template_key:key,outreach_kind,needs_copy_polish:e.type!=='crowdrelay.fan_lifecycle.message_requested'}}];"
    },
    "typeVersion": 2
   },
   {
    "id": "586cd1b1-a8dd-4545-8522-f06e803fbdaa",
-   "name": "IF \u2014 transactional now",
+   "name": "IF — transactional now",
    "type": "n8n-nodes-base.if",
    "position": [
     896,
@@ -119,7 +119,7 @@
   },
   {
    "id": "434f9d74-7a48-46fa-9c57-14a1e9be66ba",
-   "name": "Gemini \u2014 VIRYA outreach polish",
+   "name": "Gemini — VIRYA outreach polish",
    "type": "n8n-nodes-base.httpRequest",
    "position": [
     1328,
@@ -179,7 +179,7 @@
   },
   {
    "id": "80e9464c-d726-4613-ba65-4582a38bd13f",
-   "name": "Gmail \u2014 VIRYA OS SEND",
+   "name": "Gmail — VIRYA OS SEND",
    "type": "n8n-nodes-base.gmail",
    "onError": "continueErrorOutput",
    "position": [
@@ -214,7 +214,7 @@
     384
    ],
    "parameters": {
-    "jsCode": "const src=$('Prepare send').item.json||{};const sent=$('Gmail \u2014 VIRYA OS SEND').item.json||{};return [{json:{action_id:src.action_id,claim_token:$('Resolve provider execution claim').item.json.claim_token,status:'succeeded',provider_reference:String(sent.id||sent.messageId||sent.threadId||sent.thread_id||'gmail').slice(0,240),metadata:{event_id:src.event_id,event_type:src.event_type,provider:'gmail'},occurred_at:new Date().toISOString()}}];"
+    "jsCode": "const src=$('Prepare send').item.json||{};const sent=$('Gmail — VIRYA OS SEND').item.json||{};return [{json:{action_id:src.action_id,claim_token:$('Resolve provider execution claim').item.json.claim_token,status:'succeeded',provider_reference:String(sent.id||sent.messageId||sent.threadId||sent.thread_id||'gmail').slice(0,240),metadata:{event_id:src.event_id,event_type:src.event_type,provider:'gmail'},occurred_at:new Date().toISOString()}}];"
    },
    "typeVersion": 2
   },
@@ -256,7 +256,7 @@
   },
   {
    "id": "108c0575-d559-490c-b529-ea6068dd6252",
-   "name": "Every 15m \u2014 reply monitor",
+   "name": "Every 15m — reply monitor",
    "type": "n8n-nodes-base.scheduleTrigger",
    "position": [
     416,
@@ -276,7 +276,7 @@
   },
   {
    "id": "7431d51f-40c3-4fea-8e29-843a8a0b4269",
-   "name": "Gmail \u2014 recent inbound VIRYA OS",
+   "name": "Gmail — recent inbound VIRYA OS",
    "type": "n8n-nodes-base.gmail",
    "maxTries": 4,
    "position": [
@@ -316,7 +316,7 @@
   },
   {
    "id": "080c2712-326f-417f-9712-e10cb79647cb",
-   "name": "CrowdRelay \u2014 resolve provider correlation",
+   "name": "CrowdRelay — resolve provider correlation",
    "type": "n8n-nodes-base.httpRequest",
    "onError": "continueRegularOutput",
    "position": [
@@ -407,7 +407,7 @@
   },
   {
    "id": "678d1499-0ffb-4c06-a355-0c258f10ab4d",
-   "name": "CrowdRelay \u2014 record inbound reply1",
+   "name": "CrowdRelay — record inbound reply1",
    "type": "n8n-nodes-base.httpRequest",
    "onError": "continueRegularOutput",
    "maxTries": 4,
@@ -444,7 +444,7 @@
   }
  ],
  "connections": {
-  "CrowdRelay \u2014 resolve provider correlation": {
+  "CrowdRelay — resolve provider correlation": {
    "main": [
     [
      {
@@ -470,14 +470,14 @@
    "main": [
     [
      {
-      "node": "IF \u2014 transactional now",
+      "node": "IF — transactional now",
       "type": "main",
       "index": 0
      }
     ]
    ]
   },
-  "IF \u2014 transactional now": {
+  "IF — transactional now": {
    "main": [
     [
      {
@@ -499,14 +499,14 @@
    "main": [
     [
      {
-      "node": "Gemini \u2014 VIRYA outreach polish",
+      "node": "Gemini — VIRYA outreach polish",
       "type": "main",
       "index": 0
      }
     ]
    ]
   },
-  "Gemini \u2014 VIRYA outreach polish": {
+  "Gemini — VIRYA outreach polish": {
    "main": [
     [
      {
@@ -539,7 +539,7 @@
     ]
    ]
   },
-  "Gmail \u2014 VIRYA OS SEND": {
+  "Gmail — VIRYA OS SEND": {
    "main": [
     [
      {
@@ -568,18 +568,18 @@
     ]
    ]
   },
-  "Every 15m \u2014 reply monitor": {
+  "Every 15m — reply monitor": {
    "main": [
     [
      {
-      "node": "Gmail \u2014 recent inbound VIRYA OS",
+      "node": "Gmail — recent inbound VIRYA OS",
       "type": "main",
       "index": 0
      }
     ]
    ]
   },
-  "Gmail \u2014 recent inbound VIRYA OS": {
+  "Gmail — recent inbound VIRYA OS": {
    "main": [
     [
      {
@@ -594,7 +594,7 @@
    "main": [
     [
      {
-      "node": "CrowdRelay \u2014 resolve provider correlation",
+      "node": "CrowdRelay — resolve provider correlation",
       "type": "main",
       "index": 0
      }
@@ -605,7 +605,7 @@
    "main": [
     [
      {
-      "node": "CrowdRelay \u2014 record inbound reply1",
+      "node": "CrowdRelay — record inbound reply1",
       "type": "main",
       "index": 0
      }
@@ -627,7 +627,7 @@
    "main": [
     [
      {
-      "node": "Gmail \u2014 VIRYA OS SEND",
+      "node": "Gmail — VIRYA OS SEND",
       "type": "main",
       "index": 0
      }
@@ -647,7 +647,7 @@
   "timezone": "Europe/Warsaw"
  },
  "staticData": {
-  "node:Every 15m \u2014 reply monitor": {
+  "node:Every 15m — reply monitor": {
    "recurrenceRules": [
     null
    ],
@@ -655,7 +655,7 @@
     null
    ]
   },
-  "node:Daily 10:15 \u2014 polish cold outreach": {
+  "node:Daily 10:15 — polish cold outreach": {
    "recurrenceRules": [
     null
    ],
@@ -706,7 +706,7 @@
   "nodes": [
    {
     "id": "3128f916-097d-4614-b4f0-766864f62efb",
-    "name": "CrowdRelay \u2014 record inbound reply",
+    "name": "CrowdRelay — record inbound reply",
     "type": "n8n-nodes-base.httpRequest",
     "onError": "continueRegularOutput",
     "maxTries": 4,
@@ -763,13 +763,13 @@
      464
     ],
     "parameters": {
-     "jsCode": "const e=$json;\nconst ok=new Set(['crowdrelay.fan_lifecycle.message_requested','crowdrelay.booking.outreach_requested','crowdrelay.outreach.requested']);\nif(!e||e.version!==1||!ok.has(String(e.type))) throw new Error('Unsupported VIRYA OS mail event');\nconst d=e.data??{}; const clean=v=>String(v??'').replace(/[\\r\\n\\t]+/g,' ').trim();\nconst pl=String(d.fan?.locale||'pl').toLowerCase().startsWith('pl');\nlet to='', subject='', body=''; const key=String(d.template_key||d.target_template_key||'');\nlet outreach_kind='transactional';\nif(e.type==='crowdrelay.fan_lifecycle.message_requested'){\n  to=clean(d.fan?.email); const name=clean(d.fan?.display_name); const hi=pl?(name?`Cze\u015b\u0107 ${name}!`:'Cze\u015b\u0107!'):(name?`Hi ${name}!`:'Hi!');\n  if(key==='crowdrelay.fan.welcome.v1'){ subject=pl?'Witaj w sygnale VIRYA':'Welcome to the VIRYA signal'; body=pl?`${hi}\\n\\nDzi\u0119ki, \u017ce jeste\u015b z nami. B\u0119dziemy odzywa\u0107 si\u0119 tylko wtedy, kiedy mamy co\u015b wartego Twojej uwagi \u2014 premiery, koncerty i rzeczy dla spo\u0142eczno\u015bci.\\n\\nVIRYA\\nhttps://virya.music/pl/signal/`:`${hi}\\n\\nThanks for joining us. We will only reach out when there is something worth your attention: releases, shows and community updates.\\n\\nVIRYA\\nhttps://virya.music/signal/`; }\n  else if(key==='crowdrelay.fan.reactivation.v1'){ subject=pl?'Co s\u0142ycha\u0107 u VIRYA?':'What is new with VIRYA?'; body=pl?`${hi}\\n\\nDawno si\u0119 nie odzywali\u015bmy. Je\u015bli nadal chcesz by\u0107 blisko VIRYA, tutaj masz aktualny sygna\u0142:\\nhttps://virya.music/pl/signal/\\n\\nDzi\u0119ki!`:`${hi}\\n\\nIt has been a while. If you still want to stay close to VIRYA, here is the current signal:\\nhttps://virya.music/signal/\\n\\nThanks!`; }\n  else { subject=pl?'VIRYA \u2014 dzi\u0119ki za Synestezj\u0119':'VIRYA \u2014 thanks for Synesthesia'; body=pl?`${hi}\\n\\nDzi\u0119ki za przej\u015bcie Synestezji. Je\u015bli chcesz zosta\u0107 z nami d\u0142u\u017cej, aktualno\u015bci i koncerty s\u0105 tutaj:\\nhttps://virya.music/pl/signal/`:`${hi}\\n\\nThanks for completing Synesthesia. If you want to stay with us, releases and shows are here:\\nhttps://virya.music/signal/`; }\n}else if(e.type==='crowdrelay.booking.outreach_requested'){\n  outreach_kind='booking'; to=clean(d.contact_email); const who=clean(d.target_name)||'ekipo'; const follow=String(d.phase)==='follow_up';\n  subject=follow?'Virya \u2014 follow-up koncertowy':`Virya \u00d7 ${who} \u2014 koncert`;\n  body=follow?`Cze\u015b\u0107,\\n\\nwracamy kr\u00f3tko do poprzedniej wiadomo\u015bci w sprawie koncertu VIRYA. Je\u015bli temat jest aktualny, ch\u0119tnie pode\u015blemy konkretny termin i warunki.\\n\\nEPK: https://virya.music/pl/epk/\\n\\nPozdrawiamy,\\nVIRYA`:`Cze\u015b\u0107,\\n\\njeste\u015bmy VIRYA z Wroc\u0142awia \u2014 nowoczesny metal na styku progresji, metalcore\u2019u i elektroniki. Ch\u0119tnie sprawdzimy mo\u017cliwo\u015b\u0107 zagrania u Was.\\n\\nEPK: https://virya.music/pl/epk/\\nMuzyka: https://virya.music/\\n\\nJe\u017celi widzicie przestrze\u0144 na termin, dajcie zna\u0107.\\n\\nPozdrawiamy,\\nVIRYA`;\n}else{\n  to=clean(d.contact_email); const follow=String(d.phase)==='follow_up';\n  const patron=key.includes('media_patronage'); const endorse=key.includes('endorsement');\n  outreach_kind=endorse?'endorsement':patron?'media_patronage':'press';\n  if(endorse){ subject=follow?'VIRYA \u00d7 wsp\u00f3\u0142praca sprz\u0119towa \u2014 follow-up':'VIRYA \u00d7 wsp\u00f3\u0142praca sprz\u0119towa'; body=follow?`Cze\u015b\u0107,\\n\\nkr\u00f3tki follow-up do naszej wiadomo\u015bci o potencjalnej wsp\u00f3\u0142pracy sprz\u0119towej. Je\u015bli temat pasuje do Waszego programu artist relations, ch\u0119tnie pode\u015blemy aktualne dane koncertowe i contentowe.\\n\\nEPK: https://virya.music/pl/epk/\\n\\nVIRYA`:`Cze\u015b\u0107,\\n\\njeste\u015bmy VIRYA \u2014 aktywny koncertowo zesp\u00f3\u0142 modern metal z Wroc\u0142awia. Szukamy wsp\u00f3\u0142prac wy\u0142\u0105cznie z markami, kt\u00f3rych sprz\u0119t realnie pasuje do naszego live rig i contentu.\\n\\nEPK: https://virya.music/pl/epk/\\n\\nJe\u017celi widzicie sens w rozmowie z artist relations, ch\u0119tnie pode\u015blemy konkretny profil wsp\u00f3\u0142pracy.\\n\\nVIRYA`; }\n  else if(patron){ subject=follow?'VIRYA \u2014 patronat medialny \u2014 follow-up':'VIRYA \u2014 propozycja patronatu medialnego'; body=follow?`Cze\u015b\u0107,\\n\\nwracamy kr\u00f3tko do propozycji patronatu medialnego VIRYA. Je\u015bli temat jest aktualny, pode\u015blemy komplet materia\u0142\u00f3w i uzgodnimy prosty zakres \u015bwiadcze\u0144.\\n\\nEPK: https://virya.music/pl/epk/\\n\\nVIRYA`:`Cze\u015b\u0107,\\n\\nchcieliby\u015bmy zaproponowa\u0107 patronat medialny przy najbli\u017cszej aktywno\u015bci VIRYA. Mamy gotowe EPK, materia\u0142y graficzne i komunikacj\u0119 po swojej stronie.\\n\\nEPK: https://virya.music/pl/epk/\\n\\nJe\u015bli pasuje to do Waszego profilu, dajcie zna\u0107 \u2014 pode\u015blemy konkretny zakres.\\n\\nVIRYA`; }\n  else { subject=follow?'VIRYA \u2014 materia\u0142 do recenzji / wywiadu \u2014 follow-up':'VIRYA \u2014 materia\u0142 do recenzji / wywiadu'; body=follow?`Cze\u015b\u0107,\\n\\nkr\u00f3tki follow-up do materia\u0142u VIRYA. Je\u015bli macie przestrze\u0144 na recenzj\u0119, wywiad, radio lub podcast, ch\u0119tnie dopasujemy format.\\n\\nEPK: https://virya.music/pl/epk/\\n\\nVIRYA`:`Cze\u015b\u0107,\\n\\npodsy\u0142amy VIRYA \u2014 modern metal z Wroc\u0142awia. Je\u015bli pasujemy do Waszego profilu, ch\u0119tnie pode\u015blemy materia\u0142 do recenzji albo um\u00f3wimy wywiad / radio / podcast.\\n\\nEPK: https://virya.music/pl/epk/\\nMuzyka: https://virya.music/\\n\\nPozdrawiamy,\\nVIRYA`; }\n}\nif(!to||!to.includes('@')) throw new Error('Missing verified contact email');\nconst phase=String(d.phase||'initial');\nconst queue_id=String(d.action_id||e.id||'').trim();\nreturn [{json:{queue_id,event_id:e.id,event_type:e.type,action_id:d.action_id||null,target_id:d.target_id||null,opportunity_id:d.opportunity_id||null,target_name:clean(d.target_name),score:Number.isFinite(Number(d.score))?Number(d.score):null,phase,SendTo:to,SendSubject:subject.slice(0,220),SendBody:body,template_key:key,outreach_kind,needs_copy_polish:e.type!=='crowdrelay.fan_lifecycle.message_requested'}}];"
+     "jsCode": "const e=$json;\nconst ok=new Set(['crowdrelay.fan_lifecycle.message_requested','crowdrelay.booking.outreach_requested','crowdrelay.outreach.requested']);\nif(!e||e.version!==1||!ok.has(String(e.type))) throw new Error('Unsupported VIRYA OS mail event');\nconst d=e.data??{}; const clean=v=>String(v??'').replace(/[\\r\\n\\t]+/g,' ').trim();\nconst pl=String(d.fan?.locale||'pl').toLowerCase().startsWith('pl');\nlet to='', subject='', body=''; const key=String(d.template_key||d.target_template_key||'');\nlet outreach_kind='transactional';\nif(e.type==='crowdrelay.fan_lifecycle.message_requested'){\n  to=clean(d.fan?.email); const name=clean(d.fan?.display_name); const hi=pl?(name?`Cześć ${name}!`:'Cześć!'):(name?`Hi ${name}!`:'Hi!');\n  if(key==='crowdrelay.fan.welcome.v1'){ subject=pl?'Witaj w sygnale VIRYA':'Welcome to the VIRYA signal'; body=pl?`${hi}\\n\\nDzięki, że jesteś z nami. Będziemy odzywać się tylko wtedy, kiedy mamy coś wartego Twojej uwagi — premiery, koncerty i rzeczy dla społeczności.\\n\\nVIRYA\\nhttps://virya.music/pl/signal/`:`${hi}\\n\\nThanks for joining us. We will only reach out when there is something worth your attention: releases, shows and community updates.\\n\\nVIRYA\\nhttps://virya.music/signal/`; }\n  else if(key==='crowdrelay.fan.reactivation.v1'){ subject=pl?'Co słychać u VIRYA?':'What is new with VIRYA?'; body=pl?`${hi}\\n\\nDawno się nie odzywaliśmy. Jeśli nadal chcesz być blisko VIRYA, tutaj masz aktualny sygnał:\\nhttps://virya.music/pl/signal/\\n\\nDzięki!`:`${hi}\\n\\nIt has been a while. If you still want to stay close to VIRYA, here is the current signal:\\nhttps://virya.music/signal/\\n\\nThanks!`; }\n  else { subject=pl?'VIRYA — dzięki za Synestezję':'VIRYA — thanks for Synesthesia'; body=pl?`${hi}\\n\\nDzięki za przejście Synestezji. Jeśli chcesz zostać z nami dłużej, aktualności i koncerty są tutaj:\\nhttps://virya.music/pl/signal/`:`${hi}\\n\\nThanks for completing Synesthesia. If you want to stay with us, releases and shows are here:\\nhttps://virya.music/signal/`; }\n}else if(e.type==='crowdrelay.booking.outreach_requested'){\n  outreach_kind='booking'; to=clean(d.contact_email); const who=clean(d.target_name)||'ekipo'; const follow=String(d.phase)==='follow_up';\n  subject=follow?'Virya — follow-up koncertowy':`Virya × ${who} — koncert`;\n  body=follow?`Cześć,\\n\\nwracamy krótko do poprzedniej wiadomości w sprawie koncertu VIRYA. Jeśli temat jest aktualny, chętnie podeślemy konkretny termin i warunki.\\n\\nEPK: https://virya.music/pl/epk/\\n\\nPozdrawiamy,\\nVIRYA`:`Cześć,\\n\\njesteśmy VIRYA z Wrocławia — nowoczesny metal na styku progresji, metalcore’u i elektroniki. Chętnie sprawdzimy możliwość zagrania u Was.\\n\\nEPK: https://virya.music/pl/epk/\\nMuzyka: https://virya.music/\\n\\nJeżeli widzicie przestrzeń na termin, dajcie znać.\\n\\nPozdrawiamy,\\nVIRYA`;\n}else{\n  to=clean(d.contact_email); const follow=String(d.phase)==='follow_up';\n  const patron=key.includes('media_patronage'); const endorse=key.includes('endorsement');\n  outreach_kind=endorse?'endorsement':patron?'media_patronage':'press';\n  if(endorse){ subject=follow?'VIRYA × współpraca sprzętowa — follow-up':'VIRYA × współpraca sprzętowa'; body=follow?`Cześć,\\n\\nkrótki follow-up do naszej wiadomości o potencjalnej współpracy sprzętowej. Jeśli temat pasuje do Waszego programu artist relations, chętnie podeślemy aktualne dane koncertowe i contentowe.\\n\\nEPK: https://virya.music/pl/epk/\\n\\nVIRYA`:`Cześć,\\n\\njesteśmy VIRYA — aktywny koncertowo zespół modern metal z Wrocławia. Szukamy współprac wyłącznie z markami, których sprzęt realnie pasuje do naszego live rig i contentu.\\n\\nEPK: https://virya.music/pl/epk/\\n\\nJeżeli widzicie sens w rozmowie z artist relations, chętnie podeślemy konkretny profil współpracy.\\n\\nVIRYA`; }\n  else if(patron){ subject=follow?'VIRYA — patronat medialny — follow-up':'VIRYA — propozycja patronatu medialnego'; body=follow?`Cześć,\\n\\nwracamy krótko do propozycji patronatu medialnego VIRYA. Jeśli temat jest aktualny, podeślemy komplet materiałów i uzgodnimy prosty zakres świadczeń.\\n\\nEPK: https://virya.music/pl/epk/\\n\\nVIRYA`:`Cześć,\\n\\nchcielibyśmy zaproponować patronat medialny przy najbliższej aktywności VIRYA. Mamy gotowe EPK, materiały graficzne i komunikację po swojej stronie.\\n\\nEPK: https://virya.music/pl/epk/\\n\\nJeśli pasuje to do Waszego profilu, dajcie znać — podeślemy konkretny zakres.\\n\\nVIRYA`; }\n  else { subject=follow?'VIRYA — materiał do recenzji / wywiadu — follow-up':'VIRYA — materiał do recenzji / wywiadu'; body=follow?`Cześć,\\n\\nkrótki follow-up do materiału VIRYA. Jeśli macie przestrzeń na recenzję, wywiad, radio lub podcast, chętnie dopasujemy format.\\n\\nEPK: https://virya.music/pl/epk/\\n\\nVIRYA`:`Cześć,\\n\\npodsyłamy VIRYA — modern metal z Wrocławia. Jeśli pasujemy do Waszego profilu, chętnie podeślemy materiał do recenzji albo umówimy wywiad / radio / podcast.\\n\\nEPK: https://virya.music/pl/epk/\\nMuzyka: https://virya.music/\\n\\nPozdrawiamy,\\nVIRYA`; }\n}\nif(!to||!to.includes('@')) throw new Error('Missing verified contact email');\nconst phase=String(d.phase||'initial');\nconst queue_id=String(d.action_id||e.id||'').trim();\nreturn [{json:{queue_id,event_id:e.id,event_type:e.type,action_id:d.action_id||null,target_id:d.target_id||null,opportunity_id:d.opportunity_id||null,target_name:clean(d.target_name),score:Number.isFinite(Number(d.score))?Number(d.score):null,phase,SendTo:to,SendSubject:subject.slice(0,220),SendBody:body,template_key:key,outreach_kind,needs_copy_polish:e.type!=='crowdrelay.fan_lifecycle.message_requested'}}];"
     },
     "typeVersion": 2
    },
    {
     "id": "586cd1b1-a8dd-4545-8522-f06e803fbdaa",
-    "name": "IF \u2014 transactional now",
+    "name": "IF — transactional now",
     "type": "n8n-nodes-base.if",
     "position": [
      896,
@@ -816,7 +816,7 @@
    },
    {
     "id": "434f9d74-7a48-46fa-9c57-14a1e9be66ba",
-    "name": "Gemini \u2014 VIRYA outreach polish",
+    "name": "Gemini — VIRYA outreach polish",
     "type": "n8n-nodes-base.httpRequest",
     "position": [
      1328,
@@ -876,7 +876,7 @@
    },
    {
     "id": "80e9464c-d726-4613-ba65-4582a38bd13f",
-    "name": "Gmail \u2014 VIRYA OS SEND",
+    "name": "Gmail — VIRYA OS SEND",
     "type": "n8n-nodes-base.gmail",
     "onError": "continueErrorOutput",
     "position": [
@@ -911,7 +911,7 @@
      384
     ],
     "parameters": {
-     "jsCode": "const src=$('Prepare send').item.json||{};const sent=$('Gmail \u2014 VIRYA OS SEND').item.json||{};return [{json:{action_id:src.action_id,claim_token:$('Resolve provider execution claim').item.json.claim_token,status:'succeeded',provider_reference:String(sent.id||sent.messageId||sent.threadId||sent.thread_id||'gmail').slice(0,240),metadata:{event_id:src.event_id,event_type:src.event_type,provider:'gmail'},occurred_at:new Date().toISOString()}}];"
+     "jsCode": "const src=$('Prepare send').item.json||{};const sent=$('Gmail — VIRYA OS SEND').item.json||{};return [{json:{action_id:src.action_id,claim_token:$('Resolve provider execution claim').item.json.claim_token,status:'succeeded',provider_reference:String(sent.id||sent.messageId||sent.threadId||sent.thread_id||'gmail').slice(0,240),metadata:{event_id:src.event_id,event_type:src.event_type,provider:'gmail'},occurred_at:new Date().toISOString()}}];"
     },
     "typeVersion": 2
    },
@@ -953,7 +953,7 @@
    },
    {
     "id": "108c0575-d559-490c-b529-ea6068dd6252",
-    "name": "Every 15m \u2014 reply monitor",
+    "name": "Every 15m — reply monitor",
     "type": "n8n-nodes-base.scheduleTrigger",
     "position": [
      416,
@@ -973,7 +973,7 @@
    },
    {
     "id": "7431d51f-40c3-4fea-8e29-843a8a0b4269",
-    "name": "Gmail \u2014 recent inbound VIRYA OS",
+    "name": "Gmail — recent inbound VIRYA OS",
     "type": "n8n-nodes-base.gmail",
     "maxTries": 4,
     "position": [
@@ -1013,7 +1013,7 @@
    },
    {
     "id": "080c2712-326f-417f-9712-e10cb79647cb",
-    "name": "CrowdRelay \u2014 resolve provider correlation",
+    "name": "CrowdRelay — resolve provider correlation",
     "type": "n8n-nodes-base.httpRequest",
     "onError": "continueRegularOutput",
     "position": [
@@ -1104,7 +1104,7 @@
    },
    {
     "id": "678d1499-0ffb-4c06-a355-0c258f10ab4d",
-    "name": "CrowdRelay \u2014 record inbound reply1",
+    "name": "CrowdRelay — record inbound reply1",
     "type": "n8n-nodes-base.httpRequest",
     "onError": "continueRegularOutput",
     "maxTries": 4,
@@ -1141,7 +1141,7 @@
    }
   ],
   "connections": {
-   "CrowdRelay \u2014 resolve provider correlation": {
+   "CrowdRelay — resolve provider correlation": {
     "main": [
      [
       {
@@ -1167,14 +1167,14 @@
     "main": [
      [
       {
-       "node": "IF \u2014 transactional now",
+       "node": "IF — transactional now",
        "type": "main",
        "index": 0
       }
      ]
     ]
    },
-   "IF \u2014 transactional now": {
+   "IF — transactional now": {
     "main": [
      [
       {
@@ -1196,14 +1196,14 @@
     "main": [
      [
       {
-       "node": "Gemini \u2014 VIRYA outreach polish",
+       "node": "Gemini — VIRYA outreach polish",
        "type": "main",
        "index": 0
       }
      ]
     ]
    },
-   "Gemini \u2014 VIRYA outreach polish": {
+   "Gemini — VIRYA outreach polish": {
     "main": [
      [
       {
@@ -1236,7 +1236,7 @@
      ]
     ]
    },
-   "Gmail \u2014 VIRYA OS SEND": {
+   "Gmail — VIRYA OS SEND": {
     "main": [
      [
       {
@@ -1265,18 +1265,18 @@
      ]
     ]
    },
-   "Every 15m \u2014 reply monitor": {
+   "Every 15m — reply monitor": {
     "main": [
      [
       {
-       "node": "Gmail \u2014 recent inbound VIRYA OS",
+       "node": "Gmail — recent inbound VIRYA OS",
        "type": "main",
        "index": 0
       }
      ]
     ]
    },
-   "Gmail \u2014 recent inbound VIRYA OS": {
+   "Gmail — recent inbound VIRYA OS": {
     "main": [
      [
       {
@@ -1291,7 +1291,7 @@
     "main": [
      [
       {
-       "node": "CrowdRelay \u2014 resolve provider correlation",
+       "node": "CrowdRelay — resolve provider correlation",
        "type": "main",
        "index": 0
       }
@@ -1302,7 +1302,7 @@
     "main": [
      [
       {
-       "node": "CrowdRelay \u2014 record inbound reply1",
+       "node": "CrowdRelay — record inbound reply1",
        "type": "main",
        "index": 0
       }
@@ -1324,7 +1324,7 @@
     "main": [
      [
       {
-       "node": "Gmail \u2014 VIRYA OS SEND",
+       "node": "Gmail — VIRYA OS SEND",
        "type": "main",
        "index": 0
       }
