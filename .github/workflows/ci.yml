@@ -91,7 +91,7 @@ jobs:
           name: fakap-binary-${{ github.sha }}
           path: dist/fakap-${{ github.sha }}-linux-amd64
           if-no-files-found: error
-          retention-days: 90
+          retention-days: 3
 
   audit:
     runs-on: ubuntu-24.04
