@@ -308,6 +308,7 @@ mod tests {
                 failures_to_down: 3,
                 successes_to_up: 2,
                 repeat_alert_minutes: 30,
+                remediation: None,
             }],
         }
     }

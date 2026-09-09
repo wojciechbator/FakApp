@@ -9,6 +9,7 @@ mod checker;
 mod config;
 mod discord;
 mod mailer;
+mod remediation;
 mod state;
 mod store;
 mod web;

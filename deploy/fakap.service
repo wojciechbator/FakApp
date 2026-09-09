@@ -10,6 +10,8 @@ Group=fakap
 # StateDirectory keeps /var/lib/fakap owned by the service user.
 StateDirectory=fakap
 Environment=FAKAP_CONFIG=/etc/fakap/fakap.json
+# SSH needs HOME to find ~/.ssh/config for remediation commands.
+Environment=HOME=/var/lib/fakap
 # Secrets live here: FAKAP_DISCORD_WEBHOOK_URL (and FAKAP_SMTP_PASSWORD if
 # the smtp notifier is configured). Missing file = config load fails loudly
 # instead of a watchdog that cannot alert.

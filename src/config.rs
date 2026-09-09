@@ -88,6 +88,12 @@ pub struct Target {
     /// While DOWN, re-send the alert after this many minutes of silence.
     #[serde(default = "default_repeat_minutes")]
     pub repeat_alert_minutes: u64,
+    /// Graduated auto-remediation config. When absent, the target is
+    /// observe-only (the original FakApp behaviour). When present, a DOWN
+    /// transition triggers a fix ladder over SSH: restart → compose up →
+    /// redeploy → notify humans.
+    #[serde(default)]
+    pub remediation: Option<crate::remediation::Remediation>,
 }
 
 fn default_listen() -> String {

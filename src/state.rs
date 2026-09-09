@@ -57,6 +57,10 @@ pub struct TargetState {
     pub last_change: Option<SystemTime>,
     pub last_alert: Option<SystemTime>,
     pub history: VecDeque<CheckRecord>,
+    /// Remediation state for this target. Absent when remediation is not
+    /// configured or no rungs have been attempted yet.
+    #[serde(default)]
+    pub remediation: Option<crate::remediation::RemediationState>,
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -223,6 +227,7 @@ mod tests {
                 failures_to_down: failures,
                 successes_to_up: successes,
                 repeat_alert_minutes: repeat_minutes,
+                remediation: None,
             },
             TargetState::default(),
         )

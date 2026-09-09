@@ -12,7 +12,17 @@
       "url": "https://signal-api.virya.music/v1/health/ready",
       "failures_to_down": 3,
       "successes_to_up": 2,
-      "repeat_alert_minutes": 30
+      "repeat_alert_minutes": 30,
+      "remediation": {
+        "ssh_host": "virya-crowdrelay",
+        "max_attempts": 3,
+        "cooldown_secs": 60,
+        "settle_secs": 30,
+        "check_deploy_cmd": "",
+        "restart_cmd": "sudo docker restart crowdrelay-api-1",
+        "compose_up_cmd": "cd /opt/crowdrelay && sudo docker compose --env-file deploy/.env.production -f compose.production.yaml up -d --no-deps api worker",
+        "redeploy_cmd": "cd /opt/crowdrelay && CROWDRELAY_SKIP_PULL=true sudo bash ./crowdrelayctl deploy"
+      }
     },
     {
       "id": "virya-site",

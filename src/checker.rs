@@ -63,6 +63,33 @@ impl Checker {
                     shared.write_back(&self.target_id, &monitor);
                 }
             }
+
+            // Graduated auto-remediation: spawn a fix ladder on DOWN,
+            // reset the counter on Recovered. Runs detached so the probe
+            // loop never blocks on an SSH command.
+            match outcome {
+                Outcome::Down => {
+                    if crate::remediation::should_remediate(&self.config, &self.target_id) {
+                        let discord_webhook = self.config.discord().map(|d| d.webhook_url.clone());
+                        crate::remediation::spawn(
+                            Arc::clone(&self.state),
+                            self.config.clone(),
+                            self.target_id.clone(),
+                            self.client.clone(),
+                            discord_webhook,
+                            self.config.alert_title.clone(),
+                        );
+                    }
+                }
+                Outcome::Recovered => {
+                    crate::remediation::spawn_reset(
+                        Arc::clone(&self.state),
+                        self.config.clone(),
+                        self.target_id.clone(),
+                    );
+                }
+                _ => {}
+            }
         }
     }
 
