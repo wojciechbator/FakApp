@@ -18,7 +18,7 @@
         "max_attempts": 3,
         "cooldown_secs": 60,
         "settle_secs": 30,
-        "check_deploy_cmd": "",
+        "check_deploy_cmd": "sudo bash /usr/local/bin/crowdrelay-deploy-lock.sh status",
         "restart_cmd": "sudo docker restart crowdrelay-api-1",
         "compose_up_cmd": "cd /opt/crowdrelay && sudo docker compose --env-file deploy/.env.production -f compose.production.yaml up -d --no-deps api worker",
         "redeploy_cmd": "cd /opt/crowdrelay && CROWDRELAY_SKIP_PULL=true sudo bash ./crowdrelayctl deploy"
